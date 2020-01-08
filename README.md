@@ -8,6 +8,9 @@ code is based on https://github.com/yoonghm/MTP
 
 see also https://forum.pjrc.com/threads/43050-MTP-Responder-Contribution for discussions
 
+files in copy-of-core contain modifications of core and need to be copied to cores/teensy4
+
+
 Work in progress
 
 copying files from Teensy to PC is working
