@@ -58,13 +58,24 @@ private:
     uint32_t params[5];    // 12
   } __attribute__((__may_alias__))  ;
 
-
+#if defined(__IMXRT1062__)
   void PrintPacket(const uint8_t *x, int len) ;
 
   uint8_t data_buffer[MTP_RX_SIZE] __attribute__ ((used, aligned(32)));
 
-  #define CONTAINER ((struct MTPContainer*)(data_buffer))
+#else
 
+  void PrintPacket(const usb_packet_t *x);
+
+  inline MTPContainer *contains (usb_packet_t *receive_buffer)
+  { return (MTPContainer*)(receive_buffer->buf);
+  }
+
+  usb_packet_t *data_buffer_ = NULL;
+
+  void get_buffer();
+  void receive_buffer();
+  #endif
 
   bool write_get_length_ = false;
   uint32_t write_length_ = 0;
@@ -86,36 +97,7 @@ private:
   void GetObjectInfo(uint32_t handle) ;
   void GetObject(uint32_t object_id) ;
 
-#define TRANSMIT(FUN) do {                              \
-    write_length_ = 0;                                  \
-    write_get_length_ = true;                           \
-    FUN;                                                \
-    \
-    MTPHeader header;                                   \
-    header.len = write_length_ + sizeof(header);        \
-    header.type = 2;                                    \
-    header.op = CONTAINER->op;                          \
-    header.transaction_id = CONTAINER->transaction_id;  \
-    write_length_ = 0;                                  \
-    write_get_length_ = false;                          \
-    write((char *)&header, sizeof(header));             \
-    FUN;                                                \
-    \
-    uint32_t rest;                                      \
-    rest = (header.len % MTP_TX_SIZE);                  \
-    if(rest>0)                                          \
-    {                                                   \
-      for(int ii=rest;ii<MTP_RX_SIZE; ii++) data_buffer[ii]=0;  \
-      PrintPacket(data_buffer,rest);                            \
-      usb_mtp_send(data_buffer,rest,30);                        \
-    }                                                   \
-  } while(0)
-
-
 /*************************************************************************************/
-// data are in data_buffer
-
-
   void read(char* data, uint32_t size) ;
   uint32_t ReadMTPHeader() ;
   uint8_t read8() ;
