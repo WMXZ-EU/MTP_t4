@@ -1,0 +1,27 @@
+{
+  "configurations": [
+    {
+      "name": "VisualTeensy",
+      "includePath": [
+        "src/**",
+        "C:\\Users\\zimme\\Documents\\arduino-1.8.10\\hardware\\teensy\\avr\\cores\\teensy4",
+        "C:\\Users\\zimme\\Documents\\arduino-1.8.10\\hardware\\teensy\\avr\\/SPI/**",
+        "C:\\Users\\zimme\\Documents\\arduino-1.8.10\\hardware\\teensy\\avr\\/Time/**",
+        "C:/Users/zimme/Documents/Arduino/libraries/SdFat-beta/**",
+        "C:/Users/zimme/Documents/Arduino/libraries/MTP_t4/**"
+      ],
+      "forcedInclude": [],
+      "defines": [
+        "__IMXRT1062__",
+        "TEENSYDUINO=149",
+        "F_CPU=600000000",
+        "USB_MTPDISK",
+        "LAYOUT_US_ENGLISH",
+        "ARDUINO"
+      ],
+      "compilerPath": "C:/Users/zimme/Documents/arduino-1.8.10/hardware/tools/arm/bin/arm-none-eabi-gcc.exe",
+      "intelliSenseMode": "gcc-x64"
+    }
+  ],
+  "version": 4
+}
