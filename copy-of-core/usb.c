@@ -548,7 +548,6 @@ static void endpoint0_setup(uint64_t setupdata)
 static void endpoint0_transmit(const void *data, uint32_t len, int notify)
 {
 	//printf("tx %lu\n", len);
-//serial_write("tx ",len);
 
 	if (len > 0) {
 		// Executing A Transfer Descriptor, page 3182

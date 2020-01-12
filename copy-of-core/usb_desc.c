@@ -621,7 +621,7 @@ PROGMEM const uint8_t usb_config_descriptor_480[CONFIG_DESC_SIZE] = {
         0x02,                                   // bFunctionClass
         0x02,                                   // bFunctionSubClass
         0x01,                                   // bFunctionProtocol
-        4,                                      // iFunction
+        0,                                      // iFunction
 #endif
 
 #ifdef CDC_DATA_INTERFACE
@@ -1107,7 +1107,8 @@ PROGMEM const uint8_t usb_config_descriptor_480[CONFIG_DESC_SIZE] = {
         1,                                      // bNumDescriptors
         0x22,                                   // bDescriptorType
         LSB(sizeof(joystick_report_desc)),      // wDescriptorLength
-        MSB(sizeof(joystick_report_desc)),        // endpoint descriptor, USB spec 9.6.6, page 269-271, Table 9-13
+        MSB(sizeof(joystick_report_desc)),
+        // endpoint descriptor, USB spec 9.6.6, page 269-271, Table 9-13
         7,                                      // bLength
         5,                                      // bDescriptorType
         JOYSTICK_ENDPOINT | 0x80,               // bEndpointAddress
@@ -1127,8 +1128,7 @@ PROGMEM const uint8_t usb_config_descriptor_480[CONFIG_DESC_SIZE] = {
         0x06,                                   // bInterfaceClass (0x06 = still image)
         0x01,                                   // bInterfaceSubClass
         0x01,                                   // bInterfaceProtocol
-        4,                                      // iInterface
-
+        0,                                      // iInterface
         // endpoint descriptor, USB spec 9.6.6, page 269-271, Table 9-13
         7,                                      // bLength
         5,                                      // bDescriptorType
@@ -1136,7 +1136,6 @@ PROGMEM const uint8_t usb_config_descriptor_480[CONFIG_DESC_SIZE] = {
         0x02,                                   // bmAttributes (0x02=bulk)
         LSB(MTP_TX_SIZE_480),MSB(MTP_TX_SIZE_480),  // wMaxPacketSize
         0,                                      // bInterval
-
         // endpoint descriptor, USB spec 9.6.6, page 269-271, Table 9-13
         7,                                      // bLength
         5,                                      // bDescriptorType
@@ -1144,7 +1143,6 @@ PROGMEM const uint8_t usb_config_descriptor_480[CONFIG_DESC_SIZE] = {
         0x02,                                   // bmAttributes (0x02=intr)
         LSB(MTP_RX_SIZE_480),MSB(MTP_RX_SIZE_480),  // wMaxPacketSize
         0,                                      // bInterval
-
         // endpoint descriptor, USB spec 9.6.6, page 269-271, Table 9-13
         7,                                      // bLength
         5,                                      // bDescriptorType
@@ -1457,7 +1455,7 @@ PROGMEM const uint8_t usb_config_descriptor_12[CONFIG_DESC_SIZE] = {
         0x02,                                   // bFunctionClass
         0x02,                                   // bFunctionSubClass
         0x01,                                   // bFunctionProtocol
-        4,                                      // iFunction
+        0,                                      // iFunction
 #endif
 
 #ifdef CDC_DATA_INTERFACE
@@ -1964,7 +1962,7 @@ PROGMEM const uint8_t usb_config_descriptor_12[CONFIG_DESC_SIZE] = {
         0x06,                                   // bInterfaceClass (0x06 = still image)
         0x01,                                   // bInterfaceSubClass
         0x01,                                   // bInterfaceProtocol
-        4,                                      // iInterface
+        0,                                      // iInterface
         // endpoint descriptor, USB spec 9.6.6, page 269-271, Table 9-13
         7,                                      // bLength
         5,                                      // bDescriptorType
