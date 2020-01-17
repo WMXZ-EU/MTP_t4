@@ -10,9 +10,10 @@ see also https://forum.pjrc.com/threads/43050-MTP-Responder-Contribution for dis
 
 files in copy-of-core contain modifications of core and need to be copied to cores/teensy4
 
+copying files from Teensy to PC  and from PC to Teensy is working
 
-Work in progress
+To be done:
 
-copying files from Teensy to PC is working
+ - check T3.6 backward compatibility
 
-Deleting files and copying files from PC to Teensy is not working properly 
+ - check SdFat compatibility
