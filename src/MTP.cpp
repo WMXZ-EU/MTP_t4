@@ -223,7 +223,8 @@ extern void mtp_lock_storage(bool lock);
 //    write16(0x1019);  // MoveObject
 //    write16(0x101A);  // CopyObject
 
-    write32(0);       // Events (array of uint16)
+    write32(1);       // Events (array of uint16)
+    write16(0x4008);    // Device Info changed // cannot get this working!
 
     write32(1);       // Device properties (array of uint16)
     write16(0xd402);  // Device friendly name
@@ -344,7 +345,6 @@ extern void mtp_lock_storage(bool lock);
       while(pos<size)
       { uint32_t avail = MTP_TX_SIZE-len;
         uint32_t to_copy = min(size - pos, avail);
-//        printf("-> %d %d %d %d\n",to_copy, avail,pos, size);
         storage_->read(object_id, pos,  (char*)(data_buffer+len), to_copy);
         pos += to_copy;
         len += to_copy;
@@ -355,6 +355,19 @@ extern void mtp_lock_storage(bool lock);
         }
       }
     }
+  }
+
+  #define printContainer() {   printf("%x %d %d %d %x %x %x\n", \
+              CONTAINER->op, CONTAINER->len, CONTAINER->type, CONTAINER->transaction_id, \
+              CONTAINER->params[0], CONTAINER->params[1], CONTAINER->params[2]);  }
+
+  void MTPD::fetch_packet(uint8_t *data_buffer)
+  {
+        mtp_rx_counter=0;
+        usb_mtp_recv(data_buffer,30);
+        while(!mtp_rx_counter) mtp_yield(); // wait until data have arrived
+        //
+        usb_mtp_read(data_buffer,30);
   }
 
   void MTPD::read(char* data, uint32_t size) 
@@ -376,10 +389,8 @@ extern void mtp_lock_storage(bool lock);
       size -= to_copy;
       index += to_copy;
       if (index == MTP_RX_SIZE) {
-        mtp_rx_counter=0;
-        usb_mtp_recv(data_buffer,30);
-        while(!mtp_rx_counter) mtp_yield();
-        usb_mtp_read(data_buffer,30);
+        fetch_packet(data_buffer);
+        index=0;
       }
     }
   }
@@ -410,7 +421,7 @@ extern void mtp_lock_storage(bool lock);
     return ret;
   }
 
-  void MTPD::readstring(char* buffer) {
+  uint32_t MTPD::readstring(char* buffer) {
     int len = read8();
     if (!buffer) {
       read(NULL, len * 2);
@@ -419,60 +430,63 @@ extern void mtp_lock_storage(bool lock);
         *(buffer++) = read16();
       }
     }
+    *(buffer++)=0; *(buffer++)=0; // to be sure
+    return 2*len+1;
   }
 
   void MTPD::read_until_short_packet() {
     bool done = false;
     while (!done) {
-        mtp_rx_counter=0;
-        usb_mtp_recv(data_buffer,30);
-        while(!mtp_rx_counter) mtp_yield();
-        usb_mtp_read(data_buffer,30);
-        done = *((uint32_t *) data_buffer) < MTP_RX_SIZE;
+        fetch_packet(data_buffer);
+        done = CONTAINER->len < MTP_RX_SIZE;
     }
   }
 
   uint32_t MTPD::SendObjectInfo(uint32_t storage, uint32_t parent) {
-    ReadMTPHeader();
+    fetch_packet(data_buffer);
+
+    int len=ReadMTPHeader();
     char filename[256];
 
-    read32(); // storage
-    bool dir = read16() == 0x3001; // format
-    read16();  // protection
-    read32(); // size
-    read16(); // thumb format
-    read32(); // thumb size
-    read32(); // thumb width
-    read32(); // thumb height
-    read32(); // pix width
-    read32(); // pix height
-    read32(); // bit depth
-    read32(); // parent
-    read16(); // association type
-    read32(); // association description
-    read32(); // sequence number
+    read32(); len -=4; // storage
+    bool dir = (read16() == 0x3001); len -=2; // format
+    read16();  len -=2; // protection
+    int size = read32(); len -=4; 
+    read16(); len -=2; // thumb format
+    read32(); len -=4; // thumb size
+    read32(); len -=4; // thumb width
+    read32(); len -=4; // thumb height
+    read32(); len -=4; // pix width
+    read32(); len -=4; // pix height
+    read32(); len -=4; // bit depth
+    read32(); len -=4; // parent
+    read16(); len -=2; // association type
+    read32(); len -=4; // association description
+    read32(); len -=4; // sequence number
 
-    readstring(filename);
-    printf("%s\n",filename);
-//    read_until_short_packet();  // ignores dates & keywords
+    len -=readstring(filename); len -=strlen(filename); 
+
+    if(len>MTP_RX_SIZE)  read_until_short_packet();  // ignores dates & keywords
     return storage_->Create(parent, dir, filename);
   }
 
   void MTPD::SendObject() {
-    uint32_t len = ReadMTPHeader();
-    int index;
-    index=sizeof(MTPHeader);
-    while (len) {
-      uint32_t to_copy = MTP_RX_SIZE -index;
+    fetch_packet(data_buffer);
+    //printContainer(); 
+
+    uint32_t len=ReadMTPHeader();
+    uint32_t index = sizeof(MTPHeader);
+    //int old=len;
+    while(len>0)
+    { uint32_t to_copy = MTP_RX_SIZE -index;
       to_copy = min(to_copy, len);
       storage_->write((char*)(data_buffer + index), to_copy);
       index += to_copy;
       len -= to_copy;
-      if (index == MTP_RX_SIZE) {
-        mtp_rx_counter=0;
-        usb_mtp_recv(data_buffer,30);
-        while(!mtp_rx_counter) mtp_yield();
-        usb_mtp_read(data_buffer,30);
+      if(len>0)
+      {
+        fetch_packet(data_buffer);
+        index=0;
       }
     }
     storage_->close();
@@ -481,32 +495,40 @@ extern void mtp_lock_storage(bool lock);
   void MTPD::loop(void)
   {
     if(mtp_rx_counter>0)
-    { mtp_rx_counter--;
-
+    { 
       usb_mtp_read(data_buffer,30);
-      printf("op=%x len=%d\n", CONTAINER->op, CONTAINER->len);
+      printf("op=%x typ=%d tid=%d len=%d\n", CONTAINER->op, CONTAINER->type, CONTAINER->transaction_id, CONTAINER->len);
       PrintPacket(data_buffer,CONTAINER->len);
 
+      int op = CONTAINER->op;
       int p1 = CONTAINER->params[0];
       int id = CONTAINER->transaction_id;
       int len= CONTAINER->len;
       int typ= CONTAINER->type;
+
       int return_code =0x2001; //OK use as default value
-      switch (CONTAINER->op)
+
+      if(typ==2) return_code=0x2005; // we should only get cmds
+
+      switch (op)
       {
         case 0x1001:
           p1=0;
           TRANSMIT(WriteDescriptor());
           break;
+
         case 0x1002:  //open session
           //
           break;
+
         case 0x1003:  // CloseSession
           //
           break;
+
         case 0x1004:  // GetStorageIDs
             TRANSMIT(WriteStorageIDs());
           break;
+
         case 0x1005:  // GetStorageInfo
           TRANSMIT(GetStorageInfo(CONTAINER->params[0]));
           break;
@@ -517,28 +539,29 @@ extern void mtp_lock_storage(bool lock);
               return_code = 0x2014; // spec by format unsupported
           } else 
           {
-              p1 = GetNumObjects(CONTAINER->params[0],
-              CONTAINER->params[2]);
+              p1 = GetNumObjects(CONTAINER->params[0], CONTAINER->params[2]);
           }
           break;
+
         case 0x1007:  // GetObjectHandles
           if (CONTAINER->params[1]) 
-          {
-              return_code = 0x2014; // spec by format unsupported
+          { return_code = 0x2014; // spec by format unsupported
           } else 
-          {
-             TRANSMIT(GetObjectHandles(CONTAINER->params[0], CONTAINER->params[2]));
+          { 
+            TRANSMIT(GetObjectHandles(CONTAINER->params[0], CONTAINER->params[2]));
           }
           break;
+
         case 0x1008:  // GetObjectInfo
           TRANSMIT(GetObjectInfo(CONTAINER->params[0]));
            break;
+
         case 0x1009:  // GetObject
            TRANSMIT(GetObject(CONTAINER->params[0]));
            break;
+
         case 0x100B:  // DeleteObject
-          printf("%x %x %x\n", CONTAINER->op, CONTAINER->params[0], CONTAINER->params[1]);
-           if (CONTAINER->params[1]) 
+           if (CONTAINER->len>16 && CONTAINER->params[1]) 
            {
               return_code = 0x2014; // spec by format unsupported
            } else 
@@ -548,32 +571,36 @@ extern void mtp_lock_storage(bool lock);
                 return_code = 0x2012; // partial deletion
               }
            }
+            CONTAINER->len  = len = 12;
            break;
+
         case 0x100C:  // SendObjectInfo
-          printf("%x %x %x %x\n", CONTAINER->op, CONTAINER->params[0], CONTAINER->params[1], CONTAINER->params[2]);
-              CONTAINER->params[2] =
-                  SendObjectInfo(CONTAINER->params[0], // storage
-                                 CONTAINER->params[1]); // parent
-                  p1 = CONTAINER->params[0];
-              if (!p1) p1 = 1;
-              CONTAINER->len  = len = 12 + 3 * 4;
-              break;
+            if (!p1) p1 = 1;
+            uint32_t p2;
+            p2=CONTAINER->params[1];
+            CONTAINER->params[2] = SendObjectInfo(p1, // storage
+                                                  p2); // parent
+
+            CONTAINER->params[1]=p2;
+            CONTAINER->len  = len = 12 + 3 * 4;
+            break;
+
         case 0x100D:  // SendObject
-              SendObject();
-              break;
+            SendObject();
+            CONTAINER->len  = len = 12;
+            break;
+
         case 0x1014:  // GetDevicePropDesc
               TRANSMIT(GetDevicePropDesc(CONTAINER->params[0]));
               break;
+
         case 0x1015:  // GetDevicePropvalue
               TRANSMIT(GetDevicePropValue(CONTAINER->params[0]));
               break;
+
         default:
               return_code = 0x2005;  // operation not supported
               break;
-      }
-      if(typ != 1)
-      {
-          return_code = 0x2000;  // undefined
       }
       if(return_code)
       {
@@ -586,6 +613,7 @@ extern void mtp_lock_storage(bool lock);
           PrintPacket(data_buffer,len);
           usb_mtp_send(data_buffer,len,30);
       }
+      mtp_rx_counter=0;
       usb_mtp_recv(data_buffer,30);
     }
 
@@ -593,6 +621,18 @@ extern void mtp_lock_storage(bool lock);
     if(mtp_rx_event_counter>0)  { mtp_rx_event_counter--; }
     if(mtp_tx_event_counter>0)  { mtp_tx_event_counter--; }
   }
+
+  void  MTPD::reset(void) // does not work
+  { struct MTPHeader event;
+    printf("reset\n");
+    event.len=12;
+    event.op=0x4008;
+    event.transaction_id=CONTAINER->transaction_id+1;
+    event.type=4;
+    usb_mtp_eventSend((char *)&event,30);
+  }
+
+
 #else
   #include "usb_desc.h"
   void MTPD::PrintPacket(const usb_packet_t *x) {
@@ -1051,5 +1091,55 @@ extern void mtp_lock_storage(bool lock);
     }
   }
 
+  void  MTPD::reset(void)
+  {
+  }
 #endif
 
+/*
+op=00001008 len=16
+op=0000100C len=20
+0000100C 00000001 FFFFFFFF FFFFFFFF
+
+op=0000100C len=184
+0000100C 00000000 00003000 00000007
+New Text Document.txt
+op=0000100D len=12
+op=0000100D len=19
+op=00001005 len=16
+op=0000100B len=20
+0000100B 00000010 00000000
+op=00001005 len=16
+
+
+op=00001008 len=16
+op=00001008 len=16
+op=0000100C len=20
+0000100C 00000001 00000007 00000007
+00000007 0
+op=0000100C len=184
+0000100C 00000000 00003000 00000007
+00003000 0 New Text Document.txt
+op=0000100D len=12
+op=0000100D len=19
+7
+op=00001005 len=16
+
+
+op=0000100C len=20
+0000100C 00000001 00000007 00000007
+00000007 0 New Text Document.txt
+op=0000100C len=184
+0000100C 00000000 00003000 00000009
+00003000 0 New Text Document.txt
+op=00001005 len=16
+
+op=0000100C len=20
+0000100C 00000001 FFFFFFFF 00000009
+FFFFFFFF 0 New Text Document.txt
+op=0000100C len=184
+0000100C 00000000 00003000 00000009
+00003000 0 New Text Document.txt
+op=00001005 len=16
+
+*/

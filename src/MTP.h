@@ -103,13 +103,16 @@ private:
   uint8_t read8() ;
   uint16_t read16() ;
   uint32_t read32() ;
-  void readstring(char* buffer) ;
+  uint32_t readstring(char* buffer) ;
   void read_until_short_packet() ;
+
+  void fetch_packet(uint8_t *buffer);
 
   uint32_t SendObjectInfo(uint32_t storage, uint32_t parent) ;
   void SendObject() ;
 
 public:
   void loop(void) ;
+  void reset(void);
 };
 #endif

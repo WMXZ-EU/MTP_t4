@@ -37,9 +37,15 @@
 #include "usb_dev.h"
 //#include "usb_serial.h"
 
-#include "SdFat-beta.h"
-
+#define USE_SDFAT_BETA 1
 #define USE_SDIO 0
+
+#if USE_SDFAT_BETA == 1
+  #include "SdFat-beta.h"
+#else
+  #include "SdFat.h"
+#endif
+
   #if defined(__MK20DX256__)
     #define SD_CS  10
     #define SD_CONFIG SdSpiConfig(SD_CS, DEDICATED_SPI, SPI_FULL_SPEED)
@@ -73,6 +79,7 @@
     #endif
   #endif
 
+//SdFs SD;
 
 extern SdFs SD;
 
@@ -108,7 +115,7 @@ public:
         char* name,
         uint32_t* size,
         uint32_t* parent) = 0;
-  virtual uint32_t GetSize(uint32_t handle) = 0;
+  virtual uint64_t GetSize(uint32_t handle) = 0;
   virtual void read(uint32_t handle,
         uint32_t pos,
         char* buffer,
@@ -127,7 +134,8 @@ typedef struct {
     uint32_t sibling;
     uint8_t isdir;
     uint8_t scanned;
-    char name[64];
+    uint64_t size;
+    char name[80];
   }  Record;
 
 
@@ -137,11 +145,16 @@ public:
   void init(void);
 
 private:
+#if USE_SDFAT_BETA==1
   FsFile index_;
-
-  uint8_t mode_ = 0;
-  uint32_t open_file_ = 0xFFFFFFFEUL;
   FsFile f_;
+#else
+  File index_;
+  File f_;
+#endif
+
+  uint16_t mode_ = 0;
+  uint32_t open_file_ = 0xFFFFFFFEUL;
   uint32_t index_entries_ = 0;
 
   bool readonly() ;
@@ -155,7 +168,7 @@ private:
   // TODO(hubbe): Cache a few records for speed.
   Record ReadIndexRecord(uint32_t i) ;
   void ConstructFilename(int i, char* out) ;
-  void OpenFileByIndex(uint32_t i, uint8_t mode = O_RDONLY) ;
+  void OpenFileByIndex(uint32_t i, oflag_t mode = O_RDONLY) ;
 
   // MTP object handles should not change or be re-used during a session.
   // This would be easy if we could just have a list of all files in memory.
@@ -172,7 +185,7 @@ private:
   void StartGetObjectHandles(uint32_t parent) override ;
   uint32_t GetNextObjectHandle() override ; 
   void GetObjectInfo(uint32_t handle, char* name, uint32_t* size, uint32_t* parent) override ;
-  uint32_t GetSize(uint32_t handle) ;
+  uint64_t GetSize(uint32_t handle) ;
   void read(uint32_t handle, uint32_t pos, char* out, uint32_t bytes) override ;
   bool DeleteObject(uint32_t object) override ;
   uint32_t Create(uint32_t parent,  bool folder, const char* filename) override ;

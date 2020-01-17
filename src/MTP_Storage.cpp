@@ -32,7 +32,7 @@
 //#include "usb_serial.h"
 #include "MTP_Storage.h"
 
-#include "SdFat-beta.h"
+//#include "SdFat-beta.h"
 
 SdFs SD;
 
@@ -134,7 +134,7 @@ void dateTime(uint16_t* date, uint16_t* time, uint8_t* ms10)
     }
   }
 
-  void MTPStorage_SD::OpenFileByIndex(uint32_t i, uint8_t mode) {
+  void MTPStorage_SD::OpenFileByIndex(uint32_t i, oflag_t mode) {
     if (open_file_ == i && mode_ == mode)
       return;
     char filename[256];
@@ -165,6 +165,7 @@ void dateTime(uint16_t* date, uint16_t* time, uint8_t* ms10)
     r.child = 0;
     r.isdir = true;
     r.scanned = false;
+    r.size=0;
     strcpy(r.name, "/");
     AppendIndexRecord(r);
   }
@@ -177,7 +178,12 @@ void dateTime(uint16_t* date, uint16_t* time, uint8_t* ms10)
       int sibling = 0;
       while (true) {
         mtp_lock_storage(true);
-        File child = f_.openNextFile();
+
+        #if USE_SDFAT_BETA==1
+          FsFile child = f_.openNextFile();
+        #else
+          File child = f_.openNextFile();
+        #endif
         mtp_lock_storage(false);
 
         if (!child) break;
@@ -186,8 +192,9 @@ void dateTime(uint16_t* date, uint16_t* time, uint8_t* ms10)
         r.parent = i;
         r.sibling = sibling;
         r.isdir = child.isDirectory();
-        r.child = r.isdir ? 0 : child.size();
+        r.child = r.isdir ? 0 : 1;
         r.scanned = false;
+        r.size=child.size();
         child.getName(r.name, 64);
         sibling = AppendIndexRecord(r);
         child.close();
@@ -245,11 +252,11 @@ void dateTime(uint16_t* date, uint16_t* time, uint8_t* ms10)
     Record r = ReadIndexRecord(handle);
     strcpy(name, r.name);
     *parent = r.parent;
-    *size = r.isdir ? 0xFFFFFFFFUL : r.child;
+    *size = r.isdir ? 0xFFFFFFFFUL : r.size;
   }
 
-  uint32_t MTPStorage_SD::GetSize(uint32_t handle) {
-    return ReadIndexRecord(handle).child;
+  uint64_t MTPStorage_SD::GetSize(uint32_t handle) {
+    return ReadIndexRecord(handle).size;
   }
 
   void MTPStorage_SD::read(uint32_t handle, uint32_t pos, char* out, uint32_t bytes) {
@@ -319,6 +326,7 @@ void dateTime(uint16_t* date, uint16_t* time, uint8_t* ms10)
     r.child = 0;
     r.sibling = p.child;
     r.isdir = folder;
+    r.size=0;
     // New folder is empty, scanned = true.
     r.scanned = 1;
     ret = p.child = AppendIndexRecord(r);
@@ -343,11 +351,13 @@ void dateTime(uint16_t* date, uint16_t* time, uint8_t* ms10)
 
   void MTPStorage_SD::close() {
     mtp_lock_storage(true);
+    f_.sync();
     uint64_t size = f_.size();
     f_.close();
     mtp_lock_storage(false);
     Record r = ReadIndexRecord(open_file_);
-    r.child = size;
+    if(!r.isdir) r.child=1;
+    r.size = (uint32_t) size;
     WriteIndexRecord(open_file_, r);
     open_file_ = 0xFFFFFFFEUL;
   }

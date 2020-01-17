@@ -1,4 +1,5 @@
 {
+  "command": "C:/Users/zimme/Documents/Arduino/make.exe",
   "tasks": [
     {
       "label": "Build",
@@ -6,7 +7,6 @@
         "kind": "build",
         "isDefault": true
       },
-      "command": "C:/Users/zimme/Documents/Arduino/make.exe",
       "args": [
         "all",
         "-j",
@@ -19,7 +19,6 @@
         "kind": "build",
         "isDefault": true
       },
-      "command": "C:/Users/zimme/Documents/Arduino/make.exe",
       "args": [
         "clean"
       ]
@@ -30,7 +29,6 @@
         "kind": "build",
         "isDefault": true
       },
-      "command": "C:/Users/zimme/Documents/Arduino/make.exe",
       "args": [
         "upload",
         "-j",
