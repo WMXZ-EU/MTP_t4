@@ -19,7 +19,7 @@ Installation:
  - change in src directory file "SdFat.h" to "SdFat-beta.h"
  - edit SdFatConfig.h following Bill`s instructions e.g.:
    - #define SDFAT_FILE_TYPE 3
- - in MTP_Storage.h edit defines to use SdFat-beta or SDIO e.g.:
+ - in MTP_config.h edit defines to use SdFat-beta or SDIO e.g.:
    - #define USE_SDFAT_BETA 1
    - #define USE_SDIO 0
 
