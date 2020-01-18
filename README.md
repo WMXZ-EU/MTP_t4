@@ -12,7 +12,7 @@ files in copy-of-core contain modifications of core and need to be copied to cor
 
 copying files from Teensy to PC  and from PC to Teensy is working
 
-disk io is buffered to get some speed-up overcoming uSD latency issues
+disk I/O is buffered to get some speed-up overcoming uSD latency issues
 
 
 Installation:
