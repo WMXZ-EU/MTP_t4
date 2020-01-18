@@ -65,7 +65,7 @@ void dateTime(uint16_t* date, uint16_t* time, uint8_t* ms10)
         #if DO_DEBUG>0
           Serial.println("Using SdFS");
         #endif
-        #if USE_SDI0==0
+        #if USE_SDIO==0
           SPI.setMOSI(SD_MOSI);
           SPI.setMISO(SD_MISO);
           SPI.setSCK(SD_SCK);

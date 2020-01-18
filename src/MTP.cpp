@@ -949,7 +949,7 @@ extern void mtp_lock_storage(bool lock);
   uint16_t MTPD::read16() { uint16_t ret; read((char*)&ret, sizeof(ret)); return ret; }
   uint32_t MTPD::read32() { uint32_t ret; read((char*)&ret, sizeof(ret)); return ret; }
 
-  void MTPD::readstring(char* buffer) {
+  uint32_t MTPD::readstring(char* buffer) {
     int len = read8();
     if (!buffer) {
       read(NULL, len * 2);
@@ -958,6 +958,7 @@ extern void mtp_lock_storage(bool lock);
         *(buffer++) = read16();
       }
     }
+    return 2*len+1;
   }
 
   void MTPD::read_until_short_packet() {
