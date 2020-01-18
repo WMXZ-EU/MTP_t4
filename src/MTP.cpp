@@ -342,17 +342,38 @@ extern void mtp_lock_storage(bool lock);
     { 
       uint32_t pos = 0; // into data
       uint32_t len = sizeof(MTPHeader);
+
+      disk_pos=DISK_BUFFER_SIZE;
       while(pos<size)
-      { uint32_t avail = MTP_TX_SIZE-len;
-        uint32_t to_copy = min(size - pos, avail);
-        storage_->read(object_id, pos,  (char*)(data_buffer+len), to_copy);
+      {
+        if(disk_pos==DISK_BUFFER_SIZE)
+        {
+          uint32_t nread=min(size-pos,DISK_BUFFER_SIZE);
+          //printf("a %d\n",nread);
+          storage_->read(object_id,pos,(char *)disk_buffer,nread);
+          disk_pos=0;
+        }
+
+        uint32_t to_copy = min(size-pos,MTP_TX_SIZE-len);
+        to_copy = min (to_copy, DISK_BUFFER_SIZE-disk_pos);
+
+        //printf("b %d %d %d \n",len,disk_pos,to_copy);
+        memcpy(data_buffer+len,disk_buffer+disk_pos,to_copy);
+        disk_pos += to_copy;
         pos += to_copy;
         len += to_copy;
+
         if(len==MTP_TX_SIZE)
         { PrintPacket(data_buffer,MTP_TX_SIZE);
           usb_mtp_send(data_buffer,MTP_TX_SIZE,30);
           len=0;
         }
+      }
+      if(len>0)
+      {
+        PrintPacket(data_buffer,MTP_TX_SIZE);
+        usb_mtp_send(data_buffer,MTP_TX_SIZE,30);
+        len=0;
       }
     }
   }
@@ -478,16 +499,38 @@ extern void mtp_lock_storage(bool lock);
     uint32_t index = sizeof(MTPHeader);
     //int old=len;
     while(len>0)
-    { uint32_t to_copy = MTP_RX_SIZE -index;
-      to_copy = min(to_copy, len);
-      storage_->write((char*)(data_buffer + index), to_copy);
-      index += to_copy;
+    { uint32_t bytes = MTP_RX_SIZE - index;                     // how many data in usb-packet
+      bytes = min(bytes,len);                                   // loimit at end
+      uint32_t to_copy=min(bytes, DISK_BUFFER_SIZE-disk_pos);   // how many data to copy to disk buffer
+      memcpy(disk_buffer+disk_pos, data_buffer + index,to_copy);
+      disk_pos += to_copy;
+      bytes -= to_copy;
       len -= to_copy;
-      if(len>0)
+      //printf("a %d %d %d %d %d\n", len,disk_pos,bytes,index,to_copy);
+      //
+      if(disk_pos==DISK_BUFFER_SIZE)
+      {
+        storage_->write((const char *)disk_buffer, DISK_BUFFER_SIZE);
+        disk_pos =0;
+
+        if(bytes) // we have still data in transfer buffer, copy to initial disk_buffer
+        {
+          memcpy(disk_buffer,data_buffer+index+to_copy,bytes);
+          disk_pos += bytes;
+          len -= bytes;
+        }
+        //printf("b %d %d %d %d %d\n", len,disk_pos,bytes,index,to_copy);
+      }
+      if(len>0)  // we have still data to be transfered
       {
         fetch_packet(data_buffer);
         index=0;
       }
+    }
+    //printf("len %d\n",disk_pos);
+    if(disk_pos)
+    {
+      storage_->write((const char *)disk_buffer, disk_pos);
     }
     storage_->close();
   }

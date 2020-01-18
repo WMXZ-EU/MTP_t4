@@ -61,7 +61,11 @@ private:
 #if defined(__IMXRT1062__)
   void PrintPacket(const uint8_t *x, int len) ;
 
-  uint8_t data_buffer[MTP_RX_SIZE] __attribute__ ((used, aligned(32)));
+  uint8_t data_buffer[MTP_RX_SIZE] __attribute__ ((aligned(32)));
+
+  #define DISK_BUFFER_SIZE 8*1024
+  uint8_t disk_buffer[DISK_BUFFER_SIZE] __attribute__ ((aligned(32)));
+  uint32_t disk_pos=0;
 
 #else
 
