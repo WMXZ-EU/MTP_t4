@@ -28,4 +28,3 @@ To be done:
 
  - check T3.6 backward compatibility
  - check SdFat compatibility
- - speedup disk access
