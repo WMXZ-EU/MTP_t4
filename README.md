@@ -8,7 +8,7 @@ code is based on https://github.com/yoonghm/MTP
 
 see also https://forum.pjrc.com/threads/43050-MTP-Responder-Contribution for discussions
 
-files in copy-of-core contain modifications of core and need to be copied to cores/teensy4
+files in copy-of-core contain modifications of core and need to be copied to cores/teensy4. 
 
 copying files from Teensy to PC  and from PC to Teensy is working
 
@@ -16,7 +16,7 @@ disk I/O is buffered to get some speed-up overcoming uSD latency issues
 
 
 Installation:
- - copy files from "copy-to-core" to cores/Teensy4. (This will modify existing routines)
+ - copy files from "copy-to-core" to cores/Teensy4. (This will modify existing routines; NB Do not copy to cores/teensy3.)
  - edit boards.txt to enable MTP-Disk on Teensy 4.0
  - download SdFat-beta from Bill Greiman`s github
  - change in src directory file "SdFat.h" to "SdFat-beta.h"
