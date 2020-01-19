@@ -11,18 +11,19 @@ void logg(uint32_t del, const char *txt)
 { static uint32_t to;
   if(millis()-to > del)
   {
-    Serial.println(txt);
+    Serial.println(txt); 
     to=millis();
   }
 }
 
 void setup()
 { 
-  while(!Serial);
-  Serial.println("MTP test");  Serial.flush();
+  //while(!Serial);
+  Serial.println("MTP test");
 
   storage.init();
-  SD.ls();
+//  SD.ls();
+//  Serial.println("end of setup");
 
 }
 
