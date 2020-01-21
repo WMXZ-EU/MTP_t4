@@ -219,9 +219,9 @@ extern void mtp_lock_storage(bool lock);
     write16(0x1014);  // GetDevicePropDesc
     write16(0x1015);  // GetDevicePropValue
 
-//    write16(0x1010);  // Reset
-//    write16(0x1019);  // MoveObject
-//    write16(0x101A);  // CopyObject
+    //write16(0x1010);  // Reset
+    //write16(0x1019);  // MoveObject
+    //write16(0x101A);  // CopyObject
 
     write32(1);       // Events (array of uint16)
     write16(0x4008);    // Device Info changed // cannot get this working!
@@ -348,7 +348,7 @@ extern void mtp_lock_storage(bool lock);
       {
         if(disk_pos==DISK_BUFFER_SIZE)
         {
-          uint32_t nread=min(size-pos,DISK_BUFFER_SIZE);
+          uint32_t nread=min(size-pos,(uint32_t)DISK_BUFFER_SIZE);
           //printf("a %d\n",nread);
           storage_->read(object_id,pos,(char *)disk_buffer,nread);
           disk_pos=0;
@@ -471,8 +471,8 @@ extern void mtp_lock_storage(bool lock);
 
     read32(); len -=4; // storage
     bool dir = (read16() == 0x3001); len -=2; // format
-    read16();  len -=2; // protection
-    int size = read32(); len -=4; 
+    read16(); len -=2; // protection
+    read32(); len -=4; // size
     read16(); len -=2; // thumb format
     read32(); len -=4; // thumb size
     read32(); len -=4; // thumb width
@@ -535,6 +535,12 @@ extern void mtp_lock_storage(bool lock);
     storage_->close();
   }
 
+  uint32_t moveObject(uint32_t p1, uint32_t p2, uint32_t p3)
+  {
+
+      return 0x2001;
+  }
+
   void MTPD::loop(void)
   {
     if(mtp_rx_counter>0)
@@ -587,6 +593,8 @@ extern void mtp_lock_storage(bool lock);
           break;
 
         case 0x1007:  // GetObjectHandles
+            printContainer(); 
+
           if (CONTAINER->params[1]) 
           { return_code = 0x2014; // spec by format unsupported
           } else 
@@ -634,16 +642,32 @@ extern void mtp_lock_storage(bool lock);
             break;
 
         case 0x1014:  // GetDevicePropDesc
-              TRANSMIT(GetDevicePropDesc(CONTAINER->params[0]));
-              break;
+            TRANSMIT(GetDevicePropDesc(CONTAINER->params[0]));
+            break;
 
         case 0x1015:  // GetDevicePropvalue
-              TRANSMIT(GetDevicePropValue(CONTAINER->params[0]));
-              break;
+            TRANSMIT(GetDevicePropValue(CONTAINER->params[0]));
+            break;
+
+        case 0x1010:  // Reset
+            return_code = 0x2005;
+            break;
+
+        case 0x1019:  // MoveObject
+            
+            //if (!storage_->DeleteObject(CONTAINER->params[0]))
+            //  {
+            //    return_code = 0x2012; // partial deletion
+            //  }
+            break;
+
+        case 0x101A:  // CopyObject
+            return_code = 0x2005;
+            break;
 
         default:
-              return_code = 0x2005;  // operation not supported
-              break;
+            return_code = 0x2005;  // operation not supported
+            break;
       }
       if(return_code)
       {

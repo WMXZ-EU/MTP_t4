@@ -13,9 +13,28 @@ SHELL            := cmd.exe
 export SHELL
 
 TARGET_NAME      := mtp-test
+
+#BOARD_ID         := TEENSY36
 BOARD_ID         := TEENSY40
 
-MCU              := imxrt1062
+ifeq ($(BOARD_ID),TEENSY36)
+	MCU			:= mk66fx1m0
+	Family 		:= teensy3
+	FLAGS_CPU   := -mthumb -mcpu=cortex-m4 -mfloat-abi=hard -mfpu=fpv4-sp-d16 -fsingle-precision-constant
+	LIBS        := -larm_cortexM4lf_math -lm
+	DEFINES     := -D__MK66FX1M0__ 
+	DEFINES     += -DF_CPU=96000000
+endif
+
+ifeq ($(BOARD_ID),TEENSY40)
+	MCU			:= imxrt1062
+	Family		:= teensy4
+	FLAGS_CPU   := -mthumb -mcpu=cortex-m7 -mfloat-abi=hard -mfpu=fpv4-sp-d16 -fsingle-precision-constant
+	LIBS        := -larm_cortexM4lf_math -lm
+	DEFINES     := -D__IMXRT1062__ 
+	DEFINES     += -DF_CPU=396000000
+endif
+
 
 ROOT0		:= C:\Users\zimme\Documents
 ARDUINO		:= $(ROOT0)\arduino-1.8.10\hardware
@@ -26,7 +45,7 @@ LIBS_SHARED      := SdFat-beta MTP_t4
 LIBS_LOCAL_BASE  := $(ARDUINO)\teensy\avr\libraries
 LIBS_LOCAL       := SPI Time
 
-CORE_BASE        := $(ARDUINO)\teensy\avr\cores\teensy4
+CORE_BASE        := $(ARDUINO)\teensy\avr\cores\$(Family)
 GCC_BASE         := $(ARDUINO)\tools\arm\bin
 UPL_PJRC_B       := $(ARDUINO)\tools
 
@@ -35,7 +54,7 @@ UPL_PJRC_B       := $(ARDUINO)\tools
 #******************************************************************************
 # Flags and Defines
 #******************************************************************************
-FLAGS_CPU   := -mthumb -mcpu=cortex-m7 -mfloat-abi=hard -mfpu=fpv5-d16
+#FLAGS_CPU   := -mthumb -mcpu=cortex-m7 -mfloat-abi=hard -mfpu=fpv5-d16
 FLAGS_OPT   := -O2
 FLAGS_COM   := -g -Wall -ffunction-sections -fdata-sections -nostdlib -MMD
 FLAGS_LSP   := 
@@ -43,12 +62,13 @@ FLAGS_LSP   :=
 FLAGS_CPP   := -std=gnu++14 -fno-exceptions -fpermissive -fno-rtti -fno-threadsafe-statics -felide-constructors -Wno-error=narrowing
 FLAGS_C     := 
 FLAGS_S     := -x assembler-with-cpp
-FLAGS_LD    := -Wl,--gc-sections,--relax,--defsym=__rtc_localtime=$(shell powershell [int](Get-Date -UFormat +%s)[0]) -T$(CORE_BASE)/imxrt1062.ld
+FLAGS_LD    := -Wl,--gc-sections,--relax,--defsym=__rtc_localtime=$(shell powershell [int](Get-Date -UFormat +%s)[0]) -T$(CORE_BASE)/$(MCU).ld
 
-LIBS        := -larm_cortexM7lfsp_math -lm -lstdc++
+#LIBS        := -larm_cortexM7lfsp_math -lm -lstdc++
+LIBS		+= -lstdc++
 
-DEFINES     := -D__IMXRT1062__ -DTEENSYDUINO=149 -DARDUINO=10807
-DEFINES     += -DF_CPU=600000000 -DUSB_MTPDISK -DLAYOUT_US_ENGLISH
+DEFINES     += -DTEENSYDUINO=149 -DARDUINO=10810
+DEFINES     += -DUSB_MTPDISK -DLAYOUT_US_ENGLISH
 
 CPP_FLAGS   := $(FLAGS_CPU) $(FLAGS_OPT) $(FLAGS_COM) $(DEFINES) $(FLAGS_CPP)
 C_FLAGS     := $(FLAGS_CPU) $(FLAGS_OPT) $(FLAGS_COM) $(DEFINES) $(FLAGS_C)
