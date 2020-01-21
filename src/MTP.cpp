@@ -593,7 +593,7 @@ extern void mtp_lock_storage(bool lock);
           break;
 
         case 0x1007:  // GetObjectHandles
-            printContainer(); 
+          //printContainer(); 
 
           if (CONTAINER->params[1]) 
           { return_code = 0x2014; // spec by format unsupported
