@@ -19,7 +19,7 @@ Installation:
  - copy files from "copy-to-core" to cores/Teensy4. (This will modify existing routines; NB Do not copy to cores/teensy3.)
  - edit boards.txt to enable MTP-Disk on Teensy 4.0
  - download SdFat-beta from Bill Greiman`s github
- - change in src directory file "SdFat.h" to "SdFat-beta.h"
+ - change (rename) in src directory file "SdFat.h" to "SdFat-beta.h"
  - edit SdFatConfig.h following Bill`s instructions e.g.:
    - #define SDFAT_FILE_TYPE 3
  - in MTP_config.h edit defines to use SdFat-beta or SDIO e.g.:
