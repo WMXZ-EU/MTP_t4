@@ -14,8 +14,8 @@ export SHELL
 
 TARGET_NAME      := mtp-test
 
-#BOARD_ID         := TEENSY36
-BOARD_ID         := TEENSY40
+BOARD_ID         := TEENSY36
+#BOARD_ID         := TEENSY40
 
 ifeq ($(BOARD_ID),TEENSY36)
 	MCU			:= mk66fx1m0

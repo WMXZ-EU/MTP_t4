@@ -144,8 +144,371 @@ const unsigned short supported_op[]=
 const int supported_op_size=sizeof(supported_op);
 const int supported_op_num = supported_op_size/sizeof(supported_op[0]);
 
-// 0xDC07 objectFilename
-// MTP Responder.
+  void MTPD::WriteDescriptor() {
+    write16(100);  // MTP version
+    write32(6);    // MTP extension
+//    write32(0xFFFFFFFFUL);    // MTP extension
+    write16(100);  // MTP version
+    writestring("microsoft.com: 1.0;");
+    write16(0);    // functional mode
+
+    // Supported operations (array of uint16)
+    write32(supported_op_num);
+    for(int ii=0; ii<supported_op_num;ii++) write16(supported_op[ii]);
+
+    write32(0);       // Events (array of uint16)
+    //write16(0x4008);    // Device Info changed // cannot get this working!
+
+    write32(1);       // Device properties (array of uint16)
+    write16(0xd402);  // Device friendly name
+
+    write32(0);       // Capture formats (array of uint16)
+
+    write32(2);       // Playback formats (array of uint16)
+    write16(0x3000);  // Undefined format
+    write16(0x3001);  // Folders (associations)
+
+    writestring("PJRC");     // Manufacturer
+    writestring("Teensy");   // Model
+    writestring("1.0");      // version
+    writestring("???");      // serial
+  }
+
+  void MTPD::GetDevicePropValue(uint32_t prop) {
+    switch (prop) {
+      case 0xd402: // friendly name
+        // This is the name we'll actually see in the windows explorer.
+        // Should probably be configurable.
+        writestring("Teensy");
+        break;
+    }
+  }
+
+  void MTPD::GetDevicePropDesc(uint32_t prop) {
+    switch (prop) {
+      case 0xd402: // friendly name
+        write16(prop);
+        write16(0xFFFF); // string type
+        write8(0);       // read-only
+        GetDevicePropValue(prop);
+        GetDevicePropValue(prop);
+        write8(0);       // no form
+    }
+  }
+
+  void MTPD::WriteStorageIDs() {
+    write32(1); // 1 entry
+    write32(1); // 1 storage
+  }
+
+  void MTPD::GetStorageInfo(uint32_t storage) {
+    uint16_t readOnly = storage_->readonly();
+    uint16_t has_directories = storage_->has_directories();
+    uint64_t storage_size = storage_->size();
+    uint64_t storage_free = storage_->free();
+    
+    write16(readOnly ? 0x0001 : 0x0004);   // storage type (removable RAM)
+    write16(has_directories ? 0x0002: 0x0001);   // filesystem type (generic hierarchical)
+    write16(0x0000);   // access capability (read-write)
+    write64(storage_size);  // max capacity
+    write64(storage_free);  // free space (100M)
+    write32(0xFFFFFFFFUL);  // free space (objects)
+    writestring("SD Card");  // storage descriptor
+    writestring("");  // volume identifier
+  }
+
+  uint32_t MTPD::GetNumObjects(uint32_t storage, uint32_t parent) 
+  {
+    storage_->StartGetObjectHandles(parent);
+    int num = 0;
+    while (storage_->GetNextObjectHandle()) num++;
+    return num;
+  }
+
+  void MTPD::GetObjectHandles(uint32_t storage, uint32_t parent) 
+  {
+    uint32_t num = 0;
+    if (!write_get_length_) {
+      num = GetNumObjects(storage, parent);
+    }
+    write32(num);
+    int handle;
+    storage_->StartGetObjectHandles(parent);
+    while ((handle = storage_->GetNextObjectHandle()))
+      write32(handle);
+  }
+
+  void MTPD::GetObjectInfo(uint32_t handle) 
+  {
+    char filename[256];
+    uint32_t dir, size, parent;
+    storage_->GetObjectInfo(handle, filename, &dir, &size, &parent);
+
+    write32(1); // storage
+    write16(dir? 0x3001 : 0x3000); // format
+    write16(0);  // protection
+    write32(size); // size
+    write16(0); // thumb format
+    write32(0); // thumb size
+    write32(0); // thumb width
+    write32(0); // thumb height
+    write32(0); // pix width
+    write32(0); // pix height
+    write32(0); // bit depth
+    write32(parent); // parent
+    //write16(size == 0xFFFFFFFFUL ? 1 : 0); // association type
+    write16(dir);
+    write32(0); // association description
+    write32(0);  // sequence number
+    writestring(filename);
+    writestring("");  // date created
+    writestring("");  // date modified
+    writestring("");  // keywords
+  }
+
+
+  void MTPD::write8 (uint8_t  x) { write((char*)&x, sizeof(x)); }
+  void MTPD::write16(uint16_t x) { write((char*)&x, sizeof(x)); }
+  void MTPD::write32(uint32_t x) { write((char*)&x, sizeof(x)); }
+  void MTPD::write64(uint64_t x) { write((char*)&x, sizeof(x)); }
+
+  void MTPD::writestring(const char* str) {
+    if (*str) 
+    { write8(strlen(str) + 1);
+      while (*str) {  write16(*str);  ++str;  } write16(0);
+    } else 
+    { write8(0);
+    }
+  }
+
+  uint32_t MTPD::ReadMTPHeader() {
+    MTPHeader header;
+    read(0,0);
+    read((char *)&header, sizeof(MTPHeader));
+    // check that the type is data
+    return header.len - 12;
+  }
+
+  uint8_t MTPD::read8() {
+    uint8_t ret;
+    read((char*)&ret, sizeof(ret));
+    return ret;
+  }
+
+  uint16_t MTPD::read16() {
+    uint16_t ret;
+    read((char*)&ret, sizeof(ret));
+    return ret;
+  }
+
+  uint32_t MTPD::read32() {
+    uint32_t ret;
+    read((char*)&ret, sizeof(ret));
+    return ret;
+  }
+
+  uint32_t MTPD::readstring(char* buffer) {
+    int len = read8();
+    if (!buffer) {
+      read(NULL, len * 2);
+    } else {
+      for (int i = 0; i < len; i++) {
+        *(buffer++) = read16();
+      }
+    }
+    *(buffer++)=0; *(buffer++)=0; // to be sure
+    return 2*len+1;
+  }
+
+
+#define MTP_PROPERTY_STORAGE_ID                             0xDC01
+#define MTP_PROPERTY_OBJECT_FORMAT                          0xDC02
+#define MTP_PROPERTY_PROTECTION_STATUS                      0xDC03
+#define MTP_PROPERTY_OBJECT_SIZE                            0xDC04
+#define MTP_PROPERTY_OBJECT_FILE_NAME                       0xDC07
+#define MTP_PROPERTY_DATE_CREATED                           0xDC08
+#define MTP_PROPERTY_DATE_MODIFIED                          0xDC09
+#define MTP_PROPERTY_PARENT_OBJECT                          0xDC0B
+#define MTP_PROPERTY_PERSISTENT_UID                         0xDC41
+#define MTP_PROPERTY_NAME                                   0xDC44
+
+const uint16_t propertyList[] =
+{
+  MTP_PROPERTY_STORAGE_ID                             ,//0xDC01
+  MTP_PROPERTY_OBJECT_FORMAT                          ,//0xDC02
+  MTP_PROPERTY_PROTECTION_STATUS                      ,//0xDC03
+  MTP_PROPERTY_OBJECT_SIZE                            ,//0xDC04
+  MTP_PROPERTY_OBJECT_FILE_NAME                       ,//0xDC07
+  MTP_PROPERTY_DATE_CREATED                           ,//0xDC08
+  MTP_PROPERTY_DATE_MODIFIED                          ,//0xDC09
+  MTP_PROPERTY_PARENT_OBJECT                          ,//0xDC0B
+  MTP_PROPERTY_PERSISTENT_UID                         ,//0xDC41
+  MTP_PROPERTY_NAME                                    //0xDC44
+};
+
+uint32_t propertyListNum = sizeof(propertyList)/sizeof(propertyList[0]);
+
+  void MTPD::getObjectPropsSupported(uint32_t p1)
+  {
+    write32(propertyListNum);
+    for(uint32_t ii=0; ii<propertyListNum;ii++) write16(propertyList[ii]);
+  }
+
+  void MTPD::getObjectPropDesc(uint32_t p1, uint32_t p2)
+  {
+    switch(p1)
+    {
+      case MTP_PROPERTY_STORAGE_ID:         //0xDC01:
+        write16(0xDC01);
+        write16(0x006);
+        write8(0); //get
+        write32(0);
+        write32(0);
+        write8(0);
+        break;
+      case MTP_PROPERTY_OBJECT_FORMAT:        //0xDC02:
+        write16(0xDC02);
+        write16(0x004);
+        write8(0); //get
+        write16(0);
+        write32(0);
+        write8(0);
+        break;
+      case MTP_PROPERTY_PROTECTION_STATUS:    //0xDC03:
+        write16(0xDC03);
+        write16(0x004);
+        write8(0); //get
+        write16(0);
+        write32(0);
+        write8(0);
+        break;
+      case MTP_PROPERTY_OBJECT_SIZE:        //0xDC04:
+        write16(0xDC04);
+        write16(0x008);
+        write8(0); //get
+        write64(0);
+        write32(0);
+        write8(0);
+        break;
+      case MTP_PROPERTY_OBJECT_FILE_NAME:   //0xDC07:
+        write16(0xDC07);
+        write16(0xFFFF);
+        write8(1); //get/set
+        write8(0);
+        write32(0);
+        write8(0);
+        break;
+      case MTP_PROPERTY_DATE_CREATED:       //0xDC08:
+        write16(0xDC08);
+        write16(0xFFFF);
+        write8(0); //get
+        write8(0);
+        write32(0);
+        write8(0);
+        break;
+      case MTP_PROPERTY_DATE_MODIFIED:      //0xDC09:
+        write16(0xDC09);
+        write16(0xFFFF);
+        write8(0); //get
+        write8(0);
+        write32(0);
+        write8(0);
+        break;
+      case MTP_PROPERTY_PARENT_OBJECT:    //0xDC0B:
+        write16(0xDC0B);
+        write16(6);
+        write8(0); //get
+        write32(0);
+        write32(0);
+        write8(0);
+        break;
+      case MTP_PROPERTY_PERSISTENT_UID:   //0xDC41:
+        write16(0xDC41);
+        write16(0x0A);
+        write8(0); //get
+        write64(0);
+        write64(0);
+        write32(0);
+        write8(0);
+        break;
+      case MTP_PROPERTY_NAME:             //0xDC44:
+        write16(0xDC44);
+        write16(0xFFFF);
+        write8(0); //get
+        write8(0);
+        write32(0);
+        write8(0);
+        break;
+      default:
+        break;
+    }
+  }
+
+  void MTPD::getObjectPropValue(uint32_t p1, uint32_t p2)
+  { char name[128];
+    uint32_t dir;
+    uint32_t size;
+    uint32_t parent;
+
+    storage_->GetObjectInfo(p1,name,&dir,&size,&parent);
+
+    switch(p2)
+    {
+      case MTP_PROPERTY_STORAGE_ID:         //0xDC01:
+        write32(p1);
+        break;
+      case MTP_PROPERTY_OBJECT_FORMAT:      //0xDC02:
+        write16(dir?0x3001:0x3000);
+        break;
+      case MTP_PROPERTY_PROTECTION_STATUS:  //0xDC03:
+        write16(0);
+        break;
+      case MTP_PROPERTY_OBJECT_SIZE:        //0xDC04:
+        write32(size);
+        write32(0);
+        break;
+      case MTP_PROPERTY_OBJECT_FILE_NAME:   //0xDC07:
+        writestring(name);
+        break;
+      case MTP_PROPERTY_DATE_CREATED:       //0xDC08:
+        writestring("");
+        break;
+      case MTP_PROPERTY_DATE_MODIFIED:      //0xDC09:
+        writestring("");
+        break;
+      case MTP_PROPERTY_PARENT_OBJECT:      //0xDC0B:
+        write32(parent);
+        break;
+      case MTP_PROPERTY_PERSISTENT_UID:     //0xDC41:
+        write32(p1);
+        write32(parent);
+        write32(1);
+        write32(0);
+        break;
+      case MTP_PROPERTY_NAME:               //0xDC44:
+        writestring(name);
+        break;
+      default:
+        break;
+    }
+  }
+
+  uint32_t MTPD::deleteObject(uint32_t p1)
+  {
+      if (!storage_->DeleteObject(p1))
+      {
+        return 0x2012; // partial deletion
+      }
+      return 0x2001;
+  }
+
+  uint32_t MTPD::moveObject(uint32_t p1, uint32_t p3)
+  { // p1 object
+    // p3 new directory
+    storage_->move(p1,p3);
+    return 0x2001;
+  }
+
 
 #if defined(__IMXRT1062__)
 
@@ -215,7 +578,7 @@ const int supported_op_num = supported_op_size/sizeof(supported_op[0]);
       }
     }
   }
-
+/*
   void MTPD::write8 (uint8_t  x) { write((char*)&x, sizeof(x)); }
   void MTPD::write16(uint16_t x) { write((char*)&x, sizeof(x)); }
   void MTPD::write32(uint32_t x) { write((char*)&x, sizeof(x)); }
@@ -351,6 +714,7 @@ const int supported_op_num = supported_op_size/sizeof(supported_op[0]);
     writestring("");  // date modified
     writestring("");  // keywords
   }
+*/
 
   void MTPD::GetObject(uint32_t object_id) 
   {
@@ -435,7 +799,7 @@ const int supported_op_num = supported_op_size/sizeof(supported_op[0]);
       }
     }
   }
-
+/*
   uint32_t MTPD::ReadMTPHeader() {
     MTPHeader header;
     read(0,0);
@@ -474,7 +838,7 @@ const int supported_op_num = supported_op_size/sizeof(supported_op[0]);
     *(buffer++)=0; *(buffer++)=0; // to be sure
     return 2*len+1;
   }
-
+*/
   void MTPD::read_until_short_packet() {
     bool done = false;
     while (!done) {
@@ -554,7 +918,7 @@ const int supported_op_num = supported_op_size/sizeof(supported_op[0]);
     }
     storage_->close();
   }
-
+/*
 #define MTP_PROPERTY_STORAGE_ID                             0xDC01
 #define MTP_PROPERTY_OBJECT_FORMAT                          0xDC02
 #define MTP_PROPERTY_PROTECTION_STATUS                      0xDC03
@@ -761,6 +1125,26 @@ uint32_t propertyListNum = sizeof(propertyList)/sizeof(propertyList[0]);
     storage_->move(p1,p3);
     return 0x2001;
   }
+*/
+
+  uint32_t MTPD::setObjectPropValue(uint32_t p1, uint32_t p2)
+  {
+    fetch_packet(data_buffer);
+    printContainer(); 
+    
+    if(p2==0xDC07)
+    {
+      char filename[128];
+      ReadMTPHeader();
+      readstring(filename);
+
+      storage_->rename(p1,filename);
+
+      return 0x2001;
+    }
+    else
+      return 0x2005;
+  }
 
 
 
@@ -924,21 +1308,12 @@ uint32_t propertyListNum = sizeof(propertyList)/sizeof(propertyList[0]);
     if(mtp_tx_event_counter>0)  { mtp_tx_event_counter--; }
   }
 
-  void  MTPD::reset(void) // does not work
-  { struct MTPHeader event;
-    printf("reset\n");
-    event.len=12;
-    event.op=0x4008;
-    event.transaction_id=CONTAINER->transaction_id+1;
-    event.type=4;
-    usb_mtp_eventSend((char *)&event,30);
-  }
 
+#else /******************************************************** Teensy 3 ********************************/
 
-#else
   #include "usb_desc.h"
   void MTPD::PrintPacket(const usb_packet_t *x) {
-#if 1
+#if 0
     for (int i = 0; i < x->len; i++) {
       Serial1.print("0123456789ABCDEF"[x->buf[i] >> 4]);
       Serial1.print("0123456789ABCDEF"[x->buf[i] & 0xf]);
@@ -946,23 +1321,26 @@ uint32_t propertyListNum = sizeof(propertyList)/sizeof(propertyList[0]);
     }
     Serial1.println("");
 #endif
-#if 0
+#if 1
     MTPContainer *tmp = (struct MTPContainer*)(x->buf);
-    Serial1.print(" len = ");
-    Serial1.print(tmp->len, HEX);
-    Serial1.print(" type = ");
-    Serial1.print(tmp->type, HEX);
-    Serial1.print(" op = ");
-    Serial1.print(tmp->op, HEX);
-    Serial1.print(" transaction_id = ");
-    Serial1.print(tmp->transaction_id, HEX);
-    for (int i = 0; i * 4 < x->len - 12; i ++) {
-      Serial1.print(" p");
-      Serial1.print(i);
-      Serial1.print(" = ");
-      Serial1.print(tmp->params[i], HEX);
+    if(tmp->type==1)
+    {
+      Serial1.print(" len = ");
+      Serial1.print(tmp->len);
+      Serial1.print(" type = ");
+      Serial1.print(tmp->type);
+      Serial1.print(" op = ");
+      Serial1.print(tmp->op, HEX);
+      Serial1.print(" transaction_id = ");
+      Serial1.print(tmp->transaction_id);
+      for (int i = 0; i * 4 < x->len - 12; i ++) {
+        Serial1.print(" p");
+        Serial1.print(i);
+        Serial1.print(" = ");
+        Serial1.print(tmp->params[i], HEX);
+      }
+      Serial1.println("");
     }
-    Serial1.println("");
 #endif
   }
 
@@ -1003,7 +1381,7 @@ uint32_t propertyListNum = sizeof(propertyList)/sizeof(propertyList[0]);
       }
     }
   }
-
+/*
   void MTPD::write8 (uint8_t  x) { write((char*)&x, sizeof(x)); }
   void MTPD::write16(uint16_t x) { write((char*)&x, sizeof(x)); }
   void MTPD::write32(uint32_t x) { write((char*)&x, sizeof(x)); }
@@ -1107,11 +1485,11 @@ uint32_t propertyListNum = sizeof(propertyList)/sizeof(propertyList[0]);
   void MTPD::GetObjectInfo(uint32_t handle) 
   {
     char filename[256];
-    uint32_t size, parent;
-    storage_->GetObjectInfo(handle, filename, &size, &parent);
+    uint32_t size, dir, parent;
+    storage_->GetObjectInfo(handle, filename, &dir, &size, &parent);
 
     write32(1); // storage
-    write16(size == 0xFFFFFFFFUL ? 0x3001 : 0x0000); // format
+    write16(dir ? 0x3001 : 0x3000); // format
     write16(0);  // protection
     write32(size); // size
     write16(0); // thumb format
@@ -1122,7 +1500,7 @@ uint32_t propertyListNum = sizeof(propertyList)/sizeof(propertyList[0]);
     write32(0); // pix height
     write32(0); // bit depth
     write32(parent); // parent
-    write16(size == 0xFFFFFFFFUL ? 1 : 0); // association type
+    write16(dir); // association type
     write32(0); // association description
     write32(0);  // sequence number
     writestring(filename);
@@ -1130,7 +1508,7 @@ uint32_t propertyListNum = sizeof(propertyList)/sizeof(propertyList[0]);
     writestring("");  // date modified
     writestring("");  // keywords
   }
-
+*/
   void MTPD::GetObject(uint32_t object_id) 
   {
     uint32_t size = storage_->GetSize(object_id);
@@ -1195,7 +1573,7 @@ uint32_t propertyListNum = sizeof(propertyList)/sizeof(propertyList[0]);
       }
     }
   }
-
+/*
   uint32_t MTPD::ReadMTPHeader() 
   {
     MTPHeader header;
@@ -1219,7 +1597,7 @@ uint32_t propertyListNum = sizeof(propertyList)/sizeof(propertyList[0]);
     }
     return 2*len+1;
   }
-
+*/
   void MTPD::read_until_short_packet() {
     bool done = false;
     while (!done) {
@@ -1273,8 +1651,8 @@ uint32_t propertyListNum = sizeof(propertyList)/sizeof(propertyList[0]);
     }
     storage_->close();
   }
-#define MTP_PROPERTY_OBJECT_FILE_NAME                       0xDC07
 
+/*
   void MTPD::GetDevicePropValue(uint32_t prop) {
     switch (prop) {
       case 0xd402: // friendly name
@@ -1296,12 +1674,167 @@ uint32_t propertyListNum = sizeof(propertyList)/sizeof(propertyList[0]);
         write8(0);       // no form
     }
   }
+*/
+  uint32_t MTPD::setObjectPropValue(uint32_t p1, uint32_t p2)
+  {
+    receive_buffer();
+
+    if(p2==0xDC07)
+    {
+      char filename[128];
+      ReadMTPHeader();
+      readstring(filename);
+
+      storage_->rename(p1,filename);
+
+      return 0x2001;
+    }
+    else
+      return 0x2005;
+  }
+
 
   void MTPD::loop() 
   {
     usb_packet_t *receive_buffer;
     if ((receive_buffer = usb_rx(MTP_RX_ENDPOINT))) {
       PrintPacket(receive_buffer);
+
+      int op = CONTAINER->op;
+      int p1 = CONTAINER->params[0];
+      int p2 = CONTAINER->params[1];
+      int p3 = CONTAINER->params[2];
+      int id = CONTAINER->transaction_id;
+      int len= CONTAINER->len;
+      int typ= CONTAINER->type;
+
+      int return_code =0x2001; //OK use as default value
+
+      if(typ==2) return_code=0x2005; // we should only get cmds
+
+      switch (op)
+      {
+        case 0x1001:
+          p1=0;
+          TRANSMIT(WriteDescriptor());
+          break;
+
+        case 0x1002:  //open session
+          //
+          break;
+
+        case 0x1003:  // CloseSession
+          //
+          break;
+
+        case 0x1004:  // GetStorageIDs
+            TRANSMIT(WriteStorageIDs());
+          break;
+
+        case 0x1005:  // GetStorageInfo
+          TRANSMIT(GetStorageInfo(p1));
+          break;
+
+        case 0x1006:  // GetNumObjects
+          if (CONTAINER->params[1]) 
+          {
+              return_code = 0x2014; // spec by format unsupported
+          } else 
+          {
+              p1 = GetNumObjects(p1, p3);
+          }
+          break;
+
+        case 0x1007:  // GetObjectHandles
+          //printContainer(); 
+
+          if (p2) 
+          { return_code = 0x2014; // spec by format unsupported
+          } else 
+          { 
+            TRANSMIT(GetObjectHandles(p1, p3));
+          }
+          break;
+
+        case 0x1008:  // GetObjectInfo
+          TRANSMIT(GetObjectInfo(p1));
+           break;
+
+        case 0x1009:  // GetObject
+           TRANSMIT(GetObject(p1));
+           break;
+
+        case 0x100B:  // DeleteObject
+           if (CONTAINER->len>16 && p2) 
+           {
+              return_code = 0x2014; // spec by format unsupported
+           } else 
+           {  return_code = deleteObject(p1);
+           }
+            CONTAINER->len  = len = 12;
+           break;
+
+        case 0x100C:  // SendObjectInfo
+            if (!p1) p1 = 1;
+            CONTAINER->params[2] = SendObjectInfo(p1, // storage
+                                                  p2); // parent
+
+            CONTAINER->params[1]=p2;
+            CONTAINER->len  = len = 12 + 3 * 4;
+            break;
+
+        case 0x100D:  // SendObject
+            SendObject();
+            CONTAINER->len  = len = 12;
+            break;
+
+        case 0x1014:  // GetDevicePropDesc
+            TRANSMIT(GetDevicePropDesc(p1));
+            break;
+
+        case 0x1015:  // GetDevicePropvalue
+            TRANSMIT(GetDevicePropValue(p1));
+            break;
+
+        case 0x1010:  // Reset
+            return_code = 0x2005;
+            break;
+
+        case 0x1019:  // MoveObject
+            return_code = moveObject(p1,p3);
+            CONTAINER->len  = len = 12;
+            break;
+
+        case 0x101A:  // CopyObject
+            return_code = 0x2005;
+            break;
+
+        case 0x9801:  // getObjectPropsSupported
+
+            TRANSMIT(getObjectPropsSupported(p1));
+            break;
+
+        case 0x9802:  // getObjectPropDesc
+
+        TRANSMIT(getObjectPropDesc(p1,p2));
+            break;
+
+        case 0x9803:  // getObjectPropertyValue
+
+          TRANSMIT(getObjectPropValue(p1,p2));
+            break;
+
+        case 0x9804:  // setObjectPropertyValue
+
+            return_code = setObjectPropValue(p1,p2);
+            break;
+
+        default:
+            return_code = 0x2005;  // operation not supported
+            break;
+      }
+
+/*
       uint32_t return_code = 0;
       uint32_t p1 = 0;
       if (receive_buffer->len >= 12) {
@@ -1378,10 +1911,19 @@ uint32_t propertyListNum = sizeof(propertyList)/sizeof(propertyList[0]);
           return_code = 0x2000;  // undefined
         }
       }
+      */
       if (return_code) {
-        CONTAINER->type = 3;
-        CONTAINER->op = return_code;
-        CONTAINER->params[0] = p1;
+          CONTAINER->type=3;
+          CONTAINER->len=len;
+          CONTAINER->op=return_code;
+          CONTAINER->transaction_id=id;
+          CONTAINER->params[0]=p1;
+
+//        CONTAINER->type = 3;
+//        CONTAINER->op = return_code;
+//        CONTAINER->params[0] = p1;
+
+        
         PrintPacket(receive_buffer);
         usb_tx(MTP_TX_ENDPOINT, receive_buffer);
         receive_buffer = 0;
@@ -1395,9 +1937,6 @@ uint32_t propertyListNum = sizeof(propertyList)/sizeof(propertyList[0]);
     }
   }
 
-  void  MTPD::reset(void)
-  {
-  }
 #endif
 
 /*

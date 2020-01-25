@@ -59,6 +59,7 @@ private:
   } __attribute__((__may_alias__))  ;
 
 #if defined(__IMXRT1062__)
+
   void PrintPacket(const uint8_t *x, int len) ;
 
   uint8_t data_buffer[MTP_RX_SIZE] __attribute__ ((aligned(32)));
@@ -124,9 +125,11 @@ private:
 
 public:
   void loop(void) ;
-  void reset(void);
+
 };
 #endif
+
+/*
 // MTP Object Property Codes
 
 #define MTP_PROPERTY_STORAGE_ID                             0xDC01
@@ -300,3 +303,4 @@ public:
 #define MTP_PROPERTY_LAST_BUILD_DATE                        0xDD70
 #define MTP_PROPERTY_TIME_TO_LIVE                           0xDD71
 #define MTP_PROPERTY_MEDIA_GUID                             0xDD72
+*/
