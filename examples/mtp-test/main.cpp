@@ -20,7 +20,7 @@ void setup()
 { 
   //while(!Serial || millis()<4000);
   Serial.println("MTP test");
-  Serial1.begin(115200);
+  //Serial1.begin(115200);
 
   storage.init();
 

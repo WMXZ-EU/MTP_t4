@@ -147,7 +147,6 @@ const int supported_op_num = supported_op_size/sizeof(supported_op[0]);
   void MTPD::WriteDescriptor() {
     write16(100);  // MTP version
     write32(6);    // MTP extension
-//    write32(0xFFFFFFFFUL);    // MTP extension
     write16(100);  // MTP version
     writestring("microsoft.com: 1.0;");
     write16(0);    // functional mode
@@ -157,7 +156,6 @@ const int supported_op_num = supported_op_size/sizeof(supported_op[0]);
     for(int ii=0; ii<supported_op_num;ii++) write16(supported_op[ii]);
 
     write32(0);       // Events (array of uint16)
-    //write16(0x4008);    // Device Info changed // cannot get this working!
 
     write32(1);       // Device properties (array of uint16)
     write16(0xd402);  // Device friendly name
@@ -256,7 +254,6 @@ const int supported_op_num = supported_op_size/sizeof(supported_op[0]);
     write32(0); // pix height
     write32(0); // bit depth
     write32(parent); // parent
-    //write16(size == 0xFFFFFFFFUL ? 1 : 0); // association type
     write16(dir);
     write32(0); // association description
     write32(0);  // sequence number
@@ -319,7 +316,6 @@ const int supported_op_num = supported_op_size/sizeof(supported_op[0]);
     *(buffer++)=0; *(buffer++)=0; // to be sure
     return 2*len+1;
   }
-
 
 #define MTP_PROPERTY_STORAGE_ID                             0xDC01
 #define MTP_PROPERTY_OBJECT_FORMAT                          0xDC02
@@ -578,143 +574,6 @@ uint32_t propertyListNum = sizeof(propertyList)/sizeof(propertyList[0]);
       }
     }
   }
-/*
-  void MTPD::write8 (uint8_t  x) { write((char*)&x, sizeof(x)); }
-  void MTPD::write16(uint16_t x) { write((char*)&x, sizeof(x)); }
-  void MTPD::write32(uint32_t x) { write((char*)&x, sizeof(x)); }
-  void MTPD::write64(uint64_t x) { write((char*)&x, sizeof(x)); }
-
-  void MTPD::writestring(const char* str) {
-    if (*str) 
-    { write8(strlen(str) + 1);
-      while (*str) {  write16(*str);  ++str;  } write16(0);
-    } else 
-    { write8(0);
-    }
-  }
-
-  void MTPD::WriteDescriptor() {
-    write16(100);  // MTP version
-    write32(6);    // MTP extension
-//    write32(0xFFFFFFFFUL);    // MTP extension
-    write16(100);  // MTP version
-    writestring("microsoft.com: 1.0;");
-    write16(0);    // functional mode
-
-    // Supported operations (array of uint16)
-    write32(supported_op_num);
-    for(int ii=0; ii<supported_op_num;ii++) write16(supported_op[ii]);
-
-    write32(0);       // Events (array of uint16)
-    //write16(0x4008);    // Device Info changed // cannot get this working!
-
-    write32(1);       // Device properties (array of uint16)
-    write16(0xd402);  // Device friendly name
-
-    write32(0);       // Capture formats (array of uint16)
-
-    write32(2);       // Playback formats (array of uint16)
-    write16(0x3000);  // Undefined format
-    write16(0x3001);  // Folders (associations)
-
-    writestring("PJRC");     // Manufacturer
-    writestring("Teensy");   // Model
-    writestring("1.0");      // version
-    writestring("???");      // serial
-  }
-
-  void MTPD::GetDevicePropValue(uint32_t prop) {
-    switch (prop) {
-      case 0xd402: // friendly name
-        // This is the name we'll actually see in the windows explorer.
-        // Should probably be configurable.
-        writestring("Teensy");
-        break;
-    }
-  }
-
-  void MTPD::GetDevicePropDesc(uint32_t prop) {
-    switch (prop) {
-      case 0xd402: // friendly name
-        write16(prop);
-        write16(0xFFFF); // string type
-        write8(0);       // read-only
-        GetDevicePropValue(prop);
-        GetDevicePropValue(prop);
-        write8(0);       // no form
-    }
-  }
-
-  void MTPD::WriteStorageIDs() {
-    write32(1); // 1 entry
-    write32(1); // 1 storage
-  }
-
-  void MTPD::GetStorageInfo(uint32_t storage) {
-    uint16_t readOnly = storage_->readonly();
-    uint16_t has_directories = storage_->has_directories();
-    uint64_t storage_size = storage_->size();
-    uint64_t storage_free = storage_->free();
-    
-    write16(readOnly ? 0x0001 : 0x0004);   // storage type (removable RAM)
-    write16(has_directories ? 0x0002: 0x0001);   // filesystem type (generic hierarchical)
-    write16(0x0000);   // access capability (read-write)
-    write64(storage_size);  // max capacity
-    write64(storage_free);  // free space (100M)
-    write32(0xFFFFFFFFUL);  // free space (objects)
-    writestring("SD Card");  // storage descriptor
-    writestring("");  // volume identifier
-  }
-
-  uint32_t MTPD::GetNumObjects(uint32_t storage, uint32_t parent) 
-  {
-    storage_->StartGetObjectHandles(parent);
-    int num = 0;
-    while (storage_->GetNextObjectHandle()) num++;
-    return num;
-  }
-
-  void MTPD::GetObjectHandles(uint32_t storage, uint32_t parent) 
-  {
-    uint32_t num = 0;
-    if (!write_get_length_) {
-      num = GetNumObjects(storage, parent);
-    }
-    write32(num);
-    int handle;
-    storage_->StartGetObjectHandles(parent);
-    while ((handle = storage_->GetNextObjectHandle()))
-      write32(handle);
-  }
-
-  void MTPD::GetObjectInfo(uint32_t handle) 
-  {
-    char filename[256];
-    uint32_t dir, size, parent;
-    storage_->GetObjectInfo(handle, filename, &dir, &size, &parent);
-
-    write32(1); // storage
-    write16(dir? 0x3001 : 0x3000); // format
-    write16(0);  // protection
-    write32(size); // size
-    write16(0); // thumb format
-    write32(0); // thumb size
-    write32(0); // thumb width
-    write32(0); // thumb height
-    write32(0); // pix width
-    write32(0); // pix height
-    write32(0); // bit depth
-    write32(parent); // parent
-    //write16(size == 0xFFFFFFFFUL ? 1 : 0); // association type
-    write16(dir);
-    write32(0); // association description
-    write32(0);  // sequence number
-    writestring(filename);
-    writestring("");  // date created
-    writestring("");  // date modified
-    writestring("");  // keywords
-  }
-*/
 
   void MTPD::GetObject(uint32_t object_id) 
   {
@@ -733,7 +592,6 @@ uint32_t propertyListNum = sizeof(propertyList)/sizeof(propertyList[0]);
         if(disk_pos==DISK_BUFFER_SIZE)
         {
           uint32_t nread=min(size-pos,(uint32_t)DISK_BUFFER_SIZE);
-          //printf("a %d\n",nread);
           storage_->read(object_id,pos,(char *)disk_buffer,nread);
           disk_pos=0;
         }
@@ -741,7 +599,6 @@ uint32_t propertyListNum = sizeof(propertyList)/sizeof(propertyList[0]);
         uint32_t to_copy = min(size-pos,MTP_TX_SIZE-len);
         to_copy = min (to_copy, DISK_BUFFER_SIZE-disk_pos);
 
-        //printf("b %d %d %d \n",len,disk_pos,to_copy);
         memcpy(data_buffer+len,disk_buffer+disk_pos,to_copy);
         disk_pos += to_copy;
         pos += to_copy;
@@ -799,46 +656,7 @@ uint32_t propertyListNum = sizeof(propertyList)/sizeof(propertyList[0]);
       }
     }
   }
-/*
-  uint32_t MTPD::ReadMTPHeader() {
-    MTPHeader header;
-    read(0,0);
-    read((char *)&header, sizeof(MTPHeader));
-    // check that the type is data
-    return header.len - 12;
-  }
 
-  uint8_t MTPD::read8() {
-    uint8_t ret;
-    read((char*)&ret, sizeof(ret));
-    return ret;
-  }
-
-  uint16_t MTPD::read16() {
-    uint16_t ret;
-    read((char*)&ret, sizeof(ret));
-    return ret;
-  }
-
-  uint32_t MTPD::read32() {
-    uint32_t ret;
-    read((char*)&ret, sizeof(ret));
-    return ret;
-  }
-
-  uint32_t MTPD::readstring(char* buffer) {
-    int len = read8();
-    if (!buffer) {
-      read(NULL, len * 2);
-    } else {
-      for (int i = 0; i < len; i++) {
-        *(buffer++) = read16();
-      }
-    }
-    *(buffer++)=0; *(buffer++)=0; // to be sure
-    return 2*len+1;
-  }
-*/
   void MTPD::read_until_short_packet() {
     bool done = false;
     while (!done) {
@@ -918,178 +736,6 @@ uint32_t propertyListNum = sizeof(propertyList)/sizeof(propertyList[0]);
     }
     storage_->close();
   }
-/*
-#define MTP_PROPERTY_STORAGE_ID                             0xDC01
-#define MTP_PROPERTY_OBJECT_FORMAT                          0xDC02
-#define MTP_PROPERTY_PROTECTION_STATUS                      0xDC03
-#define MTP_PROPERTY_OBJECT_SIZE                            0xDC04
-#define MTP_PROPERTY_OBJECT_FILE_NAME                       0xDC07
-#define MTP_PROPERTY_DATE_CREATED                           0xDC08
-#define MTP_PROPERTY_DATE_MODIFIED                          0xDC09
-#define MTP_PROPERTY_PARENT_OBJECT                          0xDC0B
-#define MTP_PROPERTY_PERSISTENT_UID                         0xDC41
-#define MTP_PROPERTY_NAME                                   0xDC44
-
-const uint16_t propertyList[] =
-{
-  MTP_PROPERTY_STORAGE_ID                             ,//0xDC01
-  MTP_PROPERTY_OBJECT_FORMAT                          ,//0xDC02
-  MTP_PROPERTY_PROTECTION_STATUS                      ,//0xDC03
-  MTP_PROPERTY_OBJECT_SIZE                            ,//0xDC04
-  MTP_PROPERTY_OBJECT_FILE_NAME                       ,//0xDC07
-  MTP_PROPERTY_DATE_CREATED                           ,//0xDC08
-  MTP_PROPERTY_DATE_MODIFIED                          ,//0xDC09
-  MTP_PROPERTY_PARENT_OBJECT                          ,//0xDC0B
-  MTP_PROPERTY_PERSISTENT_UID                         ,//0xDC41
-  MTP_PROPERTY_NAME                                    //0xDC44
-};
-
-uint32_t propertyListNum = sizeof(propertyList)/sizeof(propertyList[0]);
-
-  void MTPD::getObjectPropsSupported(uint32_t p1)
-  {
-    write32(propertyListNum);
-    for(uint32_t ii=0; ii<propertyListNum;ii++) write16(propertyList[ii]);
-  }
-
-  void MTPD::getObjectPropDesc(uint32_t p1, uint32_t p2)
-  {
-    switch(p1)
-    {
-      case MTP_PROPERTY_STORAGE_ID:         //0xDC01:
-        write16(0xDC01);
-        write16(0x006);
-        write8(0); //get
-        write32(0);
-        write32(0);
-        write8(0);
-        break;
-      case MTP_PROPERTY_OBJECT_FORMAT:        //0xDC02:
-        write16(0xDC02);
-        write16(0x004);
-        write8(0); //get
-        write16(0);
-        write32(0);
-        write8(0);
-        break;
-      case MTP_PROPERTY_PROTECTION_STATUS:    //0xDC03:
-        write16(0xDC03);
-        write16(0x004);
-        write8(0); //get
-        write16(0);
-        write32(0);
-        write8(0);
-        break;
-      case MTP_PROPERTY_OBJECT_SIZE:        //0xDC04:
-        write16(0xDC04);
-        write16(0x008);
-        write8(0); //get
-        write64(0);
-        write32(0);
-        write8(0);
-        break;
-      case MTP_PROPERTY_OBJECT_FILE_NAME:   //0xDC07:
-        write16(0xDC07);
-        write16(0xFFFF);
-        write8(1); //get/set
-        write8(0);
-        write32(0);
-        write8(0);
-        break;
-      case MTP_PROPERTY_DATE_CREATED:       //0xDC08:
-        write16(0xDC08);
-        write16(0xFFFF);
-        write8(0); //get
-        write8(0);
-        write32(0);
-        write8(0);
-        break;
-      case MTP_PROPERTY_DATE_MODIFIED:      //0xDC09:
-        write16(0xDC09);
-        write16(0xFFFF);
-        write8(0); //get
-        write8(0);
-        write32(0);
-        write8(0);
-        break;
-      case MTP_PROPERTY_PARENT_OBJECT:    //0xDC0B:
-        write16(0xDC0B);
-        write16(6);
-        write8(0); //get
-        write32(0);
-        write32(0);
-        write8(0);
-        break;
-      case MTP_PROPERTY_PERSISTENT_UID:   //0xDC41:
-        write16(0xDC41);
-        write16(0x0A);
-        write8(0); //get
-        write64(0);
-        write64(0);
-        write32(0);
-        write8(0);
-        break;
-      case MTP_PROPERTY_NAME:             //0xDC44:
-        write16(0xDC44);
-        write16(0xFFFF);
-        write8(0); //get
-        write8(0);
-        write32(0);
-        write8(0);
-        break;
-      default:
-        break;
-    }
-  }
-
-  void MTPD::getObjectPropValue(uint32_t p1, uint32_t p2)
-  { char name[128];
-    uint32_t dir;
-    uint32_t size;
-    uint32_t parent;
-
-    storage_->GetObjectInfo(p1,name,&dir,&size,&parent);
-
-    switch(p2)
-    {
-      case MTP_PROPERTY_STORAGE_ID:         //0xDC01:
-        write32(p1);
-        break;
-      case MTP_PROPERTY_OBJECT_FORMAT:      //0xDC02:
-        write16(dir?0x3001:0x3000);
-        break;
-      case MTP_PROPERTY_PROTECTION_STATUS:  //0xDC03:
-        write16(0);
-        break;
-      case MTP_PROPERTY_OBJECT_SIZE:        //0xDC04:
-        write32(size);
-        write32(0);
-        break;
-      case MTP_PROPERTY_OBJECT_FILE_NAME:   //0xDC07:
-        writestring(name);
-        break;
-      case MTP_PROPERTY_DATE_CREATED:       //0xDC08:
-        writestring("");
-        break;
-      case MTP_PROPERTY_DATE_MODIFIED:      //0xDC09:
-        writestring("");
-        break;
-      case MTP_PROPERTY_PARENT_OBJECT:      //0xDC0B:
-        write32(parent);
-        break;
-      case MTP_PROPERTY_PERSISTENT_UID:     //0xDC41:
-        write32(p1);
-        write32(parent);
-        write32(1);
-        write32(0);
-        break;
-      case MTP_PROPERTY_NAME:               //0xDC44:
-        writestring(name);
-        break;
-      default:
-        break;
-    }
-  }
 
   uint32_t MTPD::setObjectPropValue(uint32_t p1, uint32_t p2)
   {
@@ -1109,44 +755,6 @@ uint32_t propertyListNum = sizeof(propertyList)/sizeof(propertyList[0]);
     else
       return 0x2005;
   }
-
-  uint32_t MTPD::deleteObject(uint32_t p1)
-  {
-      if (!storage_->DeleteObject(p1))
-      {
-        return 0x2012; // partial deletion
-      }
-      return 0x2001;
-  }
-
-  uint32_t MTPD::moveObject(uint32_t p1, uint32_t p3)
-  { // p1 object
-    // p3 new directory
-    storage_->move(p1,p3);
-    return 0x2001;
-  }
-*/
-
-  uint32_t MTPD::setObjectPropValue(uint32_t p1, uint32_t p2)
-  {
-    fetch_packet(data_buffer);
-    printContainer(); 
-    
-    if(p2==0xDC07)
-    {
-      char filename[128];
-      ReadMTPHeader();
-      readstring(filename);
-
-      storage_->rename(p1,filename);
-
-      return 0x2001;
-    }
-    else
-      return 0x2005;
-  }
-
-
 
   void MTPD::loop(void)
   {
@@ -1381,134 +989,7 @@ uint32_t propertyListNum = sizeof(propertyList)/sizeof(propertyList[0]);
       }
     }
   }
-/*
-  void MTPD::write8 (uint8_t  x) { write((char*)&x, sizeof(x)); }
-  void MTPD::write16(uint16_t x) { write((char*)&x, sizeof(x)); }
-  void MTPD::write32(uint32_t x) { write((char*)&x, sizeof(x)); }
-  void MTPD::write64(uint64_t x) { write((char*)&x, sizeof(x)); }
 
-  void MTPD::writestring(const char* str) {
-    if (*str) 
-    { write8(strlen(str) + 1);
-      while (*str) {  write16(*str);  ++str;  } write16(0);
-    } else 
-    { write8(0);
-    }
-  }
-
-  void MTPD::WriteDescriptor() {
-    write16(100);  // MTP version
-    write32(6);    // MTP extension
-//    write32(0xFFFFFFFFUL);    // MTP extension
-    write16(100);  // MTP version
-    writestring("microsoft.com: 1.0;");
-    write16(0);    // functional mode
-
-    // Supported operations (array of uint16)
-    write32(14);
-    write16(0x1001);  // GetDeviceInfo
-    write16(0x1002);  // OpenSession
-    write16(0x1003);  // CloseSession
-    write16(0x1004);  // GetStorageIDs
-
-    write16(0x1005);  // GetStorageInfo
-    write16(0x1006);  // GetNumObjects
-    write16(0x1007);  // GetObjectHandles
-    write16(0x1008);  // GetObjectInfo
-
-    write16(0x1009);  // GetObject
-    write16(0x100B);  // DeleteObject
-    write16(0x100C);  // SendObjectInfo
-    write16(0x100D);  // SendObject
-
-    write16(0x1014);  // GetDevicePropDesc
-    write16(0x1015);  // GetDevicePropValue
-
-//    write16(0x1010);  // Reset
-//    write16(0x1019);  // MoveObject
-//    write16(0x101A);  // CopyObject
-
-    write32(0);       // Events (array of uint16)
-
-    write32(1);       // Device properties (array of uint16)
-    write16(0xd402);  // Device friendly name
-
-    write32(0);       // Capture formats (array of uint16)
-
-    write32(2);       // Playback formats (array of uint16)
-    write16(0x3000);  // Undefined format
-    write16(0x3001);  // Folders (associations)
-
-    writestring("PJRC");     // Manufacturer
-    writestring("Teensy");   // Model
-    writestring("1.0");      // version
-    writestring("???");      // serial
-  }
-
-  void MTPD::WriteStorageIDs() {
-    write32(1); // 1 entry
-    write32(1); // 1 storage
-  }
-
-  void MTPD::GetStorageInfo(uint32_t storage) {
-    write16(storage_->readonly() ? 0x0001 : 0x0004);   // storage type (removable RAM)
-    write16(storage_->has_directories() ? 0x0002: 0x0001);   // filesystem type (generic hierarchical)
-    write16(0x0000);   // access capability (read-write)
-    write64(storage_->size());  // max capacity
-    write64(storage_->free());  // free space (100M)
-    write32(0xFFFFFFFFUL);  // free space (objects)
-    writestring("SD Card");  // storage descriptor
-    writestring("");  // volume identifier
-  }
-
-  uint32_t MTPD::GetNumObjects(uint32_t storage, uint32_t parent) 
-  {
-    storage_->StartGetObjectHandles(parent);
-    int num = 0;
-    while (storage_->GetNextObjectHandle()) num++;
-    return num;
-  }
-
-  void MTPD::GetObjectHandles(uint32_t storage, uint32_t parent) 
-  {
-    uint32_t num = 0;
-    if (!write_get_length_) {
-      num = GetNumObjects(storage, parent);
-    }
-    write32(num);
-    int handle;
-    storage_->StartGetObjectHandles(parent);
-    while ((handle = storage_->GetNextObjectHandle()))
-      write32(handle);
-  }
-
-  void MTPD::GetObjectInfo(uint32_t handle) 
-  {
-    char filename[256];
-    uint32_t size, dir, parent;
-    storage_->GetObjectInfo(handle, filename, &dir, &size, &parent);
-
-    write32(1); // storage
-    write16(dir ? 0x3001 : 0x3000); // format
-    write16(0);  // protection
-    write32(size); // size
-    write16(0); // thumb format
-    write32(0); // thumb size
-    write32(0); // thumb width
-    write32(0); // thumb height
-    write32(0); // pix width
-    write32(0); // pix height
-    write32(0); // bit depth
-    write32(parent); // parent
-    write16(dir); // association type
-    write32(0); // association description
-    write32(0);  // sequence number
-    writestring(filename);
-    writestring("");  // date created
-    writestring("");  // date modified
-    writestring("");  // keywords
-  }
-*/
   void MTPD::GetObject(uint32_t object_id) 
   {
     uint32_t size = storage_->GetSize(object_id);
@@ -1573,31 +1054,7 @@ uint32_t propertyListNum = sizeof(propertyList)/sizeof(propertyList[0]);
       }
     }
   }
-/*
-  uint32_t MTPD::ReadMTPHeader() 
-  {
-    MTPHeader header;
-    read((char *)&header, sizeof(MTPHeader));
-    // check that the type is data
-    return header.len - 12;
-  }
 
-  uint8_t MTPD::read8() { uint8_t ret; read((char*)&ret, sizeof(ret));  return ret;  }
-  uint16_t MTPD::read16() { uint16_t ret; read((char*)&ret, sizeof(ret)); return ret; }
-  uint32_t MTPD::read32() { uint32_t ret; read((char*)&ret, sizeof(ret)); return ret; }
-
-  uint32_t MTPD::readstring(char* buffer) {
-    int len = read8();
-    if (!buffer) {
-      read(NULL, len * 2);
-    } else {
-      for (int i = 0; i < len; i++) {
-        *(buffer++) = read16();
-      }
-    }
-    return 2*len+1;
-  }
-*/
   void MTPD::read_until_short_packet() {
     bool done = false;
     while (!done) {
@@ -1652,29 +1109,6 @@ uint32_t propertyListNum = sizeof(propertyList)/sizeof(propertyList[0]);
     storage_->close();
   }
 
-/*
-  void MTPD::GetDevicePropValue(uint32_t prop) {
-    switch (prop) {
-      case 0xd402: // friendly name
-        // This is the name we'll actually see in the windows explorer.
-        // Should probably be configurable.
-        writestring("Teensy");
-        break;
-    }
-  }
-
-  void MTPD::GetDevicePropDesc(uint32_t prop) {
-    switch (prop) {
-      case 0xd402: // friendly name
-        write16(prop);
-        write16(0xFFFF); // string type
-        write8(0);       // read-only
-        GetDevicePropValue(prop);
-        GetDevicePropValue(prop);
-        write8(0);       // no form
-    }
-  }
-*/
   uint32_t MTPD::setObjectPropValue(uint32_t p1, uint32_t p2)
   {
     receive_buffer();
@@ -1692,7 +1126,6 @@ uint32_t propertyListNum = sizeof(propertyList)/sizeof(propertyList[0]);
     else
       return 0x2005;
   }
-
 
   void MTPD::loop() 
   {
@@ -1834,84 +1267,6 @@ uint32_t propertyListNum = sizeof(propertyList)/sizeof(propertyList[0]);
             break;
       }
 
-/*
-      uint32_t return_code = 0;
-      uint32_t p1 = 0;
-      if (receive_buffer->len >= 12) {
-        return_code = 0x2001;  // Ok
-        receive_buffer->len = 16;
-        if (CONTAINER->type == 1) { // command
-          switch (CONTAINER->op) {
-            case 0x1001: // GetDescription
-              TRANSMIT(WriteDescriptor());
-              break;
-            case 0x1002:  // OpenSession
-              break;
-            case 0x1003:  // CloseSession
-              break;
-            case 0x1004:  // GetStorageIDs
-              TRANSMIT(WriteStorageIDs());
-              break;
-            case 0x1005:  // GetStorageInfo
-              TRANSMIT(GetStorageInfo(CONTAINER->params[0]));
-              break;
-            case 0x1006:  // GetNumObjects
-              if (CONTAINER->params[1]) {
-                return_code = 0x2014; // spec by format unsupported
-              } else {
-                p1 = GetNumObjects(CONTAINER->params[0],
-                CONTAINER->params[2]);
-              }
-              break;
-            case 0x1007:  // GetObjectHandles
-              if (CONTAINER->params[1]) {
-                return_code = 0x2014; // spec by format unsupported
-              } else {
-                TRANSMIT(GetObjectHandles(CONTAINER->params[0],
-                CONTAINER->params[2]));
-              }
-              break;
-            case 0x1008:  // GetObjectInfo
-              TRANSMIT(GetObjectInfo(CONTAINER->params[0]));
-              break;
-            case 0x1009:  // GetObject
-              TRANSMIT(GetObject(CONTAINER->params[0]));
-              break;
-            case 0x100B:  // DeleteObject
-              if (CONTAINER->params[1]) {
-                return_code = 0x2014; // spec by format unsupported
-              } else {
-                if (!storage_->DeleteObject(CONTAINER->params[0])) {
-                  return_code = 0x2012; // partial deletion
-                }
-              }
-              break;
-            case 0x100C:  // SendObjectInfo
-              CONTAINER->params[2] =
-                  SendObjectInfo(CONTAINER->params[0], // storage
-                                 CONTAINER->params[1]); // parent
-                  p1 = CONTAINER->params[0];
-              if (!p1) p1 = 1;
-              CONTAINER->len = receive_buffer->len = 12 + 3 * 4;
-              break;
-            case 0x100D:  // SendObject
-              SendObject();
-              break;
-            case 0x1014:  // GetDevicePropDesc
-              TRANSMIT(GetDevicePropDesc(CONTAINER->params[0]));
-              break;
-            case 0x1015:  // GetDevicePropvalue
-              TRANSMIT(GetDevicePropValue(CONTAINER->params[0]));
-              break;
-            default:
-              return_code = 0x2005;  // operation not supported
-              break;
-          }
-        } else {
-          return_code = 0x2000;  // undefined
-        }
-      }
-      */
       if (return_code) {
           CONTAINER->type=3;
           CONTAINER->len=len;
@@ -1919,11 +1274,6 @@ uint32_t propertyListNum = sizeof(propertyList)/sizeof(propertyList[0]);
           CONTAINER->transaction_id=id;
           CONTAINER->params[0]=p1;
 
-//        CONTAINER->type = 3;
-//        CONTAINER->op = return_code;
-//        CONTAINER->params[0] = p1;
-
-        
         PrintPacket(receive_buffer);
         usb_tx(MTP_TX_ENDPOINT, receive_buffer);
         receive_buffer = 0;
@@ -1938,51 +1288,3 @@ uint32_t propertyListNum = sizeof(propertyList)/sizeof(propertyList[0]);
   }
 
 #endif
-
-/*
-op=00001008 len=16
-op=0000100C len=20
-0000100C 00000001 FFFFFFFF FFFFFFFF
-
-op=0000100C len=184
-0000100C 00000000 00003000 00000007
-New Text Document.txt
-op=0000100D len=12
-op=0000100D len=19
-op=00001005 len=16
-op=0000100B len=20
-0000100B 00000010 00000000
-op=00001005 len=16
-
-
-op=00001008 len=16
-op=00001008 len=16
-op=0000100C len=20
-0000100C 00000001 00000007 00000007
-00000007 0
-op=0000100C len=184
-0000100C 00000000 00003000 00000007
-00003000 0 New Text Document.txt
-op=0000100D len=12
-op=0000100D len=19
-7
-op=00001005 len=16
-
-
-op=0000100C len=20
-0000100C 00000001 00000007 00000007
-00000007 0 New Text Document.txt
-op=0000100C len=184
-0000100C 00000000 00003000 00000009
-00003000 0 New Text Document.txt
-op=00001005 len=16
-
-op=0000100C len=20
-0000100C 00000001 FFFFFFFF 00000009
-FFFFFFFF 0 New Text Document.txt
-op=0000100C len=184
-0000100C 00000000 00003000 00000009
-00003000 0 New Text Document.txt
-op=00001005 len=16
-
-*/
