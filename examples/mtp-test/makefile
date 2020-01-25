@@ -127,10 +127,15 @@ UPL_JLINK   := $(UPL_JLINK_B)/jlink -commanderscript .vsteensy/flash.jlink
 rwildcard =$(wildcard $1$2) $(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2))
 
 #User Sources -----------------------------------------------------------------
-USR_C_FILES    := $(call rwildcard,$(USR_SRC)/,*.c)
-USR_CPP_FILES  := $(call rwildcard,$(USR_SRC)/,*.cpp)
 USR_S_FILES    := $(call rwildcard,$(USR_SRC)/,*.S)
-USR_OBJ        := $(USR_S_FILES:$(USR_SRC)/%.S=$(USR_BIN)/%.o) $(USR_C_FILES:$(USR_SRC)/%.c=$(USR_BIN)/%.o) $(USR_CPP_FILES:$(USR_SRC)/%.cpp=$(USR_BIN)/%.o)
+USR_C_FILES    := $(call rwildcard,$(USR_SRC)/,*.c)
+USR_CPP_FILES  := $(call rwildcard,$(USR_SRC)/,*.cpp) 
+USR_INO_FILES  := $(call rwildcard,$(USR_SRC)/,*.ino)
+USR_OBJ        := $(USR_S_FILES:$(USR_SRC)/%.S=$(USR_BIN)/%.o) 
+USR_OBJ        += $(USR_C_FILES:$(USR_SRC)/%.c=$(USR_BIN)/%.o) 
+USR_OBJ        += $(USR_CPP_FILES:$(USR_SRC)/%.cpp=$(USR_BIN)/%.o)
+USR_OBJ        += $(USR_INO_FILES:$(USR_SRC)/%.ino=$(USR_BIN)/%.o)
+$(info $(USR_OBJ))
 
 # Core library sources --------------------------------------------------------
 CORE_CPP_FILES := $(call rwildcard,$(CORE_SRC)/,*.cpp)
@@ -154,9 +159,12 @@ LIB_CPP_LOCAL   := $(foreach d, $(LIB_DIRS_LOCAL),$(call wildcard,$d/*.cpp))
 LIB_C_LOCAL     := $(foreach d, $(LIB_DIRS_LOCAL),$(call wildcard,$d/*.c))
 LIB_S_LOCAL     := $(foreach d, $(LIB_DIRS_LOCAL),$(call wildcard,$d/*.S))
 
-LIB_OBJ         := $(LIB_CPP_SHARED:$(LIBS_SHARED_BASE)/%.cpp=$(LIB_BIN)/%.o)  $(LIB_CPP_LOCAL:$(LIBS_LOCAL_BASE)/%.cpp=$(LIB_BIN)/%.o)
-LIB_OBJ         += $(LIB_C_SHARED:$(LIBS_SHARED_BASE)/%.c=$(LIB_BIN)/%.o)  $(LIB_C_LOCAL:$(LIBS_LOCAL_BASE)/%.c=$(LIB_BIN)/%.o)
-LIB_OBJ         += $(LIB_S_SHARED:$(LIBS_SHARED_BASE)/%.S=$(LIB_BIN)/%.o)  $(LIB_S_LOCAL:$(LIBS_LOCAL_BASE)/%.S=$(LIB_BIN)/%.o)
+LIB_OBJ         := $(LIB_CPP_SHARED:$(LIBS_SHARED_BASE)/%.cpp=$(LIB_BIN)/%.o)  
+LIB_OBJ         += $(LIB_CPP_LOCAL:$(LIBS_LOCAL_BASE)/%.cpp=$(LIB_BIN)/%.o)
+LIB_OBJ         += $(LIB_C_SHARED:$(LIBS_SHARED_BASE)/%.c=$(LIB_BIN)/%.o) 
+LIB_OBJ         += $(LIB_C_LOCAL:$(LIBS_LOCAL_BASE)/%.c=$(LIB_BIN)/%.o)
+LIB_OBJ         += $(LIB_S_SHARED:$(LIBS_SHARED_BASE)/%.S=$(LIB_BIN)/%.o)  
+LIB_OBJ         += $(LIB_S_LOCAL:$(LIBS_LOCAL_BASE)/%.S=$(LIB_BIN)/%.o)
 
 # Includes -------------------------------------------------------------
 INCLUDE        := -I./$(USR_SRC) -I$(CORE_SRC)
@@ -254,6 +262,10 @@ $(USR_BIN)/%.o: $(USR_SRC)/%.c
 $(USR_BIN)/%.o: $(USR_SRC)/%.cpp
 	@echo $(COL_SRC)USER [CPP] $(notdir $<) $(COL_ERR)
 	@"$(CXX)" $(CPP_FLAGS) $(INCLUDE) -o "$@" -c $<
+
+$(USR_BIN)/%.o: $(USR_SRC)/%.ino
+	@echo $(COL_SRC)USER [INO] $< $(COL_ERR)
+	@"$(CC)" $(CPP_FLAGS) $(INCLUDE) -x c++ -o $@ -c $< -x none
 
 # Linking ---------------------------------------------------------------------
 $(TARGET_ELF): $(CORE_LIB) $(LIB_OBJ) $(USR_OBJ)
