@@ -71,26 +71,24 @@ public:
   virtual uint32_t GetNextObjectHandle() = 0;
 
   // Size should be 0xFFFFFFFF if it's a directory.
-  virtual void GetObjectInfo(uint32_t handle,
-        char* name,
-        uint32_t* size,
-        uint32_t* parent) = 0;
+  virtual void GetObjectInfo(uint32_t handle,  char* name, uint32_t *dir, uint32_t* size, uint32_t* parent) = 0;
+  virtual void SetObjectInfo(uint32_t handle, char* name, uint32_t dir, uint32_t size, uint32_t parent) = 0;
+
   virtual uint64_t GetSize(uint32_t handle) = 0;
-  virtual void read(uint32_t handle,
-        uint32_t pos,
-        char* buffer,
-        uint32_t bytes) = 0;
-  virtual uint32_t Create(uint32_t parent,
-        bool folder,
-        const char* filename) = 0;
+  virtual void read(uint32_t handle, uint32_t pos, char* buffer, uint32_t bytes) = 0;
+  virtual uint32_t Create(uint32_t parent, bool folder, const char* filename) = 0;
   virtual void write(const char* data, uint32_t size);
   virtual void close();
   virtual bool DeleteObject(uint32_t object) = 0;
+
+  virtual void rename(uint32_t handle, const char* newName) = 0 ;
+  virtual void move(uint32_t handle, uint32_t newParent ) = 0 ;
+
 };
 
 typedef struct {
     uint32_t parent;
-    uint32_t child;  // size stored here for files
+    uint32_t child; 
     uint32_t sibling;
     uint8_t isdir;
     uint8_t scanned;
@@ -144,13 +142,18 @@ private:
   bool follow_sibling_;
   void StartGetObjectHandles(uint32_t parent) override ;
   uint32_t GetNextObjectHandle() override ; 
-  void GetObjectInfo(uint32_t handle, char* name, uint32_t* size, uint32_t* parent) override ;
+  void GetObjectInfo(uint32_t handle, char* name, uint32_t *dir, uint32_t* size, uint32_t* parent) override ;
+  void SetObjectInfo(uint32_t handle, char* name, uint32_t dir, uint32_t size, uint32_t parent) override ;
   uint64_t GetSize(uint32_t handle) ;
   void read(uint32_t handle, uint32_t pos, char* out, uint32_t bytes) override ;
   bool DeleteObject(uint32_t object) override ;
   uint32_t Create(uint32_t parent,  bool folder, const char* filename) override ;
   void write(const char* data, uint32_t bytes) override ;
   void close() override ;
+
+  void rename(uint32_t handle, const char* newName) override ;
+  void move(uint32_t handle, uint32_t newParent ) override ;
+
 };
 
 #endif

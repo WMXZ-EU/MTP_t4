@@ -248,11 +248,23 @@ void dateTime(uint16_t* date, uint16_t* time, uint8_t* ms10)
     }
   }
 
-  void MTPStorage_SD::GetObjectInfo(uint32_t handle, char* name, uint32_t* size, uint32_t* parent) {
+  void MTPStorage_SD::GetObjectInfo(uint32_t handle, char* name, uint32_t *dir, uint32_t* size, uint32_t* parent) {
     Record r = ReadIndexRecord(handle);
     strcpy(name, r.name);
     *parent = r.parent;
-    *size = r.isdir ? 0xFFFFFFFFUL : r.size;
+    //*size = r.isdir ? 0xFFFFFFFFUL : r.size;
+    *size = r.size;
+    *dir = r.isdir;
+  }
+
+  void MTPStorage_SD::SetObjectInfo(uint32_t handle, char* name, uint32_t dir, uint32_t size, uint32_t parent) {
+    Record r = ReadIndexRecord(handle);
+    strcpy(r.name,name);
+    r.parent = parent;
+    //*size = r.isdir ? 0xFFFFFFFFUL : r.size;
+    r.size = size;
+    r.isdir = dir;
+    WriteIndexRecord(handle, r);
   }
 
   uint64_t MTPStorage_SD::GetSize(uint32_t handle) {
@@ -272,9 +284,9 @@ void dateTime(uint16_t* date, uint16_t* time, uint8_t* ms10)
     Record r;
     while (true) {
       r = ReadIndexRecord(object == 0xFFFFFFFFUL ? 0 : object);
-      if (!r.isdir) break;
-      if (!r.child) break;
-      if (!DeleteObject(r.child))
+      if (!r.isdir) break;  // found a file
+      if (!r.child) break;  // empty directory
+      if (!DeleteObject(r.child)) // recursive call until no more files can be deleted
         return false;
     }
 
@@ -292,23 +304,25 @@ void dateTime(uint16_t* date, uint16_t* time, uint8_t* ms10)
     }
     mtp_lock_storage(false);
     if (!success) return false;
+    // object is deleted on disk
+    // remove object from database
     r.name[0] = 0;
     int p = r.parent;
     WriteIndexRecord(object, r);
-    Record tmp = ReadIndexRecord(p);
-    if (tmp.child == object) {
+    Record tmp = ReadIndexRecord(p);  // get parent object (directory)
+    if (tmp.child == object) {        // are we first object in directory (youngest child)
       tmp.child = r.sibling;
       WriteIndexRecord(p, tmp);
-    } else {
-      int c = tmp.child;
+    } else {                          // search younger siblings
+      int c = tmp.child;              // youngest sibling in directory
       while (c) {
         tmp = ReadIndexRecord(c);
-        if (tmp.sibling == object) {
-          tmp.sibling = r.sibling;
+        if (tmp.sibling == object) {  // found next youngest sibling
+          tmp.sibling = r.sibling;    // link to next older sibling; is zero of actual object is oldest child
           WriteIndexRecord(c, tmp);
           break;
         } else {
-          c = tmp.sibling;
+          c = tmp.sibling;            // move to next sibling in directory
         }
       }
     }
@@ -329,8 +343,9 @@ void dateTime(uint16_t* date, uint16_t* time, uint8_t* ms10)
     r.size=0;
     // New folder is empty, scanned = true.
     r.scanned = 1;
-    ret = p.child = AppendIndexRecord(r);
+    ret = p.child = AppendIndexRecord(r); 
     WriteIndexRecord(parent, p);
+    //
     if (folder) {
       char filename[256];
       ConstructFilename(ret, filename);
@@ -360,4 +375,37 @@ void dateTime(uint16_t* date, uint16_t* time, uint8_t* ms10)
     r.size = (uint32_t) size;
     WriteIndexRecord(open_file_, r);
     open_file_ = 0xFFFFFFFEUL;
+  }
+  void MTPStorage_SD::rename(uint32_t handle, const char* name) 
+  { char oldName[256];
+    char newName[256];
+
+    ConstructFilename(handle, oldName);
+    Record p1 = ReadIndexRecord(handle);
+    strcpy(p1.name,name);
+    WriteIndexRecord(handle, p1);
+    ConstructFilename(handle, newName);
+
+    SD.rename(oldName,newName);
+  }
+
+  void MTPStorage_SD::move(uint32_t handle, uint32_t newParent ) 
+  { char oldName[256];
+    char newName[256];
+
+    ConstructFilename(handle, oldName);
+    Record p1 = ReadIndexRecord(handle);
+
+    if (newParent == 0xFFFFFFFFUL) newParent = 0;
+    Record p2 = ReadIndexRecord(newParent); // is pointing to last object in directory
+
+    p1.sibling = p2.child;
+    p1.parent = newParent;
+
+    p2.child = handle; 
+    WriteIndexRecord(handle, p1);
+    WriteIndexRecord(newParent, p2);
+
+    ConstructFilename(handle, newName);
+    SD.rename(oldName,newName);
   }

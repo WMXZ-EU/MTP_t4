@@ -18,12 +18,10 @@ void logg(uint32_t del, const char *txt)
 
 void setup()
 { 
-  //while(!Serial);
+  while(!Serial || millis()<4000);
   Serial.println("MTP test");
 
   storage.init();
-//  SD.ls();
-//  Serial.println("end of setup");
 
 }
 
