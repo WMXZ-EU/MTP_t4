@@ -17,7 +17,6 @@ disk I/O is buffered to get some speed-up overcoming uSD latency issues
 
 Installation:
  - copy files from "copy-to-core" to cores/Teensy4. (This will modify existing routines; NB Do not copy to cores/teensy3.)
- - edit boards.txt to enable MTP-Disk on Teensy 4.0
  - download SdFat-beta from Bill Greiman`s github
  - copy in src directory file "SdFat.h" to "SdFat-beta.h"
  - edit SdFatConfig.h following Bill`s instructions e.g.:
