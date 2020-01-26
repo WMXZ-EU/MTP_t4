@@ -481,6 +481,10 @@ teensy35.menu.usb.serialmidi16audio.build.usbtype=USB_MIDI16_AUDIO_SERIAL
 teensy35.menu.usb.mtp=MTP Disk (Experimental)
 teensy35.menu.usb.mtp.build.usbtype=USB_MTPDISK
 teensy35.menu.usb.mtp.fake_serial=teensy_gateway
+#
+teensy35.menu.usb.mtp=MTP Disk + Serial (Experimental)
+teensy35.menu.usb.mtp.build.usbtype=USB_MTPDISK_SERIAL
+#
 teensy35.menu.usb.rawhid=Raw HID
 teensy35.menu.usb.rawhid.build.usbtype=USB_RAWHID
 teensy35.menu.usb.rawhid.fake_serial=teensy_gateway
@@ -676,6 +680,10 @@ teensy31.menu.usb.serialmidi16audio.build.usbtype=USB_MIDI16_AUDIO_SERIAL
 teensy31.menu.usb.mtp=MTP Disk (Experimental)
 teensy31.menu.usb.mtp.build.usbtype=USB_MTPDISK
 teensy31.menu.usb.mtp.fake_serial=teensy_gateway
+#
+teensy31.menu.usb.mtp=MTP Disk + Serial (Experimental)
+teensy31.menu.usb.mtp.build.usbtype=USB_MTPDISK_SERIAL
+#
 teensy31.menu.usb.rawhid=Raw HID
 teensy31.menu.usb.rawhid.build.usbtype=USB_RAWHID
 teensy31.menu.usb.rawhid.fake_serial=teensy_gateway
@@ -874,6 +882,10 @@ teensy30.menu.usb.serialmidiaudio.build.usbtype=USB_MIDI_AUDIO_SERIAL
 teensy30.menu.usb.mtp=MTP Disk (Experimental)
 teensy30.menu.usb.mtp.build.usbtype=USB_MTPDISK
 teensy30.menu.usb.mtp.fake_serial=teensy_gateway
+#
+teensy30.menu.usb.mtp=MTP Disk + Serial (Experimental)
+teensy30.menu.usb.mtp.build.usbtype=USB_MTPDISK_SERIAL
+#
 teensy30.menu.usb.rawhid=Raw HID
 teensy30.menu.usb.rawhid.build.usbtype=USB_RAWHID
 teensy30.menu.usb.rawhid.fake_serial=teensy_gateway
@@ -1026,6 +1038,10 @@ teensyLC.menu.usb.serialmidi4.build.usbtype=USB_MIDI4_SERIAL
 teensyLC.menu.usb.mtp=MTP Disk (Experimental)
 teensyLC.menu.usb.mtp.build.usbtype=USB_MTPDISK
 teensyLC.menu.usb.mtp.fake_serial=teensy_gateway
+#
+teensyLC.menu.usb.mtp=MTP Disk + Serial (Experimental)
+teensyLC.menu.usb.mtp.build.usbtype=USB_MTPDISK_SERIAL
+#
 teensyLC.menu.usb.rawhid=Raw HID
 teensyLC.menu.usb.rawhid.build.usbtype=USB_RAWHID
 teensyLC.menu.usb.rawhid.fake_serial=teensy_gateway
