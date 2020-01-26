@@ -35,11 +35,8 @@
 
 #include "core_pins.h"
 #include "usb_dev.h"
-//#include "usb_serial.h"
 
 #include "MTP_config.h"
-
-//SdFs SD;
 
 extern SdFs SD;
 

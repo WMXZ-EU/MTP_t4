@@ -25,8 +25,7 @@
 // modified for T4 by WMXZ
 
 #include "core_pins.h"
-//#include "usb_dev.h"
-//#include "usb_serial.h"
+
 #include "MTP.h"
 
 #if defined(__IMXRT1062__)

@@ -5,11 +5,11 @@
     #define USE_SDIO 0
 
     #if USE_SDFAT_BETA == 1
-    #include "SdFat-beta.h"
+        #include "SdFat-beta.h"
     #else
-    #include "SdFat.h"
+        #include "SdFat.h"
     #endif
-
+    
     #if defined(__MK20DX256__)
         #if USE_SDIO==1
             #undef USE_SDIO

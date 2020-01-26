@@ -1,11 +1,9 @@
 #include "Arduino.h"
 
-#if 1
   #include "MTP.h"
 
   MTPStorage_SD storage;
   MTPD       mtpd(&storage);
-#endif
 
 void logg(uint32_t del, const char *txt)
 { static uint32_t to;

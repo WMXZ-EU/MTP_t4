@@ -29,10 +29,8 @@
 
 #include "core_pins.h"
 #include "usb_dev.h"
-//#include "usb_serial.h"
-#include "MTP_Storage.h"
 
-//#include "SdFat-beta.h"
+#include "MTP_Storage.h"
 
 SdFs SD;
 
