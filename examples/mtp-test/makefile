@@ -14,8 +14,8 @@ export SHELL
 
 TARGET_NAME      := mtp-test
 
-BOARD_ID         := TEENSY36
-#BOARD_ID         := TEENSY40
+#BOARD_ID         := TEENSY36
+BOARD_ID         := TEENSY40
 
 ifeq ($(BOARD_ID),TEENSY36)
 	MCU			:= mk66fx1m0
@@ -67,8 +67,8 @@ FLAGS_LD    := -Wl,--gc-sections,--relax,--defsym=__rtc_localtime=$(shell powers
 #LIBS        := -larm_cortexM7lfsp_math -lm -lstdc++
 LIBS		+= -lstdc++
 
-DEFINES     += -DTEENSYDUINO=149 -DARDUINO=10810
-DEFINES     += -DUSB_MTPDISK -DLAYOUT_US_ENGLISH
+DEFINES     += -DTEENSYDUINO=149 -DARDUINO=10810 -DLAYOUT_US_ENGLISH
+DEFINES     += -DUSB_MTPDISK_SERIAL
 
 CPP_FLAGS   := $(FLAGS_CPU) $(FLAGS_OPT) $(FLAGS_COM) $(DEFINES) $(FLAGS_CPP)
 C_FLAGS     := $(FLAGS_CPU) $(FLAGS_OPT) $(FLAGS_COM) $(DEFINES) $(FLAGS_C)

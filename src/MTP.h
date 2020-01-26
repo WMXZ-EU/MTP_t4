@@ -27,8 +27,8 @@
 #ifndef MTP_H
 #define MTP_H
 
-#if !defined(USB_MTPDISK)
-  #error "You need to select USB Type: 'MTP Disk (Experimental)'"
+#if !defined(USB_MTPDISK) && !defined(USB_MTPDISK_SERIAL)
+      #error "You need to select USB Type: 'MTP Disk (Experimental) or MTP DISK + Serial (Experimental)"
 #endif
 
 #include "usb_mtp.h"
