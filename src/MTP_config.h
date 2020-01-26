@@ -2,7 +2,7 @@
 #define MTP_CONFIG_H
 
     #define USE_SDFAT_BETA 1
-    #define USE_SDIO 0
+    #define USE_SDIO 1
 
     #if USE_SDFAT_BETA == 1
         #include "SdFat-beta.h"

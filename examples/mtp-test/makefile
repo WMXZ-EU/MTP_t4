@@ -14,8 +14,10 @@ export SHELL
 
 TARGET_NAME      := mtp-test
 
-#BOARD_ID         := TEENSY36
-BOARD_ID         := TEENSY40
+BOARD_ID         := TEENSY36
+#BOARD_ID         := TEENSY40
+
+USB_DEVICE		:= USB_MTPDISK_SERIAL
 
 ifeq ($(BOARD_ID),TEENSY36)
 	MCU			:= mk66fx1m0
@@ -68,7 +70,7 @@ FLAGS_LD    := -Wl,--gc-sections,--relax,--defsym=__rtc_localtime=$(shell powers
 LIBS		+= -lstdc++
 
 DEFINES     += -DTEENSYDUINO=149 -DARDUINO=10810 -DLAYOUT_US_ENGLISH
-DEFINES     += -DUSB_MTPDISK_SERIAL
+DEFINES     += -D$(USB_DEVICE)
 
 CPP_FLAGS   := $(FLAGS_CPU) $(FLAGS_OPT) $(FLAGS_COM) $(DEFINES) $(FLAGS_CPP)
 C_FLAGS     := $(FLAGS_CPU) $(FLAGS_OPT) $(FLAGS_COM) $(DEFINES) $(FLAGS_C)
@@ -135,7 +137,6 @@ USR_OBJ        := $(USR_S_FILES:$(USR_SRC)/%.S=$(USR_BIN)/%.o)
 USR_OBJ        += $(USR_C_FILES:$(USR_SRC)/%.c=$(USR_BIN)/%.o) 
 USR_OBJ        += $(USR_CPP_FILES:$(USR_SRC)/%.cpp=$(USR_BIN)/%.o)
 USR_OBJ        += $(USR_INO_FILES:$(USR_SRC)/%.ino=$(USR_BIN)/%.o)
-$(info $(USR_OBJ))
 
 # Core library sources --------------------------------------------------------
 CORE_CPP_FILES := $(call rwildcard,$(CORE_SRC)/,*.cpp)
