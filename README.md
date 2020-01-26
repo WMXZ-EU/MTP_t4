@@ -24,13 +24,10 @@ Installation:
  - in MTP_config.h edit defines to use SdFat-beta or SDIO e.g.:
    - #define USE_SDFAT_BETA 1
    - #define USE_SDIO 0
- - remove 3 comments in "\hardware\teensy\avr\boards.txt" for
-   - teensy40.menu.usb.mtp=MTP Disk (Experimental)
-   - teensy40.menu.usb.mtp.build.usbtype=USB_MTPDISK
-   - teensy40.menu.usb.mtp.fake_serial=teensy_gateway
- - add 2 lines in "\hardware\teensy\avr\boards.txt" for
-   - teensy40.menu.usb.mtp=MTP Disk + Serial (Experimental)
-   - teensy40.menu.usb.mtp.build.usbtype=USB_MTPDISK_SERIAL
+ - copy content of copy-to-cores_teensy4 to cores/teensy4 orverwriting existing files
+ - copy content of copy-to-cores_teensy3 to cores/teensy3 orverwriting existing file
+ - copy content of copy-to-teensy_avr to teensy/avr orverwriting existing file
+  
 
 To be done:
  - check SdFat compatibility
