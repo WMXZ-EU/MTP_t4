@@ -30,5 +30,7 @@ Installation:
   
 
 To be done:
- - check SdFat compatibility
+
+- implement refresh 
+- check SdFat compatibility
  
