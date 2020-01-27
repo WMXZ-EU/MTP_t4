@@ -14,8 +14,8 @@ export SHELL
 
 TARGET_NAME      := mtp-test
 
-BOARD_ID         := TEENSY36
-#BOARD_ID         := TEENSY40
+#BOARD_ID         := TEENSY36
+BOARD_ID         := TEENSY40
 
 USB_DEVICE		:= USB_MTPDISK_SERIAL
 

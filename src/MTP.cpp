@@ -698,6 +698,7 @@ uint32_t propertyListNum = sizeof(propertyList)/sizeof(propertyList[0]);
 
     uint32_t len=ReadMTPHeader();
     uint32_t index = sizeof(MTPHeader);
+    disk_pos=0;
     //int old=len;
     while(len>0)
     { uint32_t bytes = MTP_RX_SIZE - index;                     // how many data in usb-packet
