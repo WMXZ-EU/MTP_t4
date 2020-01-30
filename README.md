@@ -14,6 +14,8 @@ copying files from Teensy to PC  and from PC to Teensy is working
 
 disk I/O is buffered to get some speed-up overcoming uSD latency issues
 
+# Reset of Session
+Modification of disk content (directories and Files) by Teensy is only be visible on PC when done before mounting the MTP device. To refresh disk content it is nrcessary to unmount and remount Teensy MTP device. On Windows this can be done by using device manager and disable and reanable Teensy (found under portable Device).
 
 Installation:
  - copy files from "copy-to-core" to cores/Teensy4. (This will modify existing routines; NB Do not copy to cores/teensy3.)
@@ -31,6 +33,5 @@ Installation:
 
 To be done:
 
-- implement refresh 
 - check SdFat compatibility
  
