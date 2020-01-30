@@ -57,21 +57,21 @@ void dateTime(uint16_t* date, uint16_t* time, uint8_t* ms10)
   *ms10 = second() & 1 ? 100 : 0;
 }
 
-      void MTPStorage_SD::init(void)
-      { 
-        #if DO_DEBUG>0
-          Serial.println("Using SdFS");
-        #endif
-        #if USE_SDIO==0
-          SPI.setMOSI(SD_MOSI);
-          SPI.setMISO(SD_MISO);
-          SPI.setSCK(SD_SCK);
-        #endif
-        if (!SD.begin(SD_CONFIG)) SD.errorHalt("SD.begin failed");
-      
-        // Set Time callback
-        FsDateTime::callback = dateTime;
-      }
+  void MTPStorage_SD::init(void)
+  { 
+    #if DO_DEBUG>0
+      Serial.println("Using SdFS");
+    #endif
+    #if USE_SDIO==0
+      SPI.setMOSI(SD_MOSI);
+      SPI.setMISO(SD_MISO);
+      SPI.setSCK(SD_SCK);
+    #endif
+    if (!SD.begin(SD_CONFIG)) SD.errorHalt("SD.begin failed");
+  
+    // Set Time callback
+    FsDateTime::callback = dateTime;
+  }
 
   bool MTPStorage_SD::readonly() { return false; }
   bool MTPStorage_SD::has_directories() { return true; }
@@ -83,10 +83,23 @@ void dateTime(uint16_t* date, uint16_t* time, uint8_t* ms10)
     return (uint64_t)512 * (uint64_t)SD.freeClusterCount() * (uint64_t)SD.sectorsPerCluster(); 
   }
 
+  void MTPStorage_SD::ResetIndex() {
+
+    mtp_lock_storage(true);
+    if(index_) index_.close();
+    SD.remove("/mtpindex.dat");
+    index_ = SD.open("/mtpindex.dat", FILE_WRITE);
+    mtp_lock_storage(false);
+
+    all_scanned_ = false;
+    index_generated=false;
+    open_file_ = 0xFFFFFFFEUL;
+  }
+
   void MTPStorage_SD::OpenIndex() {
     if (index_) return;
     mtp_lock_storage(true);
-    index_ = SD.open("mtpindex.dat", FILE_WRITE);
+    index_ = SD.open("/mtpindex.dat", FILE_WRITE);
     mtp_lock_storage(false);
   }
 
@@ -137,7 +150,7 @@ void dateTime(uint16_t* date, uint16_t* time, uint8_t* ms10)
     char filename[256];
     ConstructFilename(i, filename);
     mtp_lock_storage(true);
-    f_.close();
+    if(f_ && f_.isOpen()) f_.close();
     f_ = SD.open(filename, mode);
     open_file_ = i;
     mode_ = mode;
@@ -152,7 +165,7 @@ void dateTime(uint16_t* date, uint16_t* time, uint8_t* ms10)
     index_generated = true;
 
     mtp_lock_storage(true);
-    SD.remove("mtpindex.dat");
+    if(SD.exists("/mtpindex.dat")) SD.remove("/mtpindex.dat");
     mtp_lock_storage(false);
     index_entries_ = 0;
 
@@ -169,6 +182,7 @@ void dateTime(uint16_t* date, uint16_t* time, uint8_t* ms10)
 
   void MTPStorage_SD::ScanDir(uint32_t i) {
     Record record = ReadIndexRecord(i);
+
     if (record.isdir && !record.scanned) {
       OpenFileByIndex(i);
       if (!f_) return;
@@ -197,7 +211,7 @@ void dateTime(uint16_t* date, uint16_t* time, uint8_t* ms10)
         child.close();
       }
       record.scanned = true;
-      record.child = sibling;
+      record.child = sibling; // this is the last object in directory
       WriteIndexRecord(i, record);
     }
   }
@@ -367,6 +381,7 @@ void dateTime(uint16_t* date, uint16_t* time, uint8_t* ms10)
     uint64_t size = f_.size();
     f_.close();
     mtp_lock_storage(false);
+    //
     Record r = ReadIndexRecord(open_file_);
     if(!r.isdir) r.child=1;
     r.size = (uint32_t) size;

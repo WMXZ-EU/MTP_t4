@@ -123,6 +123,8 @@ private:
   uint32_t SendObjectInfo(uint32_t storage, uint32_t parent) ;
   void SendObject() ;
 
+  void OpenSession(void);
+
 public:
   void loop(void) ;
 

@@ -198,6 +198,11 @@ const int supported_op_num = supported_op_size/sizeof(supported_op[0]);
     write32(1); // 1 storage
   }
 
+  void MTPD::OpenSession(void)
+  {
+    storage_->ResetIndex();
+  }
+
   void MTPD::GetStorageInfo(uint32_t storage) {
     uint16_t readOnly = storage_->readonly();
     uint16_t has_directories = storage_->has_directories();
@@ -784,7 +789,7 @@ uint32_t propertyListNum = sizeof(propertyList)/sizeof(propertyList[0]);
           break;
 
         case 0x1002:  //open session
-          //
+          OpenSession();
           break;
 
         case 0x1003:  // CloseSession
@@ -1154,6 +1159,7 @@ uint32_t propertyListNum = sizeof(propertyList)/sizeof(propertyList[0]);
 
         case 0x1002:  //open session
           //
+          OpenSession();
           break;
 
         case 0x1003:  // CloseSession

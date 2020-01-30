@@ -81,6 +81,8 @@ public:
   virtual void rename(uint32_t handle, const char* newName) = 0 ;
   virtual void move(uint32_t handle, uint32_t newParent ) = 0 ;
 
+  virtual void ResetIndex(void ) = 0 ;
+
 };
 
 typedef struct {
@@ -150,6 +152,8 @@ private:
 
   void rename(uint32_t handle, const char* newName) override ;
   void move(uint32_t handle, uint32_t newParent ) override ;
+
+  void ResetIndex(void ) override ;
 
 };
 
