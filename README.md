@@ -8,8 +8,9 @@ code is based on https://github.com/yoonghm/MTP with modification by WMXZ
 
 see also https://forum.pjrc.com/threads/43050-MTP-Responder-Contribution for discussions
 
-files in copy-of-core contain modifications of core and need to be copied to cores/teensy4, cores/teensy3 and hardware/avr. This files are only necessary until Teensyduino has integrated MTP into core functionality
+files in different copy-to directories contain modifications of cores and need to be copied to cores/teensy4, cores/teensy3 and hardware/avr, respectively. These files are only necessary until Teensyduino has integrated full MTP into cores functionality
 
+## Features
 copying files from Teensy to PC  and from PC to Teensy is working
 
 disk I/O is buffered to get some speed-up overcoming uSD latency issues
@@ -19,7 +20,7 @@ both Serialemu and true Serial may be used- True Serial port is, however, showin
 ## Reset of Session
 Modification of disk content (directories and Files) by Teensy is only be visible on PC when done before mounting the MTP device. To refresh disk content it is nrcessary to unmount and remount Teensy MTP device. On Windows this can be done by using device manager and disable and reanable Teensy (found under portable Device).
 
-Installation:
+## Installation:
  - copy files from "copy-to-core" to cores/Teensy4. (This will modify existing routines; NB Do not copy to cores/teensy3.)
  - download SdFat-beta from Bill Greiman`s github
  - copy in src directory file "SdFat.h" to "SdFat-beta.h"
@@ -34,7 +35,6 @@ Installation:
   
 
 ## To be done:
-
 - check SdFat compatibility
 - fix Serial port issue
  
