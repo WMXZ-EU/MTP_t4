@@ -27,7 +27,6 @@
 // modified for T4 by WMXZ
 
 #include "core_pins.h"
-#include "usb_dev.h"
 
 #include "MTP_Storage.h"
 

@@ -24,111 +24,91 @@
 // modified for SDFS by WMXZ
 // modified for T4
 
-#ifndef MTP_H
-#define MTP_H
+#ifndef MTP2_H
+#define MTP2_H
+  #if defined(__MK66FX1M0__) && (defined(USB2_MTPDISK) || defined(USB2_MTPDISK_SERIAL))
 
-#if !defined(USB_MTPDISK) && !defined(USB_MTPDISK_SERIAL)
-      #error "You need to select USB Type: 'MTP Disk (Experimental) or MTP DISK + Serial (Experimental)"
-#endif
+    #if defined(USB_MTPDISK) || defined(USB_MTPDISK_SERIAL)
+          #error "remove USB Type: 'MTP Disk (Experimental) or MTP DISK + Serial (Experimental)"
+    #endif
 
-#include "usb_mtp.h"
-#include "MTP_Storage.h"
+    #include "usb2_mtp.h"
+    #include "MTP_Storage.h"
 
-#include "usb_dev.h"
+    // MTP Responder.
 
-// MTP Responder.
+    class MTPD {
+    public:
+      explicit MTPD(MTPStorageInterface* storage) : storage_(storage) {old_Tid=0;}
 
-class MTPD {
-public:
-  explicit MTPD(MTPStorageInterface* storage) : storage_(storage) {}
+    private:
+      MTPStorageInterface* storage_;
 
-private:
-  MTPStorageInterface* storage_;
+      struct MTPHeader {
+        uint32_t len;  // 0
+        uint16_t type; // 4
+        uint16_t op;   // 6
+        uint32_t transaction_id; // 8
+      };
 
-  struct MTPHeader {
-    uint32_t len;  // 0
-    uint16_t type; // 4
-    uint16_t op;   // 6
-    uint32_t transaction_id; // 8
-  };
+      struct MTPContainer {
+        uint32_t len;  // 0
+        uint16_t type; // 4
+        uint16_t op;   // 6
+        uint32_t transaction_id; // 8
+        uint32_t params[5];    // 12
+      } __attribute__((__may_alias__))  ;
 
-  struct MTPContainer {
-    uint32_t len;  // 0
-    uint16_t type; // 4
-    uint16_t op;   // 6
-    uint32_t transaction_id; // 8
-    uint32_t params[5];    // 12
-  } __attribute__((__may_alias__))  ;
+      bool write_get_length_ = false;
+      uint32_t write_length_ = 0;
+      
+      void write(const char *data, int len) ;
+      void write8 (uint8_t  x) ;
+      void write16(uint16_t x) ;
+      void write32(uint32_t x) ;
+      void write64(uint64_t x) ;
+      void writestring(const char* str) ;
+      void WriteDescriptor() ;
 
-#if defined(__IMXRT1062__)
+      void GetDevicePropValue(uint32_t prop) ;
+      void GetDevicePropDesc(uint32_t prop) ;
+      void WriteStorageIDs() ;
+      void GetStorageInfo(uint32_t storage) ;
+      uint32_t GetNumObjects(uint32_t storage, uint32_t parent) ;
+      void GetObjectHandles(uint32_t storage, uint32_t parent) ;
+      void GetObjectInfo(uint32_t handle) ;
+      void GetObject(uint32_t object_id) ;
 
-  void PrintPacket(const uint8_t *x, int len) ;
+      uint32_t deleteObject(uint32_t p1);
+      uint32_t moveObject(uint32_t p1, uint32_t p3);
+      void getObjectPropsSupported(uint32_t p1);
+      void getObjectPropDesc(uint32_t p1, uint32_t p2);
+      void getObjectPropValue(uint32_t p1, uint32_t p2);
+      uint32_t setObjectPropValue(uint32_t p1, uint32_t p2);
 
-  uint8_t data_buffer[MTP_RX_SIZE] __attribute__ ((aligned(32)));
+    /*************************************************************************************/
+      void read(char* data, uint32_t size) ;
+      uint32_t ReadMTPHeader() ;
+      uint8_t read8() ;
+      uint16_t read16() ;
+      uint32_t read32() ;
+      uint32_t readstring(char* buffer) ;
+      void read_until_short_packet() ;
 
-  #define DISK_BUFFER_SIZE 8*1024
-  uint8_t disk_buffer[DISK_BUFFER_SIZE] __attribute__ ((aligned(32)));
-  uint32_t disk_pos=0;
+      void fetch_packet(uint8_t *buffer);
 
-#else
+      uint32_t SendObjectInfo(uint32_t storage, uint32_t parent) ;
+      void SendObject() ;
 
-  inline MTPContainer *contains (usb_packet_t *receive_buffer)
-  { return (MTPContainer*)(receive_buffer->buf);
-  }
+      void OpenSession(void);
 
-  usb_packet_t *data_buffer_ = NULL;
+      uint32_t old_Tid;
 
-  void get_buffer();
-  void receive_buffer();
-#endif
+    public:
+      void loop(void) ;
 
-  bool write_get_length_ = false;
-  uint32_t write_length_ = 0;
-  
-  void write(const char *data, int len) ;
-  void write8 (uint8_t  x) ;
-  void write16(uint16_t x) ;
-  void write32(uint32_t x) ;
-  void write64(uint64_t x) ;
-  void writestring(const char* str) ;
-  void WriteDescriptor() ;
-
-  void GetDevicePropValue(uint32_t prop) ;
-  void GetDevicePropDesc(uint32_t prop) ;
-  void WriteStorageIDs() ;
-  void GetStorageInfo(uint32_t storage) ;
-  uint32_t GetNumObjects(uint32_t storage, uint32_t parent) ;
-  void GetObjectHandles(uint32_t storage, uint32_t parent) ;
-  void GetObjectInfo(uint32_t handle) ;
-  void GetObject(uint32_t object_id) ;
-
-  uint32_t deleteObject(uint32_t p1);
-  uint32_t moveObject(uint32_t p1, uint32_t p3);
-  void getObjectPropsSupported(uint32_t p1);
-  void getObjectPropDesc(uint32_t p1, uint32_t p2);
-  void getObjectPropValue(uint32_t p1, uint32_t p2);
-  uint32_t setObjectPropValue(uint32_t p1, uint32_t p2);
-
-/*************************************************************************************/
-  void read(char* data, uint32_t size) ;
-  uint32_t ReadMTPHeader() ;
-  uint8_t read8() ;
-  uint16_t read16() ;
-  uint32_t read32() ;
-  uint32_t readstring(char* buffer) ;
-  void read_until_short_packet() ;
-
-  void fetch_packet(uint8_t *buffer);
-
-  uint32_t SendObjectInfo(uint32_t storage, uint32_t parent) ;
-  void SendObject() ;
-
-  void OpenSession(void);
-
-public:
-  void loop(void) ;
-
-};
+    };
+  #endif
 #endif
 
 /*

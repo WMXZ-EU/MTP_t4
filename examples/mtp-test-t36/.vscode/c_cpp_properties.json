@@ -12,14 +12,17 @@
         "${ROOT0}/libraries/SPI/**",
         "${ROOT0}/libraries/Time/**",
         "${LOCAL_LIBRARIES}/SdFat-beta/**",
-        "${LOCAL_LIBRARIES}/MTP_t4/**"
+        "${LOCAL_LIBRARIES}/MTP_t4/**",
+        "${LOCAL_LIBRARIES}/USB2/**"
       ],
       "forcedInclude": [],
       "defines": [
         "__MK66FX1M0__",
         "TEENSYDUINO=149",
         "F_CPU=96000000",
-        "USB_MTPDISK_SERIAL",
+        "USB_SERIAL",
+        "USB2_MTPDISK_SERIAL",
+        "USE_SDIO=1",
         "LAYOUT_US_ENGLISH",
         "ARDUINO"
       ],
@@ -41,7 +44,8 @@
         "__IMXRT1062__",
         "TEENSYDUINO=149",
         "F_CPU=600000000",
-        "USB_MTPDISK_SERIAL",
+        "USB_SERIAL",
+        "USE_SDIO=0",
         "LAYOUT_US_ENGLISH",
         "ARDUINO"
       ],

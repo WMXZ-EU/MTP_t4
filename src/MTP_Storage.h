@@ -29,12 +29,7 @@
 #ifndef MTP_STORAGE_H
 #define MTP_STORAGE_H
 
-#if !defined(USB_MTPDISK) && !defined(USB_MTPDISK_SERIAL)
-      #error "You need to select USB Type: 'MTP Disk (Experimental) or MTP DISK + Serial (Experimental)"
-#endif
-
 #include "core_pins.h"
-#include "usb_dev.h"
 
 #include "MTP_config.h"
 

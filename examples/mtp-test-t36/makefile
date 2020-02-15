@@ -14,9 +14,9 @@ export SHELL
 
 BOARD_ID         := T36
 #BOARD_ID         := T40
-TARGET_NAME      := mtp-test_$(BOARD_ID)
+TARGET_NAME      := mtp-test_2_$(BOARD_ID)
 
-USB_DEVICE		:= USB_MTPDISK_SERIAL
+USB_DEVICE		:= USB_SERIAL
 
 ifeq ($(BOARD_ID),T36)
 	MCU			:= mk66fx1m0
@@ -25,6 +25,7 @@ ifeq ($(BOARD_ID),T36)
 	LIBS        := -larm_cortexM4lf_math -lm
 	DEFINES     := -D__MK66FX1M0__ 
 	DEFINES     += -DF_CPU=96000000
+	DEFINES		+= -DUSB2_MTPDISK_SERIAL
 	DEFINES		+= -DUSE_SDIO=1
 endif
 
@@ -35,7 +36,7 @@ ifeq ($(BOARD_ID),T40)
 	LIBS        := -larm_cortexM4lf_math -lm
 	DEFINES     := -D__IMXRT1062__ 
 	DEFINES     += -DF_CPU=396000000
-	DEFINES		+= -DUSE_SDIO=0
+	Defines		+= -DUSE_SDIO=0
 endif
 
 DEFINES     += -D$(USB_DEVICE)
@@ -46,7 +47,7 @@ ROOT0		:= C:\Users\zimme\Documents
 ARDUINO		:= $(ROOT0)\arduino-1.8.10\hardware
 
 LIBS_SHARED_BASE := $(ROOT0)\Arduino\libraries
-LIBS_SHARED      := SdFat-beta MTP_t4
+LIBS_SHARED      := SdFat-beta MTP_t4 USB2
 
 LIBS_LOCAL_BASE  := $(ARDUINO)\teensy\avr\libraries
 LIBS_LOCAL       := SPI Time
