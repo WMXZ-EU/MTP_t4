@@ -7,6 +7,7 @@
         "usb_mem.h": "c",
         "printf.h": "c",
         "initializer_list": "cpp",
-        "utility": "cpp"
+        "utility": "cpp",
+        "type_traits": "cpp"
     }
 }

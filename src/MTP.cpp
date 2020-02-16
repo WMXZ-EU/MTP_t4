@@ -235,7 +235,6 @@
       write_length_ = GetNumObjects(storage, parent);
       write_length_++;
       write_length_ *= 4;
-      Serial.println(write_length_);
     }
     else{
       write32(GetNumObjects(storage, parent));
@@ -536,7 +535,6 @@
       write_length_ = 0;                                  \
       write_get_length_ = true;                           \
       FUN;                                                \
-          Serial.print("T: "); Serial.println(write_length_); \
       \
       MTPHeader header;                                   \
       header.len = write_length_ + sizeof(header);        \
@@ -553,7 +551,6 @@
       if(rest>0)                                          \
       {                                                   \
         for(int ii=rest;ii<MTP_RX_SIZE; ii++) data_buffer[ii]=0;  \
-        PrintPacket(data_buffer,rest);                            \
         usb_mtp_send(data_buffer,rest,30);                        \
       }                                                   \
     } while(0)

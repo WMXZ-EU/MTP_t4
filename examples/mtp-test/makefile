@@ -12,8 +12,8 @@
 SHELL            := cmd.exe
 export SHELL
 
-BOARD_ID         := T36
-#BOARD_ID         := T40
+#BOARD_ID         := T36
+BOARD_ID         := T40
 TARGET_NAME      := mtp-test_$(BOARD_ID)
 
 USB_DEVICE		:= USB_MTPDISK_SERIAL
@@ -35,7 +35,7 @@ ifeq ($(BOARD_ID),T40)
 	LIBS        := -larm_cortexM4lf_math -lm
 	DEFINES     := -D__IMXRT1062__ 
 	DEFINES     += -DF_CPU=396000000
-	DEFINES		+= -DUSE_SDIO=0
+	DEFINES		+= -DUSE_SDIO=1
 endif
 
 DEFINES     += -D$(USB_DEVICE)
