@@ -1,6 +1,4 @@
-// MTP_Storage.h - Teensy MTP Responder Storage library
-// Copyright (C) 2020 Walter Zimmer <walter@wmxz.eu>
-// based on
+// Storage.h - Teensy MTP Responder library
 // Copyright (C) 2017 Fredrik Hubinette <hubbe@hubbe.net>
 //
 // With updates from MichaelMC and Yoong Hor Meng <yoonghm@gmail.com>
@@ -24,23 +22,40 @@
 // SOFTWARE.
 
 // modified for SDFS by WMXZ
-// modified for T4 by WMXZ
 
-#ifndef MTP_STORAGE_H
-#define MTP_STORAGE_H
+#ifndef Storage_H
+#define Storage_H
 
 #include "core_pins.h"
+//#include "usb_dev.h"
+//#include "usb_serial.h"
 
-#include "MTP_config.h"
+ #define USE_SDIO 1
+ #if USE_SDIO==0
+    #if defined(__MK64FX512__) || defined(__MK66FX1M0__)
+            #define SD_CS  10
+            #define SD_MOSI  7
+            #define SD_MISO 12
+            #define SD_SCK  14
+    #elif defined(__IMXRT1062__)
+            #define SD_CS  10
+            #define SD_MOSI 11
+            #define SD_MISO 12
+            #define SD_SCK  13
+    #endif
+    #define SD_CONFIG SdSpiConfig(SD_CS, DEDICATED_SPI, SPI_FULL_SPEED)
+ #else
+    #define SD_CONFIG SdioConfig(FIFO_SDIO)
+    //#define SD_CONFIG SdioConfig(DMA_SDIO)
+ #endif
+ 
 
-extern SdFs SD;
+  #include "SdFat-beta.h"
 
-// TODO:
-//   support multiple storages
-//   support serialflash
-//   partial object fetch/receive
-//   events (notify usb host when local storage changes)
+  
+  void Storage_init(void);
 
+  
 // This interface lets the MTP responder interface any storage.
 // We'll need to give the MTP responder a pointer to one of these.
 class MTPStorageInterface {
@@ -63,93 +78,87 @@ public:
   virtual uint32_t GetNextObjectHandle() = 0;
 
   // Size should be 0xFFFFFFFF if it's a directory.
-  virtual void GetObjectInfo(uint32_t handle,  char* name, uint32_t *dir, uint32_t* size, uint32_t* parent) = 0;
-  virtual void SetObjectInfo(uint32_t handle, char* name, uint32_t dir, uint32_t size, uint32_t parent) = 0;
+  virtual void GetObjectInfo(uint32_t handle, char* name, uint32_t* size, uint32_t* parent) = 0;
+  virtual uint32_t GetSize(uint32_t handle) = 0;
 
-  virtual uint64_t GetSize(uint32_t handle) = 0;
-  virtual void read(uint32_t handle, uint32_t pos, char* buffer, uint32_t bytes) = 0;
   virtual uint32_t Create(uint32_t parent, bool folder, const char* filename) = 0;
+  virtual void read(uint32_t handle, uint32_t pos, char* buffer, uint32_t bytes) = 0;
   virtual void write(const char* data, uint32_t size);
-  virtual void close();
+  virtual void close() = 0;
   virtual bool DeleteObject(uint32_t object) = 0;
+  virtual void CloseIndex() = 0;
 
-  virtual void rename(uint32_t handle, const char* newName) = 0 ;
+  virtual void ResetIndex() = 0;
+  virtual void rename(uint32_t handle, const char* name) = 0 ;
   virtual void move(uint32_t handle, uint32_t newParent ) = 0 ;
-
-  virtual void ResetIndex(void ) = 0 ;
-
 };
 
-typedef struct {
+  struct Record 
+  {
     uint32_t parent;
-    uint32_t child; 
+    uint32_t child;  // size stored here for files
     uint32_t sibling;
     uint8_t isdir;
     uint8_t scanned;
-    uint64_t size;
-    char name[80];
-  }  Record;
+    char name[64];
+  };
+
+  void mtp_yield(void);
 
 
 // Storage implementation for SD. SD needs to be already initialized.
-class MTPStorage_SD : public MTPStorageInterface {
-public:
-  void init(void);
-
+class MTPStorage_SD : public MTPStorageInterface 
+{
 private:
-#if USE_SDFAT_BETA==1
-  FsFile index_;
-  FsFile f_;
-#else
-  File index_;
-  File f_;
-#endif
+//   File index_;
+//   File file_;
+//   File child_;
+   FsFile index_;
+   FsFile file_;
+   FsFile child_;
 
-  uint16_t mode_ = 0;
+  uint32_t mode_ = 0;
   uint32_t open_file_ = 0xFFFFFFFEUL;
-  uint32_t index_entries_ = 0;
 
-  bool readonly() ;
+  uint32_t index_entries_ = 0;
+  bool index_generated = false;
+
+  bool readonly();
   bool has_directories() ;
+  
   uint64_t size() ;
   uint64_t free() ;
 
+  void CloseIndex() ;
   void OpenIndex() ;
   void WriteIndexRecord(uint32_t i, const Record& r) ;
   uint32_t AppendIndexRecord(const Record& r) ;
-  // TODO(hubbe): Cache a few records for speed.
   Record ReadIndexRecord(uint32_t i) ;
-  void ConstructFilename(int i, char* out) ;
-  void OpenFileByIndex(uint32_t i, oflag_t mode = O_RDONLY) ;
-
-  // MTP object handles should not change or be re-used during a session.
-  // This would be easy if we could just have a list of all files in memory.
-  // Since our RAM is limited, we'll keep the index in a file instead.
-  bool index_generated = false;
+  void ConstructFilename(int i, char* out, int len) ;
+  void OpenFileByIndex(uint32_t i, uint32_t mode = O_RDONLY) ;
   void GenerateIndex() ;
   void ScanDir(uint32_t i) ;
-
+  
   bool all_scanned_ = false;
   void ScanAll() ;
 
   uint32_t next_;
   bool follow_sibling_;
   void StartGetObjectHandles(uint32_t parent) override ;
-  uint32_t GetNextObjectHandle() override ; 
-  void GetObjectInfo(uint32_t handle, char* name, uint32_t *dir, uint32_t* size, uint32_t* parent) override ;
-  void SetObjectInfo(uint32_t handle, char* name, uint32_t dir, uint32_t size, uint32_t parent) override ;
-  uint64_t GetSize(uint32_t handle) ;
+  uint32_t GetNextObjectHandle() override ;
+  void GetObjectInfo(uint32_t handle, char* name, uint32_t* size, uint32_t* parent) override ;
+  uint32_t GetSize(uint32_t handle) override;
   void read(uint32_t handle, uint32_t pos, char* out, uint32_t bytes) override ;
   bool DeleteObject(uint32_t object) override ;
   uint32_t Create(uint32_t parent,  bool folder, const char* filename) override ;
+
   void write(const char* data, uint32_t bytes) override ;
   void close() override ;
 
-  void rename(uint32_t handle, const char* newName) override ;
+  void rename(uint32_t handle, const char* name) override ;
   void move(uint32_t handle, uint32_t newParent ) override ;
-
-  void ResetIndex(void ) override ;
-
+  
+  void ResetIndex() override ;
 };
 
 #endif

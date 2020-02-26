@@ -1,6 +1,6 @@
 #include "Arduino.h"
 
-  #include "MTP.h"
+  #include "mtp.h"
 
   MTPStorage_SD storage;
   MTPD       mtpd(&storage);
@@ -17,11 +17,10 @@ void logg(uint32_t del, const char *txt)
 
 void setup()
 { 
-  //while(!Serial || millis()<4000);
   Serial.println("MTP test");
   //Serial1.begin(115200);
 
-  storage.init();
+  storage_init();
 
   pinMode(13,OUTPUT);
 
