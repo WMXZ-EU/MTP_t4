@@ -23,7 +23,7 @@ Modification of disk content (directories and Files) by Teensy is only be visibl
 
 ## Installation:
  - download SdFat-beta from Bill Greiman`s github
-   - copy in src directory file "SdFat.h" to "SdFat-beta.h"
+   - in src directory copy file "SdFat.h" to "SdFat-beta.h"
    - edit SdFatConfig.h following Bill`s instructions e.g.:
      - #define SDFAT_FILE_TYPE 3
  - in Storage.h edit defines to use  SDIO e.g.:
