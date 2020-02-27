@@ -23,9 +23,7 @@
 
 // modified for SDFS by WMXZ
 
-#if !defined(USB_MTPDISK) && !defined(USB_MTPDISK_SERIAL)
-  #error "You need to select USB Type: 'MTP Disk (Experimental)'"
-#endif
+#if defined(USB_MTPDISK) || defined(USB_MTPDISK_SERIAL)
 
 #include "mtp.h"
 
@@ -1215,4 +1213,5 @@
       if(mtp_tx_event_counter>0)  { mtp_tx_event_counter--; }
     }
 
+#endif
 #endif

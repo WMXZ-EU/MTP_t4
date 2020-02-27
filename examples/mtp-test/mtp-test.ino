@@ -18,7 +18,6 @@ void logg(uint32_t del, const char *txt)
 void setup()
 { 
   Serial.println("MTP test");
-  //Serial1.begin(115200);
 
   storage_init();
 

@@ -22,7 +22,7 @@ ifeq ($(BOARD_ID),T36)
 	MCU			:= mk66fx1m0
 	Family 		:= teensy3
 	FLAGS_CPU   := -mthumb -mcpu=cortex-m4 -mfloat-abi=hard -mfpu=fpv4-sp-d16 -fsingle-precision-constant
-	LIBS        := -larm_cortexM4lf_math -lm
+	LIBS        := -larm_cortexM4lf_math
 	DEFINES     := -D__MK66FX1M0__ 
 	DEFINES     += -DF_CPU=96000000
 	DEFINES		+= -DUSE_SDIO=1
@@ -32,7 +32,7 @@ ifeq ($(BOARD_ID),T40)
 	MCU			:= imxrt1062
 	Family		:= teensy4
 	FLAGS_CPU   := -mthumb -mcpu=cortex-m7 -mfloat-abi=hard -mfpu=fpv4-sp-d16 -fsingle-precision-constant
-	LIBS        := -larm_cortexM4lf_math -lm
+	LIBS        := -larm_cortexM4lf_math
 	DEFINES     := -D__IMXRT1062__ 
 	DEFINES     += -DF_CPU=396000000
 	DEFINES		+= -DUSE_SDIO=1
@@ -71,7 +71,7 @@ FLAGS_S     := -x assembler-with-cpp
 FLAGS_LD    := -Wl,--gc-sections,--relax,--defsym=__rtc_localtime=$(shell powershell [int](Get-Date -UFormat +%s)[0]) -T$(CORE_BASE)/$(MCU).ld
 
 #LIBS        := -larm_cortexM7lfsp_math -lm -lstdc++
-LIBS		+= -lstdc++
+LIBS		+= -lm -lstdc++
 
 CPP_FLAGS   := $(FLAGS_CPU) $(FLAGS_OPT) $(FLAGS_COM) $(DEFINES) $(FLAGS_CPP)
 C_FLAGS     := $(FLAGS_CPU) $(FLAGS_OPT) $(FLAGS_COM) $(DEFINES) $(FLAGS_C)
