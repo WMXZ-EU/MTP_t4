@@ -12,8 +12,8 @@
 SHELL            := cmd.exe
 export SHELL
 
-BOARD_ID         := T36
-#BOARD_ID         := T40
+#BOARD_ID         := T36
+BOARD_ID         := T40
 TARGET_NAME      := mtp-test_$(BOARD_ID)
 
 USB_DEVICE		:= USB_MTPDISK_SERIAL

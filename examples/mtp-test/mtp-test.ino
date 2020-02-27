@@ -19,7 +19,7 @@ void setup()
 { 
   Serial.println("MTP test");
 
-  storage_init();
+  Storage_init();
 
   pinMode(13,OUTPUT);
 
