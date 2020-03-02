@@ -30,7 +30,7 @@
 #undef USB_DESC_LIST_DEFINE
 #include "usb_desc.h"
 
-#include "usb_mtp.h"
+#include "usb1_mtp.h"
 
 #define printf(...) //Serial.printf(__VA_ARGS__)
 

@@ -10,6 +10,8 @@ see also https://forum.pjrc.com/threads/43050-MTP-Responder-Contribution for dis
 
 files in different copy-to directories contain modifications of cores and need to be copied to cores/teensy4, cores/teensy3 and hardware/avr, respectively. These files are only necessary until Teensyduino has integrated full MTP into cores functionality
 
+needs USB2 https://github.com/WMXZ-EU/USB2 for T4.0. (uses here usb1.h and usb1.c)
+
 ## Features
 copying files from Teensy to PC  and from PC to Teensy is working
 
@@ -31,9 +33,9 @@ Modification of disk content (directories and Files) by Teensy is only be visibl
  - copy content of copy-to-cores_teensy4 to cores/teensy4 orverwriting existing files
  - copy content of copy-to-cores_teensy3 to cores/teensy3 orverwriting existing file
  - copy content of copy-to-teensy_avr to teensy/avr orverwriting existing file
-  
+ - install also USB2 from WMXZ github
 
 ## To be done:
 - check SdFat compatibility
-- fix Serial port issue
+
  

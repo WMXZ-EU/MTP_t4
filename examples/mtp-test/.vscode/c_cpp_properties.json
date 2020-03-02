@@ -1,6 +1,6 @@
 {
   "env": {
-    "ROOT0": "C:/Users/zimme/Documents/arduino-1.8.10/hardware/teensy/avr",
+    "ROOT0": "C:/Users/zimme/Documents/arduino-1.8.12/hardware/teensy/avr",
     "LOCAL_LIBRARIES": "C:/Users/zimme/Documents/Arduino/libraries"
   },
   "configurations": [

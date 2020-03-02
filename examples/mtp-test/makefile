@@ -40,10 +40,10 @@ endif
 
 DEFINES     += -D$(USB_DEVICE)
 $(info $(DEFINES))
-DEFINES     += -DTEENSYDUINO=149 -DARDUINO=10810 -DLAYOUT_US_ENGLISH
+DEFINES     += -DTEENSYDUINO=151 -DARDUINO=10812 -DLAYOUT_US_ENGLISH
 
 ROOT0		:= C:\Users\zimme\Documents
-ARDUINO		:= $(ROOT0)\arduino-1.8.10\hardware
+ARDUINO		:= $(ROOT0)\arduino-1.8.12\hardware
 
 LIBS_SHARED_BASE := $(ROOT0)\Arduino\libraries
 LIBS_SHARED      := SdFat-beta MTP_t4

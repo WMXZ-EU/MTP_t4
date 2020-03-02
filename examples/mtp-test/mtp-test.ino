@@ -1,6 +1,7 @@
 #include "Arduino.h"
 
   #include "mtp.h"
+  #include "usb1_mtp.h"
 
   MTPStorage_SD storage;
   MTPD       mtpd(&storage);
@@ -18,6 +19,8 @@ void logg(uint32_t del, const char *txt)
 void setup()
 { 
   Serial.println("MTP test");
+
+  usb_mtp_configure();
 
   Storage_init();
 
