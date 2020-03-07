@@ -12,7 +12,8 @@
         "${ROOT0}/libraries/SPI/**",
         "${ROOT0}/libraries/Time/**",
         "${LOCAL_LIBRARIES}/SdFat-beta/**",
-        "${LOCAL_LIBRARIES}/MTP_t4/**"
+        "${LOCAL_LIBRARIES}/MTP_t4/**",
+        "${LOCAL_LIBRARIES}/USB2/**"
       ],
       "forcedInclude": [],
       "defines": [
@@ -34,7 +35,8 @@
         "${ROOT0}/libraries/SPI/**",
         "${ROOT0}/libraries/Time/**",
         "${LOCAL_LIBRARIES}/SdFat-beta/**",
-        "${LOCAL_LIBRARIES}/MTP_t4/**"
+        "${LOCAL_LIBRARIES}/MTP_t4/**",
+        "${LOCAL_LIBRARIES}/USB2/**"
       ],
       "forcedInclude": [],
       "defines": [
