@@ -33,5 +33,5 @@ void loop()
   mtpd.loop();
 
   logg(1000,"loop");
-  
+  asm("wfi");
 }
