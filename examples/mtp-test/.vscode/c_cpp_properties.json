@@ -1,28 +1,34 @@
 {
   "env": {
-    "ROOT0": "C:/Users/zimme/Documents/arduino-1.8.12/hardware/teensy/avr",
-    "LOCAL_LIBRARIES": "C:/Users/zimme/Documents/Arduino/libraries"
+    "ROOT": "C:/Users/zimme/Documents",
+    "ROOT0": "${ROOT}/arduino-1.8.12/hardware/teensy/avr",
+    "LOCAL_LIBRARIES": "${ROOT}/Arduino/libraries",
+    "COMMON_LIBS": [  "src/**",
+                      "${ROOT0}/libraries/SPI/**",
+                      "${ROOT0}/libraries/Time/**",
+                      "${LOCAL_LIBRARIES}/SdFat-beta/**",
+                      "${LOCAL_LIBRARIES}/MTP_t4/**",
+                      "${LOCAL_LIBRARIES}/USB2/**"
+                    ],
+    "COMMON_DEFINES": [ "TEENSYDUINO=151",
+                        "USB_MTPDISK_SERIAL",
+                        "LAYOUT_US_ENGLISH",
+                        "ARDUINO"
+                      ]
   },
   "configurations": [
     {
       "name": "Teensy 36",
       "includePath": [
-        "src/**",
-        "${ROOT0}/cores/teensy3",
-        "${ROOT0}/libraries/SPI/**",
-        "${ROOT0}/libraries/Time/**",
-        "${LOCAL_LIBRARIES}/SdFat-beta/**",
-        "${LOCAL_LIBRARIES}/MTP_t4/**",
-        "${LOCAL_LIBRARIES}/USB2/**"
+        "${COMMON_LIBS}",
+        "${ROOT0}/cores/teensy3"
       ],
       "forcedInclude": [],
       "defines": [
         "__MK66FX1M0__",
-        "TEENSYDUINO=149",
+        "ARDUINO_T36",
         "F_CPU=96000000",
-        "USB_MTPDISK_SERIAL",
-        "LAYOUT_US_ENGLISH",
-        "ARDUINO"
+        "${COMMON_DEFINES}"
       ],
       "compilerPath": "${ROOT0}/../../tools/arm/bin/arm-none-eabi-gcc.exe",
       "intelliSenseMode": "gcc-x64"
@@ -30,22 +36,15 @@
     {
       "name": "Teensy 40",
       "includePath": [
-        "src/**",
-        "${ROOT0}/cores/teensy4",
-        "${ROOT0}/libraries/SPI/**",
-        "${ROOT0}/libraries/Time/**",
-        "${LOCAL_LIBRARIES}/SdFat-beta/**",
-        "${LOCAL_LIBRARIES}/MTP_t4/**",
-        "${LOCAL_LIBRARIES}/USB2/**"
+        "${COMMON_LIBS}",
+        "${ROOT0}/cores/teensy4"
       ],
       "forcedInclude": [],
       "defines": [
         "__IMXRT1062__",
-        "TEENSYDUINO=149",
+        "ARDUINO_T40",
         "F_CPU=600000000",
-        "USB_MTPDISK_SERIAL",
-        "LAYOUT_US_ENGLISH",
-        "ARDUINO"
+        "${COMMON_DEFINES}"
       ],
       "compilerPath": "${ROOT0}/../../tools/arm/bin/arm-none-eabi-gcc.exe",
       "intelliSenseMode": "gcc-x64"

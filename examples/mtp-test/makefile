@@ -23,7 +23,8 @@ ifeq ($(BOARD_ID),T36)
 	Family 		:= teensy3
 	FLAGS_CPU   := -mthumb -mcpu=cortex-m4 -mfloat-abi=hard -mfpu=fpv4-sp-d16 -fsingle-precision-constant
 	LIBS        := -larm_cortexM4lf_math
-	DEFINES     := -D__MK66FX1M0__ 
+	DEFINES     := -D__MK66FX1M0__ -DARDUINO_TEENSY36
+
 	DEFINES     += -DF_CPU=96000000
 	DEFINES		+= -DUSE_SDIO=1
 endif
@@ -33,7 +34,7 @@ ifeq ($(BOARD_ID),T40)
 	Family		:= teensy4
 	FLAGS_CPU   := -mthumb -mcpu=cortex-m7 -mfloat-abi=hard -mfpu=fpv4-sp-d16 -fsingle-precision-constant
 	LIBS        := -larm_cortexM4lf_math
-	DEFINES     := -D__IMXRT1062__ 
+	DEFINES     := -D__IMXRT1062__  --DARDUINO_TEENSY40
 	DEFINES     += -DF_CPU=396000000
 	DEFINES		+= -DUSE_SDIO=1
 endif
