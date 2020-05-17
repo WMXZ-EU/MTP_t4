@@ -3,7 +3,7 @@
   #define USE_SDIO 0 // change to 1 if using SDIO 
 #endif
 
-  #include "mtp.h"
+  #include "MTP.h"
   #include "usb1_mtp.h"
 
   MTPStorage_SD storage;
