@@ -838,8 +838,13 @@
 
     int MTPD::push_packet(uint8_t *data_buffer,uint32_t len)
     {
-      while(!usb_mtp_canTX());
       return usb_mtp_send(data_buffer,len,60);
+    }
+
+    int MTPD::pull_packet(uint8_t *data_buffer)
+    {
+      while(!usb_mtp_available());
+      return usb_mtp_recv(data_buffer,60);
     }
 
     int MTPD::fetch_packet(uint8_t *data_buffer)
@@ -970,16 +975,14 @@
         size -= to_copy;
         index += to_copy;
         if (index == MTP_RX_SIZE) {
-          while(!usb_mtp_haveRX());
-          fetch_packet(data_buffer);
+          pull_packet(data_buffer);
           index=0;
         }
       }
     }
 
     uint32_t MTPD::SendObjectInfo(uint32_t storage, uint32_t parent) {
-      while(!usb_mtp_haveRX());
-      fetch_packet(data_buffer);
+      pull_packet(data_buffer);
 //      printContainer(); 
       
       read(0,0); // resync read
@@ -1012,8 +1015,7 @@
 
     void MTPD::SendObject() 
     { 
-      while(!usb_mtp_haveRX());
-      fetch_packet(data_buffer);
+      pull_packet(data_buffer);
 //      printContainer(); 
 
       read(0,0);
@@ -1045,8 +1047,7 @@
           //printf("b %d %d %d %d %d\n", len,disk_pos,bytes,index,to_copy);
         }
         if(len>0)  // we have still data to be transfered
-        { while(!usb_mtp_haveRX());
-          fetch_packet(data_buffer);
+        { pull_packet(data_buffer);
           index=0;
         }
       }
@@ -1059,8 +1060,7 @@
     }
 
     uint32_t MTPD::setObjectPropValue(uint32_t p1, uint32_t p2)
-    { while(!usb_mtp_haveRX());
-      fetch_packet(data_buffer);
+    { pull_packet(data_buffer);
 //      printContainer(); 
       
       if(p2==0xDC07)
@@ -1076,9 +1076,9 @@
       else
         return 0x2005;
     }
-
+    extern "C" uint32_t usb_mtp_getStatus();
     void MTPD::loop(void)
-    { if(!usb_mtp_haveRX()) return;
+    { if(!usb_mtp_available()) return; //if(!usb_mtp_haveRX()) return;
       if(fetch_packet(data_buffer))
       { printContainer();
 

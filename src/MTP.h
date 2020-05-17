@@ -69,7 +69,7 @@ private:
   #define MTP_TX_SIZE MTP_TX_SIZE_480 
   
   uint8_t data_buffer[MTP_RX_SIZE] __attribute__ ((aligned(32)));
-  uint8_t tx_data_buffer[MTP_TX_SIZE*4] __attribute__ ((aligned(32)));
+  uint8_t tx_data_buffer[MTP_TX_SIZE] __attribute__ ((aligned(32)));
 
   #define DISK_BUFFER_SIZE 8*1024
   uint8_t disk_buffer[DISK_BUFFER_SIZE] __attribute__ ((aligned(32)));
@@ -77,6 +77,7 @@ private:
 
   int push_packet(uint8_t *data_buffer, uint32_t len);
   int fetch_packet(uint8_t *data_buffer);
+  int pull_packet(uint8_t *data_buffer);
 
 #endif
 

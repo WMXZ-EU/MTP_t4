@@ -9,6 +9,7 @@
   MTPStorage_SD storage;
   MTPD       mtpd(&storage);
 
+
 void logg(uint32_t del, const char *txt)
 { static uint32_t to;
   if(millis()-to > del)
