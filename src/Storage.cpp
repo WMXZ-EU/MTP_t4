@@ -28,7 +28,7 @@
 #include "usb_serial.h"
 
   #include "Storage.h"
- 
+ /*
   #if defined(__MK20DX256__)
     #define SD_CS 10
     #define SD_CONFIG SdSpiConfig(SD_CS, DEDICATED_SPI, SPI_FULL_SPEED)
@@ -38,7 +38,7 @@
     #define SD_CONFIG SdioConfig(FIFO_SDIO)
   //  #define SD_CONFIG SdioConfig(DMA_SDIO)
   #endif
-
+  */
 
   // Call-back for file timestamps.  Only called for file create and sync().
   #include "TimeLib.h"
@@ -81,13 +81,17 @@
 
 // These should probably be weak.
 void mtp_yield() {}
-void mtp_lock_storage(bool lock) { }
+void mtp_lock_storage(bool lock) {}
 
   bool MTPStorage_SD::readonly() { return false; }
   bool MTPStorage_SD::has_directories() { return true; }
   
-  uint64_t MTPStorage_SD::size() { return (uint64_t)512 * (uint64_t)sd.clusterCount()     * (uint64_t)sd.sectorsPerCluster(); }
-  uint64_t MTPStorage_SD::free() { return (uint64_t)512 * (uint64_t)sd.freeClusterCount() * (uint64_t)sd.sectorsPerCluster(); }
+
+//  uint64_t MTPStorage_SD::size() { return (uint64_t)512 * (uint64_t)sd.clusterCount()     * (uint64_t)sd.sectorsPerCluster(); }
+//  uint64_t MTPStorage_SD::free() { return (uint64_t)512 * (uint64_t)sd.freeClusterCount() * (uint64_t)sd.sectorsPerCluster(); }
+  uint32_t MTPStorage_SD::clusterCount() { return sd.clusterCount(); }
+  uint32_t MTPStorage_SD::freeClusters() { return sd.freeClusterCount(); }
+  uint32_t MTPStorage_SD::clusterSize() { return sd.sectorsPerCluster(); }
 
 
   void MTPStorage_SD::ResetIndex() {

@@ -12,8 +12,8 @@
 SHELL            := cmd.exe
 export SHELL
 
-BOARD_ID         := T36
-#BOARD_ID         := T40
+#BOARD_ID         := T36
+BOARD_ID         := T40
 TARGET_NAME      := mtp-test_$(BOARD_ID)
 
 USB_DEVICE		:= USB_MTPDISK_SERIAL
@@ -34,9 +34,9 @@ ifeq ($(BOARD_ID),T40)
 	Family		:= teensy4
 	FLAGS_CPU   := -mthumb -mcpu=cortex-m7 -mfloat-abi=hard -mfpu=fpv4-sp-d16 -fsingle-precision-constant
 	LIBS        := -larm_cortexM4lf_math
-	DEFINES     := -D__IMXRT1062__  --DARDUINO_TEENSY40
+	DEFINES     := -D__IMXRT1062__  -DARDUINO_TEENSY40
 	DEFINES     += -DF_CPU=396000000
-	DEFINES		+= -DUSE_SDIO=1
+	DEFINES		+= -DUSE_SDIO=0
 endif
 
 DEFINES     += -D$(USB_DEVICE)
@@ -47,7 +47,7 @@ ROOT0		:= C:\Users\zimme\Documents
 ARDUINO		:= $(ROOT0)\arduino-1.8.12\hardware
 
 LIBS_SHARED_BASE := $(ROOT0)\Arduino\libraries
-LIBS_SHARED      := SdFat-beta MTP_t4 USB2
+LIBS_SHARED      := SdFat_V2 MTP_t4 USB2
 
 LIBS_LOCAL_BASE  := $(ARDUINO)\teensy\avr\libraries
 LIBS_LOCAL       := SPI Time

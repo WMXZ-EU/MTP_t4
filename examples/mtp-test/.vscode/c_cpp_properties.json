@@ -3,14 +3,14 @@
     "ROOT": "C:/Users/zimme/Documents",
     "ROOT0": "${ROOT}/arduino-1.8.12/hardware/teensy/avr",
     "LOCAL_LIBRARIES": "${ROOT}/Arduino/libraries",
-    "COMMON_LIBS": [  "src/**",
+    "COMMON_LIBS": [  "**",
                       "${ROOT0}/libraries/SPI/**",
                       "${ROOT0}/libraries/Time/**",
-                      "${LOCAL_LIBRARIES}/SdFat-beta/**",
+                      "${LOCAL_LIBRARIES}/SdFat_V2/**",
                       "${LOCAL_LIBRARIES}/MTP_t4/**",
                       "${LOCAL_LIBRARIES}/USB2/**"
                     ],
-    "COMMON_DEFINES": [ "TEENSYDUINO=151",
+    "COMMON_DEFINES": [ "TEENSYDUINO=152",
                         "USB_MTPDISK_SERIAL",
                         "LAYOUT_US_ENGLISH",
                         "ARDUINO"

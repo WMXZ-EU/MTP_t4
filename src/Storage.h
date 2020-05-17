@@ -30,7 +30,9 @@
 //#include "usb_dev.h"
 //#include "usb_serial.h"
 
- #define USE_SDIO 1
+ #ifndef USE_SDIO
+  #define USE_SDIO 1
+ #endif
  #if USE_SDIO==0
     #if defined(__MK64FX512__) || defined(__MK66FX1M0__)
             #define SD_CS  10
@@ -50,7 +52,7 @@
  #endif
  
 
-  #include "SdFat-beta.h"
+  #include "SdFat.h"
 
   
   void Storage_init(void);
@@ -67,10 +69,15 @@ public:
   virtual bool has_directories() = 0;
 
   // Return size of storage in bytes.
-  virtual uint64_t size() = 0;
+//  virtual uint64_t size() = 0;
 
   // Return free space in bytes.
-  virtual uint64_t free() = 0;
+//  virtual uint64_t free() = 0;
+
+
+  virtual uint32_t clusterCount() = 0;
+  virtual uint32_t freeClusters() = 0;
+  virtual uint32_t clusterSize() = 0;
 
   // parent = 0 means get all handles.
   // parent = 0xFFFFFFFF means get root folder.
@@ -126,8 +133,11 @@ private:
   bool readonly();
   bool has_directories() ;
   
-  uint64_t size() ;
-  uint64_t free() ;
+  //uint64_t size() ;
+  //uint64_t free() ;
+  uint32_t clusterCount() ;
+  uint32_t freeClusters() ;
+  uint32_t clusterSize() ;
 
   void CloseIndex() ;
   void OpenIndex() ;

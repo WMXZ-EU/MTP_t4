@@ -32,7 +32,7 @@
 
 #include "usb1_mtp.h"
 
-#define printf(...) //Serial.printf(__VA_ARGS__)
+#define printf(...) Serial.printf(__VA_ARGS__)
 
 /***************************************************************************************************/
   // Container Types
@@ -230,8 +230,13 @@
     write16(storage_->readonly() ? 0x0001 : 0x0004);   // storage type (removable RAM)
     write16(storage_->has_directories() ? 0x0002: 0x0001);   // filesystem type (generic hierarchical)
     write16(0x0000);   // access capability (read-write)
-    write64(storage_->size());  // max capacity
-    write64(storage_->free());  // free space (100M)
+    
+  uint64_t nclust = storage_->clusterCount() ;
+  uint64_t nsect = storage_->clusterSize() ;
+    write64(nclust*nsect*512L);  // max capacity
+  uint64_t nfree = storage_->freeClusters() ;
+    write64(nfree*nsect*512L);  // free space (100M)
+    //
     write32(0xFFFFFFFFUL);  // free space (objects)
     writestring("SD Card");  // storage descriptor
     writestring("");  // volume identifier
@@ -825,10 +830,22 @@
 
 #elif defined(__IMXRT1062__)  
 
-  extern "C"  uint32_t mtp_tx_counter;
-  extern "C"  uint32_t mtp_rx_counter;
-  extern "C"  uint32_t mtp_rx_event_counter;
-  extern "C"  uint32_t mtp_tx_event_counter;
+//  extern "C"  uint32_t mtp_tx_counter;
+//  extern "C"  uint32_t mtp_rx_counter;
+//  extern "C"  uint32_t mtp_rx_event_counter;
+//  extern "C"  uint32_t mtp_tx_event_counter;
+
+
+    int MTPD::push_packet(uint8_t *data_buffer,uint32_t len)
+    {
+      while(!usb_mtp_canTX());
+      return usb_mtp_send(data_buffer,len,60);
+    }
+
+    int MTPD::fetch_packet(uint8_t *data_buffer)
+    {
+      return usb_mtp_recv(data_buffer,60);
+    }
 
     void MTPD::write(const char *data, int len) 
     { if (write_get_length_) 
@@ -838,20 +855,22 @@
       else 
       { 
         static uint8_t *dst=0;
-        if(!write_length_) dst=data_buffer;   write_length_ += len;
+        if(!write_length_) dst=tx_data_buffer;   write_length_ += len;
         const char * src=data;
         //
         int pos = 0; // into data
         while(pos<len)
-        { int avail = data_buffer+MTP_TX_SIZE - dst;
+        { int avail = tx_data_buffer+MTP_TX_SIZE - dst;
           int to_copy = min(len - pos, avail);
+//          for(int ii=0; ii<len;ii++) printf("%x ",data[ii]); printf("\n");
           memcpy(dst,src,to_copy);
           pos += to_copy;
           src += to_copy;
           dst += to_copy;
-          if(dst == data_buffer+MTP_TX_SIZE)
-          { usb_mtp_send(data_buffer,MTP_TX_SIZE,30);
-            dst=data_buffer;
+          if(dst == tx_data_buffer+MTP_TX_SIZE)
+          { int ret=push_packet(tx_data_buffer,MTP_TX_SIZE);
+//            printf("write %d\n",ret);
+            dst=tx_data_buffer;
           }
         }
       }
@@ -881,19 +900,21 @@
           uint32_t to_copy = min(size-pos,MTP_TX_SIZE-len);
           to_copy = min (to_copy, DISK_BUFFER_SIZE-disk_pos);
 
-          memcpy(data_buffer+len,disk_buffer+disk_pos,to_copy);
+          memcpy(tx_data_buffer+len,disk_buffer+disk_pos,to_copy);
           disk_pos += to_copy;
           pos += to_copy;
           len += to_copy;
 
           if(len==MTP_TX_SIZE)
-          { usb_mtp_send(data_buffer,MTP_TX_SIZE,30);
+          { int ret = push_packet(tx_data_buffer,MTP_TX_SIZE);
+            if(ret != MTP_TX_SIZE) printf("send %d\n",ret);
             len=0;
           }
         }
         if(len>0)
         {
-          usb_mtp_send(data_buffer,MTP_TX_SIZE,30);
+          int ret = push_packet(tx_data_buffer,MTP_TX_SIZE);
+          if(ret != MTP_TX_SIZE) printf("send %d\n",ret);
           len=0;
         }
       }
@@ -920,8 +941,7 @@
       rest = (header.len % MTP_TX_SIZE);                  \
       if(rest>0)                                          \
       {                                                   \
-        for(int ii=rest;ii<MTP_RX_SIZE; ii++) data_buffer[ii]=0;  \
-        usb_mtp_send(data_buffer,rest,30);                        \
+        push_packet(tx_data_buffer,rest);                        \
       }                                                   \
     } while(0)
 
@@ -930,14 +950,6 @@
                 CONTAINER->op, CONTAINER->len, CONTAINER->type, CONTAINER->transaction_id, \
                 CONTAINER->params[0], CONTAINER->params[1], CONTAINER->params[2]);  }
 
-    void MTPD::fetch_packet(uint8_t *data_buffer)
-    {
-          mtp_rx_counter=0;
-          usb_mtp_recv(data_buffer,30);
-          while(!mtp_rx_counter) mtp_yield(); // wait until data have arrived
-          //
-          usb_mtp_read(data_buffer,30);
-    }
 
     void MTPD::read(char* data, uint32_t size) 
     {
@@ -951,7 +963,6 @@
       while (size) {
         uint32_t to_copy = MTP_RX_SIZE - index;
         to_copy = min(to_copy, size);
-        Serial.println(to_copy);
         if (data) {
           memcpy(data, data_buffer + index, to_copy);
           data += to_copy;
@@ -959,12 +970,15 @@
         size -= to_copy;
         index += to_copy;
         if (index == MTP_RX_SIZE) {
+          while(!usb_mtp_haveRX());
           fetch_packet(data_buffer);
           index=0;
         }
       }
     }
+
     uint32_t MTPD::SendObjectInfo(uint32_t storage, uint32_t parent) {
+      while(!usb_mtp_haveRX());
       fetch_packet(data_buffer);
 //      printContainer(); 
       
@@ -997,7 +1011,9 @@
     }
 
     void MTPD::SendObject() 
-    { fetch_packet(data_buffer);
+    { 
+      while(!usb_mtp_haveRX());
+      fetch_packet(data_buffer);
 //      printContainer(); 
 
       read(0,0);
@@ -1029,7 +1045,7 @@
           //printf("b %d %d %d %d %d\n", len,disk_pos,bytes,index,to_copy);
         }
         if(len>0)  // we have still data to be transfered
-        {
+        { while(!usb_mtp_haveRX());
           fetch_packet(data_buffer);
           index=0;
         }
@@ -1043,7 +1059,7 @@
     }
 
     uint32_t MTPD::setObjectPropValue(uint32_t p1, uint32_t p2)
-    {
+    { while(!usb_mtp_haveRX());
       fetch_packet(data_buffer);
 //      printContainer(); 
       
@@ -1062,10 +1078,9 @@
     }
 
     void MTPD::loop(void)
-    {
-      if(mtp_rx_counter>0)
-      { usb_mtp_read(data_buffer,30);
-        printf("op=%x typ=%d tid=%d len=%d\n", CONTAINER->op, CONTAINER->type, CONTAINER->transaction_id, CONTAINER->len);
+    { if(!usb_mtp_haveRX()) return;
+      if(fetch_packet(data_buffer))
+      { printContainer();
 
         int op = CONTAINER->op;
         int p1 = CONTAINER->params[0];
@@ -1202,15 +1217,11 @@
             CONTAINER->op=return_code;
             CONTAINER->transaction_id=id;
             CONTAINER->params[0]=p1;
-            usb_mtp_send(data_buffer,len,30);
+            //printContainer();
+            memcpy(tx_data_buffer,data_buffer,sizeof(struct MTPContainer));
+            push_packet(tx_data_buffer,len);
         }
-        mtp_rx_counter=0;
-        usb_mtp_recv(data_buffer,30);
       }
-
-      if(mtp_tx_counter>0) { mtp_tx_counter--; }
-      if(mtp_rx_event_counter>0)  { mtp_rx_event_counter--; }
-      if(mtp_tx_event_counter>0)  { mtp_tx_event_counter--; }
     }
 
 #endif
