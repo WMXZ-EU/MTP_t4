@@ -26,7 +26,7 @@ void setup()
 { 
   while(!Serial && millis()<3000); 
   usb_mtp_configure();
-  Storage_init();
+  if(!Storage_init()) {Serial.println("No storage"); while(1);};
 
   Serial.println("MTP test");
 

@@ -55,7 +55,7 @@
   #include "SdFat.h"
 
   
-  void Storage_init(void);
+  bool Storage_init(void);
 
   
 // This interface lets the MTP responder interface any storage.
