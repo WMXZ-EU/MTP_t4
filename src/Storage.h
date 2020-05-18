@@ -31,7 +31,7 @@
 //#include "usb_serial.h"
 
  #ifndef USE_SDIO
-  #define USE_SDIO 1
+  #define USE_SDIO 1  // this is default value (change for non sdio)
  #endif
  #if USE_SDIO==0
     #if defined(__MK64FX512__) || defined(__MK66FX1M0__)

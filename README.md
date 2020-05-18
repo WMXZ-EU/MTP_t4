@@ -25,18 +25,19 @@ Modification of disk content (directories and Files) by Teensy is only be visibl
 
 ## Installation:
  - download SdFat-beta from Bill Greiman`s github
-   - if necessary remove old SdFat from libraries
+   - if necessary remove old SdFat from libraries, if existing
    - edit SdFatConfig.h following Bill`s instructions e.g.:
      - #define SDFAT_FILE_TYPE 3
  - in Storage.h edit defines to use SDIO or SPI e.g.:
    - #define USE_SDIO 1  // use SDIO
    - #define USE_SDIO 0  // use SPI
- - copy content of copy-to-cores_teensy4 to cores/teensy4 orverwriting existing files
- - copy content of copy-to-cores_teensy3 to cores/teensy3 orverwriting existing file
- - copy content of copy-to-teensy_avr to teensy/avr orverwriting existing file
+ - If you wanted USB_MTP_SERIAL  
+   - T4.x edit usb_desc.h with content of copy-to-cores_teensy4 (insert after MTP_DISK)
+   - T3.x edit usb_desc.h with content of copy-to-cores_teensy3 (insert after MTP_DISK)
+   - edit boards.txt in teensy/avr with content of copy-to-teensy_avr (copy to end of file)
  - install also USB2 from WMXZ github
 
 ## To be done:
-- check SdFat compatibility
+- add a second storage
 
  

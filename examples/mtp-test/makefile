@@ -13,13 +13,15 @@ SHELL            := cmd.exe
 export SHELL
 
 #BOARD_ID         := T36
-BOARD_ID         := T40
+#BOARD_ID         := T40
+BOARD_ID         := T41
 TARGET_NAME      := mtp-test_$(BOARD_ID)
 
 USB_DEVICE		:= USB_MTPDISK_SERIAL
 
 ifeq ($(BOARD_ID),T36)
 	MCU			:= mk66fx1m0
+	lvs			:=
 	Family 		:= teensy3
 	FLAGS_CPU   := -mthumb -mcpu=cortex-m4 -mfloat-abi=hard -mfpu=fpv4-sp-d16 -fsingle-precision-constant
 	LIBS        := -larm_cortexM4lf_math
@@ -31,12 +33,24 @@ endif
 
 ifeq ($(BOARD_ID),T40)
 	MCU			:= imxrt1062
+	lvs			:=
 	Family		:= teensy4
 	FLAGS_CPU   := -mthumb -mcpu=cortex-m7 -mfloat-abi=hard -mfpu=fpv4-sp-d16 -fsingle-precision-constant
 	LIBS        := -larm_cortexM4lf_math
 	DEFINES     := -D__IMXRT1062__  -DARDUINO_TEENSY40
 	DEFINES     += -DF_CPU=396000000
 	DEFINES		+= -DUSE_SDIO=0
+endif
+
+ifeq ($(BOARD_ID),T41)
+	MCU			:= imxrt1062
+	lvs			:= _t41
+	Family		:= teensy4
+	FLAGS_CPU   := -mthumb -mcpu=cortex-m7 -mfloat-abi=hard -mfpu=fpv4-sp-d16 -fsingle-precision-constant
+	LIBS        := -larm_cortexM4lf_math
+	DEFINES     := -D__IMXRT1062__  -DARDUINO_TEENSY41
+	DEFINES     += -DF_CPU=396000000
+	DEFINES		+= -DUSE_SDIO=1
 endif
 
 DEFINES     += -D$(USB_DEVICE)
@@ -69,7 +83,7 @@ FLAGS_LSP   :=
 FLAGS_CPP   := -std=gnu++14 -fno-exceptions -fpermissive -fno-rtti -fno-threadsafe-statics -felide-constructors -Wno-error=narrowing
 FLAGS_C     := 
 FLAGS_S     := -x assembler-with-cpp
-FLAGS_LD    := -Wl,--gc-sections,--relax,--defsym=__rtc_localtime=$(shell powershell [int](Get-Date -UFormat +%s)[0]) -T$(CORE_BASE)/$(MCU).ld
+FLAGS_LD    := -Wl,--gc-sections,--relax,--defsym=__rtc_localtime=$(shell powershell [int](Get-Date -UFormat +%s)[0]) -T$(CORE_BASE)/$(MCU)$(lvs).ld
 
 #LIBS        := -larm_cortexM7lfsp_math -lm -lstdc++
 LIBS		+= -lm -lstdc++
