@@ -56,7 +56,7 @@
   }
 
   SdFs sd;
-  void Storage_init(void)
+ bool Storage_init(void)
   { 
     #if DO_DEBUG>0
       Serial.println("Using SdFs");
@@ -66,8 +66,12 @@
       SPI.setMISO(SD_MISO);
       SPI.setSCK(SD_SCK);
     #endif
-    if (!sd.begin(SD_CONFIG)) sd.errorHalt("sd.begin failed");
-  
+    if (!sd.begin(SD_CONFIG)) {
+		return false;
+		//sd.errorHalt("sd.begin failed");
+	} else {
+		return true;
+	}
     // Set Time callback
     FsDateTime::callback = dateTime;
   }
