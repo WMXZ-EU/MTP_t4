@@ -838,7 +838,8 @@
 
     int MTPD::push_packet(uint8_t *data_buffer,uint32_t len)
     {
-      return usb_mtp_send(data_buffer,len,60);
+      while(usb_mtp_send(data_buffer,len,60)<=0) { asm("wfi");}
+      return 1;
     }
 
     int MTPD::pull_packet(uint8_t *data_buffer)
@@ -873,8 +874,7 @@
           src += to_copy;
           dst += to_copy;
           if(dst == tx_data_buffer+MTP_TX_SIZE)
-          { int ret=push_packet(tx_data_buffer,MTP_TX_SIZE);
-//            printf("write %d\n",ret);
+          { push_packet(tx_data_buffer,MTP_TX_SIZE);
             dst=tx_data_buffer;
           }
         }
@@ -911,21 +911,18 @@
           len += to_copy;
 
           if(len==MTP_TX_SIZE)
-          { int ret = push_packet(tx_data_buffer,MTP_TX_SIZE);
-            if(ret != MTP_TX_SIZE) printf("send %d\n",ret);
+          { push_packet(tx_data_buffer,MTP_TX_SIZE);
             len=0;
           }
         }
         if(len>0)
-        {
-          int ret = push_packet(tx_data_buffer,MTP_TX_SIZE);
-          if(ret != MTP_TX_SIZE) printf("send %d\n",ret);
+        { push_packet(tx_data_buffer,MTP_TX_SIZE);
           len=0;
         }
       }
     }
 
-    #define CONTAINER ((struct MTPContainer*)(data_buffer))
+    #define CONTAINER ((struct MTPContainer*)(rx_data_buffer))
 
     #define TRANSMIT(FUN) do {                            \
       write_length_ = 0;                                  \
@@ -969,20 +966,20 @@
         uint32_t to_copy = MTP_RX_SIZE - index;
         to_copy = min(to_copy, size);
         if (data) {
-          memcpy(data, data_buffer + index, to_copy);
+          memcpy(data, rx_data_buffer + index, to_copy);
           data += to_copy;
         }
         size -= to_copy;
         index += to_copy;
         if (index == MTP_RX_SIZE) {
-          pull_packet(data_buffer);
+          pull_packet(rx_data_buffer);
           index=0;
         }
       }
     }
 
     uint32_t MTPD::SendObjectInfo(uint32_t storage, uint32_t parent) {
-      pull_packet(data_buffer);
+      pull_packet(rx_data_buffer);
 //      printContainer(); 
       
       read(0,0); // resync read
@@ -1015,7 +1012,7 @@
 
     void MTPD::SendObject() 
     { 
-      pull_packet(data_buffer);
+      pull_packet(rx_data_buffer);
 //      printContainer(); 
 
       read(0,0);
@@ -1027,7 +1024,7 @@
       { uint32_t bytes = MTP_RX_SIZE - index;                     // how many data in usb-packet
         bytes = min(bytes,len);                                   // loimit at end
         uint32_t to_copy=min(bytes, DISK_BUFFER_SIZE-disk_pos);   // how many data to copy to disk buffer
-        memcpy(disk_buffer+disk_pos, data_buffer + index,to_copy);
+        memcpy(disk_buffer+disk_pos, rx_data_buffer + index,to_copy);
         disk_pos += to_copy;
         bytes -= to_copy;
         len -= to_copy;
@@ -1040,14 +1037,14 @@
 
           if(bytes) // we have still data in transfer buffer, copy to initial disk_buffer
           {
-            memcpy(disk_buffer,data_buffer+index+to_copy,bytes);
+            memcpy(disk_buffer,rx_data_buffer+index+to_copy,bytes);
             disk_pos += bytes;
             len -= bytes;
           }
           //printf("b %d %d %d %d %d\n", len,disk_pos,bytes,index,to_copy);
         }
         if(len>0)  // we have still data to be transfered
-        { pull_packet(data_buffer);
+        { pull_packet(rx_data_buffer);
           index=0;
         }
       }
@@ -1060,7 +1057,7 @@
     }
 
     uint32_t MTPD::setObjectPropValue(uint32_t p1, uint32_t p2)
-    { pull_packet(data_buffer);
+    { pull_packet(rx_data_buffer);
 //      printContainer(); 
       
       if(p2==0xDC07)
@@ -1076,10 +1073,10 @@
       else
         return 0x2005;
     }
-    extern "C" uint32_t usb_mtp_getStatus();
+
     void MTPD::loop(void)
-    { if(!usb_mtp_available()) return; //if(!usb_mtp_haveRX()) return;
-      if(fetch_packet(data_buffer))
+    { if(!usb_mtp_available()) return;
+      if(fetch_packet(rx_data_buffer))
       { printContainer();
 
         int op = CONTAINER->op;
@@ -1218,8 +1215,8 @@
             CONTAINER->transaction_id=id;
             CONTAINER->params[0]=p1;
             //printContainer();
-            memcpy(tx_data_buffer,data_buffer,sizeof(struct MTPContainer));
-            push_packet(tx_data_buffer,len);
+            memcpy(tx_data_buffer,rx_data_buffer,len);
+            push_packet(tx_data_buffer,len); // for acknowledge use rx_daza_buffer
         }
       }
     }

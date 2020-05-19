@@ -49,6 +49,22 @@
       "compilerPath": "${ROOT0}/../../tools/arm/bin/arm-none-eabi-gcc.exe",
       "intelliSenseMode": "gcc-x64"
     }
+    {
+      "name": "Teensy 41",
+      "includePath": [
+        "${COMMON_LIBS}",
+        "${ROOT0}/cores/teensy4"
+      ],
+      "forcedInclude": [],
+      "defines": [
+        "__IMXRT1062__",
+        "ARDUINO_T41",
+        "F_CPU=600000000",
+        "${COMMON_DEFINES}"
+      ],
+      "compilerPath": "${ROOT0}/../../tools/arm/bin/arm-none-eabi-gcc.exe",
+      "intelliSenseMode": "gcc-x64"
+    }
   ],
   "version": 4
 }

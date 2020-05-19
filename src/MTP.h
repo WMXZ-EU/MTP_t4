@@ -68,7 +68,7 @@ private:
   #define MTP_RX_SIZE MTP_RX_SIZE_480 
   #define MTP_TX_SIZE MTP_TX_SIZE_480 
   
-  uint8_t data_buffer[MTP_RX_SIZE] __attribute__ ((aligned(32)));
+  uint8_t rx_data_buffer[MTP_RX_SIZE] __attribute__ ((aligned(32)));
   uint8_t tx_data_buffer[MTP_TX_SIZE] __attribute__ ((aligned(32)));
 
   #define DISK_BUFFER_SIZE 8*1024
