@@ -838,7 +838,7 @@
 
     int MTPD::push_packet(uint8_t *data_buffer,uint32_t len)
     {
-      while(usb_mtp_send(data_buffer,len,60)<=0) { asm("wfi");}
+      while(usb_mtp_send(data_buffer,len,60)<=0) ;
       return 1;
     }
 
