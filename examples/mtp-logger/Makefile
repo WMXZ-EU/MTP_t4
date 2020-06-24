@@ -38,7 +38,7 @@ ifeq ($(BOARD_ID),T40)
 	FLAGS_CPU   := -mthumb -mcpu=cortex-m7 -mfloat-abi=hard -mfpu=fpv4-sp-d16 -fsingle-precision-constant
 	LIBS        := -larm_cortexM4lf_math
 	DEFINES     := -D__IMXRT1062__  -DARDUINO_TEENSY40
-	DEFINES     += -DF_CPU=396000000
+	DEFINES     += -DF_CPU=150000000
 	DEFINES		+= -DUSE_SDIO=0
 endif
 
@@ -49,7 +49,7 @@ ifeq ($(BOARD_ID),T41)
 	FLAGS_CPU   := -mthumb -mcpu=cortex-m7 -mfloat-abi=hard -mfpu=fpv4-sp-d16 -fsingle-precision-constant
 	LIBS        := -larm_cortexM4lf_math
 	DEFINES     := -D__IMXRT1062__  -DARDUINO_TEENSY41
-	DEFINES     += -DF_CPU=396000000
+	DEFINES     += -DF_CPU=150000000
 	DEFINES		+= -DUSE_SDIO=1
 endif
 
