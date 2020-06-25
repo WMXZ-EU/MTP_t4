@@ -56,6 +56,7 @@
   }
 
   SdFs sd;
+  const char * indexFile = "/mtpindex.dat";
  bool Storage_init(void)
   { 
     #if DO_DEBUG>0
@@ -103,8 +104,8 @@ void mtp_lock_storage(bool lock) {}
     
     mtp_lock_storage(true);
     if(index_.isOpen()) index_.close();
-    sd.remove("mtpindex.dat");
-    index_ = sd.open("mtpindex.dat", FILE_WRITE);
+    sd.remove(indexFile);
+    index_ = sd.open(indexFile, FILE_WRITE);
     mtp_lock_storage(false);
 
     all_scanned_ = false;
@@ -124,7 +125,7 @@ void mtp_lock_storage(bool lock) {}
   void MTPStorage_SD::OpenIndex() 
   { if(index_) return; // only once
     mtp_lock_storage(true);
-    index_.open((char*)"mtpindex.dat", FILE_WRITE);
+    index_.open(indexFile, FILE_WRITE);
     mtp_lock_storage(false);
   }
 
@@ -196,7 +197,7 @@ void mtp_lock_storage(bool lock) {}
 
     // first remove old index file
     mtp_lock_storage(true);
-    sd.remove((char*)"mtpindex.dat");
+    sd.remove(indexFile);
     mtp_lock_storage(false);
     index_entries_ = 0;
 
