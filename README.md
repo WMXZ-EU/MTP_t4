@@ -34,9 +34,9 @@ Modification of disk content (directories and Files) by Teensy is only be visibl
    - #define USE_SDIO 1  // use SDIO
    - #define USE_SDIO 0  // use SPI
  - If you wanted USB_MTP_SERIAL  
-   - T4.x edit usb_desc.h with content of copy-to-cores_teensy4 (insert after MTP_DISK)
-   - T3.x edit usb_desc.h with content of copy-to-cores_teensy3 (insert after MTP_DISK)
-   - edit boards.txt in teensy/avr with content of copy-to-teensy_avr (copy to end of file)
+   - T4.x edit teensy/avr/cores/teensy4/usb_desc.h with content of copy-to-cores_teensy4 (insert after MTP_DISK)
+   - T3.x edit teensy/avr/cores/teensy3/usb_desc.h with content of copy-to-cores_teensy3 (insert after MTP_DISK)
+   - edit teensy/avr/boards.txt with content of copy-to-teensy_avr (copy to end of file)
  - install also USB2 from WMXZ github
 
 ## To be done:
