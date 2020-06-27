@@ -26,7 +26,8 @@ Modification of disk content (directories and Files) by Teensy is only be visibl
 
 ## Installation:
  - download SdFat-beta from Bill Greiman`s github
-   - if necessary remove old SdFat from libraries, if existing
+   - if necessary and if existing remove old SdFat from local libraries
+   - if using Audio library remove SD from stock libraries (installed by Teensyduino)
    - edit SdFatConfig.h following Bill`s instructions e.g.:
      - #define SDFAT_FILE_TYPE 3
  - in Storage.h edit defines to use SDIO or SPI e.g.:
