@@ -4,7 +4,7 @@
 #endif
 
 #define NCH 4
-#define NBUF_ACQ 128*NCH
+#define NBUF_ACQ 128L*NCH
 
 #include "MTP.h"
 #include "usb1_mtp.h"
@@ -81,6 +81,8 @@ static uint16_t front_ = 0, rear_ = 0;
 uint16_t getCount () { if(front_ >= rear_) return front_ - rear_; return front_+ MAXBUF -rear_; }
 uint16_t maxCount=0;
 
+void resetData(void) {  front_ = 0;  rear_ = 0; }
+
 uint16_t pushData(uint32_t * src)
 { uint16_t f =front_ + 1;
   if(f >= MAXBUF) f=0;
@@ -97,7 +99,7 @@ uint16_t pushData(uint32_t * src)
   return 1;
 }
 
-uint16_t pullData(uint32_t * dst, uint16_t ndbl)
+uint16_t pullData(uint32_t * dst, uint32_t ndbl)
 { uint16_t r = (rear_/ndbl) ;
   if(r == (front_/ndbl)) return 0;
   if(++r >= (MAXBUF/ndbl)) r=0;
@@ -115,9 +117,10 @@ int16_t file_close(void);
 #define NDBL 1
 #define NBUF_DISK (NDBL*NBUF_ACQ)
 uint32_t diskBuffer[NBUF_DISK];
+uint32_t maxDel=0;
 
 int16_t do_logger(int16_t state)
-{
+{ uint32_t to=millis();
   if(pullData(diskBuffer,NDBL))
   {
     if(state==0)
@@ -149,6 +152,9 @@ int16_t do_logger(int16_t state)
     state=-1;
     
   }
+  uint32_t dt=millis()-to;
+  if(dt>maxDel) maxDel=dt;
+
   return state;
 }
 
@@ -236,18 +242,20 @@ void do_menu3(void)
 {  // misc commands
 }
 
-extern uint32_t loop_count, acq_count, acq_fail;
+extern uint32_t loop_count, acq_count, acq_fail, maxDel;
 extern uint16_t maxCount;
 /**************** Online logging *******************************/
 void logg(uint32_t del, const char *txt)
 { static uint32_t to;
   if(millis()-to > del)
   {
-    Serial.printf("%s: %6d %4d %4d %4d\n",txt,loop_count, acq_count, acq_fail,maxCount); 
+    Serial.printf("%s: %6d %4d %4d %4d %4d\n",
+            txt,loop_count, acq_count, acq_fail,maxCount, maxDel); 
     loop_count=0;
     acq_count=0;
     acq_fail=0;
     maxCount=0;
+    maxDel=0;
     #if USE_SDIO==1
         digitalWriteFast(13,!digitalReadFast(13));
     #endif
@@ -320,6 +328,7 @@ void acq_init(int32_t fsamp)
 
 void acq_start(void)
 { if(acq_state) return;
+  resetData();
   t1.begin(acq_isr, acq_period);
   acq_state=1;
 }
