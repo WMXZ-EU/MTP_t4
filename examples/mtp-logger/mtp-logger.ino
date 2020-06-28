@@ -24,8 +24,8 @@ void acq_init(int32_t fsamp);
 int16_t acq_check(int16_t state);
 
 void setup()
-{ 
-  while(!Serial && millis()<3000); 
+{ while(!Serial && millis()<3000); 
+
   usb_mtp_configure();
   if(!Storage_init()) { Serial.println("No storage"); while(1);};
 
@@ -53,6 +53,7 @@ void loop()
   logg(1000,"loop");
   //asm("wfi"); // may wait forever on T4.x
 }
+
 
 /*************************** Circular Buffer ********************/
   #define HAVE_PSRAM 1
@@ -230,6 +231,49 @@ int16_t file_close(void)
  * Custom Implementation
  * 
  */
+/************************ some utilities modified from time.cpp ************************/
+// leap year calculator expects year argument as years offset from 1970
+#define LEAP_YEAR(Y) ( ((1970+(Y))>0) && !((1970+(Y))%4) && ( ((1970+(Y))%100) || !((1970+(Y))%400) ) )
+
+static  const uint8_t monthDays[]={31,28,31,30,31,30,31,31,30,31,30,31}; 
+
+void day2date(uint32_t dd, uint32_t *day, uint32_t *month, uint32_t *year)
+{
+  uint32_t yy= 0;
+  uint32_t days = 0;
+  while((unsigned)(days += (LEAP_YEAR(yy) ? 366 : 365)) <= dd) {yy++;}
+  
+  days -= LEAP_YEAR(yy) ? 366 : 365;
+  dd  -= days; // now it is days in this year, starting at 0
+
+  uint32_t mm=0;
+  uint32_t monthLength=0;
+  for (mm=0; mm<12; mm++) 
+  {
+    monthLength = monthDays[mm];
+    if ((mm==1) && (LEAP_YEAR(yy))) monthLength++;
+    if (dd >= monthLength) { dd -= monthLength; } else { break; }
+  }
+
+  *month =mm + 1;   // jan is month 1  
+  *day  = dd + 1;   // day of month
+  *year = yy + 1970;
+}
+
+void date2day(uint32_t *dd, uint32_t day, uint32_t month, uint32_t year)
+{
+  day -= 1;
+  month -= 1;
+  year -= 1970;
+  uint32_t dx=0;
+  for (uint32_t ii = 0; ii < year; ii++) { dx += LEAP_YEAR(ii)? 366: 365; } 
+  for (uint32_t ii = 0; ii < month; ii++)
+  {
+    dx += monthDays[ii];
+    if((ii==2) && (LEAP_YEAR(year))) dx++; // after feb check for leap year
+  }
+  *dd = dx + day;
+}
 
 /************* Menu implementation ******************************/
 void do_menu1(void)
