@@ -126,33 +126,33 @@ int16_t do_logger(int16_t state)
   {
     if(state==0)
     { // acquisition is running, need to open file
-      if(!file_open()) return -1;
+      if(!file_open()) return -2;
       state=1;
     }
     if(state==1)
     { // file just opended, need to write header
-      if(!file_writeHeader()) return -1;
+      if(!file_writeHeader()) return -3;
       state=2;
       
     }
     if(state>=2)
     { // write data to disk
-      if(!file_writeData(diskBuffer,NBUF_DISK*4)) return -1;
+      if(!file_writeData(diskBuffer,NBUF_DISK*4)) return -4;
     }
   }
 
   if(state==3)
   { // close file, but continue acquisition
-    if(!file_close()) return -1;
+    if(!file_close()) return -5;
     state=0;
-    
   }
+
   if(state==4)
   { // close file and stop acquisition
-    if(!file_close()) return -1;
+    if(!file_close()) return -6;
     state=-1;
-    
   }
+
   uint32_t dt=millis()-to;
   if(dt>maxDel) maxDel=dt;
 
@@ -211,18 +211,20 @@ int16_t file_open(void)
   mfile = sd.open(filename,FILE_WRITE);
   return mfile.isOpen();
 }
+
 int16_t file_writeHeader(void)
 { if(!mfile.isOpen()) return 0;
   makeHeader(header);
   size_t nb = mfile.write(header,512);
   return (nb==512);
 }
+
 int16_t file_writeData(void *diskBuffer, uint32_t nd)
-{
-  if(!mfile.isOpen()) return 0;
+{ if(!mfile.isOpen()) return 0;
   uint32_t nb = mfile.write(diskBuffer,nd);
   return (nb==nd);
 }
+
 int16_t file_close(void)
 { return mfile.close();
 }
@@ -293,8 +295,8 @@ void logg(uint32_t del, const char *txt)
 { static uint32_t to;
   if(millis()-to > del)
   {
-    Serial.printf("%s: %6d %4d %4d %4d %4d\n",
-            txt,loop_count, acq_count, acq_fail,maxCount, maxDel); 
+    Serial.printf("%s: %6d %4d %4d %4d %4d %d\n",
+            txt,loop_count, acq_count, acq_fail,maxCount, maxDel,state); 
     loop_count=0;
     acq_count=0;
     acq_fail=0;
@@ -389,7 +391,7 @@ uint32_t acq_buffer[NBUF_ACQ];
 
 void acq_isr(void)
 { acq_count++;
-  for(int ii=0;ii<128;ii++) acq_buffer[ii*NCH]=acq_count;
+  for(int ii=0;ii<128;ii++) acq_buffer[ii*NCH] = acq_count;
   if(!pushData(acq_buffer)) acq_fail++;
 }
 
