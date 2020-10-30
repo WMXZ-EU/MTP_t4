@@ -34,7 +34,7 @@
   #define USE_SDIO 1  // this is default value (change for non sdio)
  #endif
  #if USE_SDIO==0
-    #if defined(__MK64FX512__) || defined(__MK66FX1M0__)
+    #if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MK64FX512__) || defined(__MK66FX1M0__)
             #define SD_CS  10
             #define SD_MOSI  7
             #define SD_MISO 12
