@@ -58,7 +58,7 @@ private:
     uint32_t params[5];    // 12
   } __attribute__((__may_alias__)) ;
 
-#if defined(__MK66FX1M0__)
+#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MK64FX512__) || defined(__MK66FX1M0__)
   usb_packet_t *data_buffer_ = NULL;
   void get_buffer() ;
   void receive_buffer() ;
