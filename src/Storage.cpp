@@ -29,7 +29,7 @@
 
   #include "Storage.h"
  /*
-  #if defined(__MK20DX256__)
+  #if defined(__MK20DX128__) || defined(__MK20DX256__) 
     #define SD_CS 10
     #define SD_CONFIG SdSpiConfig(SD_CS, DEDICATED_SPI, SPI_FULL_SPEED)
     
