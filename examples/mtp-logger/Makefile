@@ -12,9 +12,9 @@
 SHELL            := cmd.exe
 export SHELL
 
-#BOARD_ID         := T36
+BOARD_ID         := T36
 #BOARD_ID         := T40
-BOARD_ID         := T41
+#BOARD_ID         := T41
 TARGET_NAME      := mtp-logger_$(BOARD_ID)
 
 USB_DEVICE		:= USB_MTPDISK_SERIAL
@@ -50,7 +50,7 @@ ifeq ($(BOARD_ID),T41)
 	LIBS        := -larm_cortexM4lf_math
 	DEFINES     := -D__IMXRT1062__  -DARDUINO_TEENSY41
 	DEFINES     += -DF_CPU=150000000
-	DEFINES		+= -DUSE_SDIO=1
+	DEFINES		+= -DUSE_SDIO=0
 endif
 
 DEFINES     += -D$(USB_DEVICE)
@@ -61,10 +61,10 @@ ROOT0		:= C:\Users\zimme\Documents
 ARDUINO		:= $(ROOT0)\arduino-1.8.12\hardware
 
 LIBS_SHARED_BASE := $(ROOT0)\Arduino\libraries
-LIBS_SHARED      := SdFat_V2 MTP_t4 USB2
+LIBS_SHARED      := MTP_t4 USB2
 
 LIBS_LOCAL_BASE  := $(ARDUINO)\teensy\avr\libraries
-LIBS_LOCAL       := SPI Time
+LIBS_LOCAL       := SdFat-beta SD SPI Time
 
 CORE_BASE        := $(ARDUINO)\teensy\avr\cores\$(Family)
 GCC_BASE         := $(ARDUINO)\tools\arm\bin

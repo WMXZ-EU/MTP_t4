@@ -28,6 +28,8 @@
 #include "usb_serial.h"
 
   #include "Storage.h"
+
+  #define indexFile "/mtpindex.dat"
  /*
   #if defined(__MK20DX256__)
     #define SD_CS 10
@@ -40,7 +42,6 @@
   #endif
   */
 
-  // Call-back for file timestamps.  Only called for file create and sync().
   #include "TimeLib.h"
   // Call back for file timestamps.  Only called for file create and sync().
   void dateTime(uint16_t* date, uint16_t* time, uint8_t* ms10) 
@@ -55,34 +56,33 @@
     *ms10 = second() & 1 ? 100 : 0;
   }
 
-  SdFs sd;
-  const char * indexFile = "/mtpindex.dat";
- bool Storage_init(void)
+SDClass sd;
+ bool Storage_init()
   { 
     #if DO_DEBUG>0
       Serial.println("Using SdFs");
     #endif
     #if USE_SDIO==0
+      Serial.println("SPI");
       SPI.setMOSI(SD_MOSI);
       SPI.setMISO(SD_MISO);
       SPI.setSCK(SD_SCK);
     #endif
-    if (!sd.begin(SD_CONFIG)) {
-		return false;
-		//sd.errorHalt("sd.begin failed");
-	} else {
-		return true;
-	}
+
+    if (!sd.sdfs.begin(SD_CONFIG)) return false;
+
     // Set Time callback
     FsDateTime::callback = dateTime;
-  }
+
+    return true;
+	}
 
 
 // TODO:
 //   support multiple storages
 //   support serialflash
 //   partial object fetch/receive
-//   events (notify usb host when local storage changes)
+//   events (notify usb host when local storage changes) (But, this seems too difficult)
 
 // These should probably be weak.
 void mtp_yield() {}
@@ -94,16 +94,16 @@ void mtp_lock_storage(bool lock) {}
 
 //  uint64_t MTPStorage_SD::size() { return (uint64_t)512 * (uint64_t)sd.clusterCount()     * (uint64_t)sd.sectorsPerCluster(); }
 //  uint64_t MTPStorage_SD::free() { return (uint64_t)512 * (uint64_t)sd.freeClusterCount() * (uint64_t)sd.sectorsPerCluster(); }
-  uint32_t MTPStorage_SD::clusterCount() { return sd.clusterCount(); }
-  uint32_t MTPStorage_SD::freeClusters() { return sd.freeClusterCount(); }
-  uint32_t MTPStorage_SD::clusterSize() { return sd.sectorsPerCluster(); }
+  uint32_t MTPStorage_SD::clusterCount() { return sd.sdfs.clusterCount(); }
+  uint32_t MTPStorage_SD::freeClusters() { return sd.sdfs.freeClusterCount(); }
+  uint32_t MTPStorage_SD::clusterSize() { return sd.sdfs.sectorsPerCluster(); }
 
 
   void MTPStorage_SD::ResetIndex() {
     if(!index_) return;
     
     mtp_lock_storage(true);
-    if(index_.isOpen()) index_.close();
+    if(index_) index_.close();
     sd.remove(indexFile);
     index_ = sd.open(indexFile, FILE_WRITE);
     mtp_lock_storage(false);
@@ -125,7 +125,7 @@ void mtp_lock_storage(bool lock) {}
   void MTPStorage_SD::OpenIndex() 
   { if(index_) return; // only once
     mtp_lock_storage(true);
-    index_.open(indexFile, FILE_WRITE);
+    index_=sd.open((char*)indexFile, FILE_WRITE);
     mtp_lock_storage(false);
   }
 
@@ -181,7 +181,7 @@ void mtp_lock_storage(bool lock) {}
     ConstructFilename(i, filename, 256);
     mtp_lock_storage(true);
     if(file_) file_.close();
-    file_.open(filename,mode);
+    file_=sd.open(filename,mode);
     open_file_ = i;
     mode_ = mode;
     mtp_lock_storage(false);
@@ -197,7 +197,7 @@ void mtp_lock_storage(bool lock) {}
 
     // first remove old index file
     mtp_lock_storage(true);
-    sd.remove(indexFile);
+    sd.remove((char*)indexFile);
     mtp_lock_storage(false);
     index_entries_ = 0;
 
@@ -221,7 +221,7 @@ void mtp_lock_storage(bool lock) {}
       while (true) 
       {
         mtp_lock_storage(true);
-        child_.openNext(&file_);
+        child_=file_.openNextFile();
         mtp_lock_storage(false);
         
         if(!child_) break;
@@ -232,7 +232,7 @@ void mtp_lock_storage(bool lock) {}
         r.isdir = child_.isDirectory();
         r.child = r.isdir ? 0 : child_.size();
         r.scanned = false;
-        child_.getName(r.name, 64);
+        strcpy(r.name,child_.name());
         sibling = AppendIndexRecord(r);
         child_.close();
       }
@@ -417,7 +417,7 @@ void mtp_lock_storage(bool lock) {}
     WriteIndexRecord(handle, p1);
     ConstructFilename(handle, newName, 256);
 
-    sd.rename(oldName,newName);
+    sd.sdfs.rename(oldName,newName);
   }
 
   void MTPStorage_SD::move(uint32_t handle, uint32_t newParent ) 
@@ -438,5 +438,5 @@ void mtp_lock_storage(bool lock) {}
     WriteIndexRecord(newParent, p2);
 
     ConstructFilename(handle, newName, 256);
-    sd.rename(oldName,newName);
+    sd.sdfs.rename(oldName,newName);
   }

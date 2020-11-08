@@ -13,7 +13,8 @@
     "COMMON_DEFINES": [ "TEENSYDUINO=152",
                         "USB_MTPDISK_SERIAL",
                         "LAYOUT_US_ENGLISH",
-                        "ARDUINO"
+                        "ARDUINO",
+                        "USE_SDIO=0"
                       ]
   },
   "configurations": [

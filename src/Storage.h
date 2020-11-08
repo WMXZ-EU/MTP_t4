@@ -30,9 +30,13 @@
 //#include "usb_dev.h"
 //#include "usb_serial.h"
 
+//#include "SdFat.h"
+#include "SD.h"
+
  #ifndef USE_SDIO
   #define USE_SDIO 1  // this is default value (change for non sdio)
  #endif
+//#define SD_CONFIG SdSpiConfig(SD_CS_PIN, DEDICATED_SPI, SD_SCK_MHZ(50), &mySpi)
  #if USE_SDIO==0
     #if defined(__MK64FX512__) || defined(__MK66FX1M0__)
             #define SD_CS  10
@@ -40,23 +44,19 @@
             #define SD_MISO 12
             #define SD_SCK  14
     #elif defined(__IMXRT1062__)
-            #define SD_CS  10
+            #define SD_CS  33 //10 // 1:34; 2:33; 3:35; 4:36; 5:37; 6:38;
             #define SD_MOSI 11
             #define SD_MISO 12
             #define SD_SCK  13
     #endif
-    #define SD_CONFIG SdSpiConfig(SD_CS, DEDICATED_SPI, SPI_FULL_SPEED)
+    #define SD_CONFIG SdSpiConfig(SD_CS, DEDICATED_SPI, SD_SCK_MHZ(35))
  #else
     #define SD_CONFIG SdioConfig(FIFO_SDIO)
     //#define SD_CONFIG SdioConfig(DMA_SDIO)
- #endif
- 
+#endif 
 
-  #include "SdFat.h"
-
-  
-  bool Storage_init(void);
-
+  extern SDClass sd;
+  bool Storage_init();
   
 // This interface lets the MTP responder interface any storage.
 // We'll need to give the MTP responder a pointer to one of these.
@@ -117,12 +117,9 @@ public:
 class MTPStorage_SD : public MTPStorageInterface 
 {
 private:
-//   File index_;
-//   File file_;
-//   File child_;
-   FsFile index_;
-   FsFile file_;
-   FsFile child_;
+   File index_;
+   File file_;
+   File child_;
 
   uint32_t mode_ = 0;
   uint32_t open_file_ = 0xFFFFFFFEUL;

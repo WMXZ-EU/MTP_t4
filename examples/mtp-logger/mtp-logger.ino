@@ -3,8 +3,13 @@
   #define USE_SDIO 1 // change to 1 if using SDIO 
 #endif
 
-#define NCH 4
-#define NBUF_ACQ 128L*NCH
+#define NDAT 128L
+#define NCH_ACQ 1
+#define NCH_I2S 4
+#define NBUF_ACQ (NCH_ACQ*NDAT)
+#define NBUF_I2S (NCH_I2S*NDAT)
+#define N_ADC 2
+#define FRAME_I2S (NCH_I2S/N_ADC)
 
 #include "MTP.h"
 #include "usb1_mtp.h"
@@ -56,7 +61,12 @@ void loop()
 
 
 /*************************** Circular Buffer ********************/
+#if defined ARDUINO_TEENSY41
   #define HAVE_PSRAM 1
+#else
+  #define HAVE_PSRAM 0
+#endif
+
   #if HAVE_PSRAM==1
     #define MAXBUF (1000) // 3000 kB   // < 5461 for 16 MByte PSRAM
 
@@ -196,8 +206,10 @@ int16_t do_menu(int16_t state)
 }
 
 /************ Basic File System Interface *************************/
-extern SdFs sd;
-static FsFile mfile;
+//extern SdFs sd;
+//static FsFile mfile;
+extern SDClass sd; // is defined in Storage.cpp where MTP index is also located
+static File mfile;
 char header[512];
 
 void makeHeader(char *header);
@@ -209,24 +221,24 @@ int16_t file_open(void)
   if(!makeFilename(filename)) return 0;
   if(!checkPath(filename)) return 0;
   mfile = sd.open(filename,FILE_WRITE);
-  return mfile.isOpen();
+  return mfile;
 }
 
 int16_t file_writeHeader(void)
-{ if(!mfile.isOpen()) return 0;
+{ if(!mfile) return 0;
   makeHeader(header);
   size_t nb = mfile.write(header,512);
   return (nb==512);
 }
 
 int16_t file_writeData(void *diskBuffer, uint32_t nd)
-{ if(!mfile.isOpen()) return 0;
+{ if(!mfile) return 0;
   uint32_t nb = mfile.write(diskBuffer,nd);
   return (nb==nd);
 }
 
 int16_t file_close(void)
-{ return mfile.close();
+{ return mfile;
 }
 
 /*
@@ -288,7 +300,7 @@ void do_menu3(void)
 {  // misc commands
 }
 
-extern uint32_t loop_count, acq_count, acq_fail, maxDel;
+extern uint32_t loop_count, acq_count, acq_miss, maxDel;
 extern uint16_t maxCount;
 /**************** Online logging *******************************/
 void logg(uint32_t del, const char *txt)
@@ -296,10 +308,10 @@ void logg(uint32_t del, const char *txt)
   if(millis()-to > del)
   {
     Serial.printf("%s: %6d %4d %4d %4d %4d %d\n",
-            txt,loop_count, acq_count, acq_fail,maxCount, maxDel,state); 
+            txt,loop_count, acq_count, acq_miss,maxCount, maxDel,state); 
     loop_count=0;
     acq_count=0;
-    acq_fail=0;
+    acq_miss=0;
     maxCount=0;
     maxDel=0;
     #if USE_SDIO==1
@@ -358,51 +370,365 @@ int16_t check_filing(int16_t state)
   return state;
 }
 
-/****************** Data Acquisition (dummy example) *****************************/
-#include "IntervalTimer.h"
+/****************** Data Acquisition *******************************************/
+#define DO_I2S 1
+#define DO_ACQ DO_I2S
 
-IntervalTimer t1;
+#define I2S_CONFIG 1
+// CONFIG 1 (PURE RX)
+//PIN   9 BCLK
+//PIN  23 FS
+//PIN  13 RXD0
+//PIN  38 RXD1
 
-uint32_t acq_period=1000;
-int16_t acq_state=-1;
-void acq_isr(void);
+#if DO_ACQ==DO_I2S
+  static uint32_t tdm_rx_buffer[2*NBUF_I2S];
+  static uint32_t acq_rx_buffer[NBUF_ACQ];
+  #define I2S_DMA_PRIO 6
 
-void acq_init(int32_t fsamp)
-{ acq_period=128'000'000/fsamp;
-  acq_state=0;
-}
+  #include "DMAChannel.h"
+  static DMAChannel dma;
 
-void acq_start(void)
-{ if(acq_state) return;
-  resetData();
-  t1.begin(acq_isr, acq_period);
-  acq_state=1;
-}
+  void acq_isr(void);
 
-void acq_stop(void)
-{ if(acq_state<=0) return;
-  t1.end();
-  acq_state=0;
-}
+  #if defined(__MK66FX1M0__)
+  //Teensy 3.6
+      #define MCLK_SRC  3
+      #define MCLK_SCALE 1
+    // set MCLK to 48 MHz or a integer fraction (MCLK_SCALE) of it 
+    // SCALE 1: 48000/512 kHz = 93.75 kHz
+    #if (F_PLL == 96000000) //PLL is 96 MHz for F_CPU==48 or F_CPU==96 MHz
+        #define MCLK_MULT 1 
+        #define MCLK_DIV  (2*MCLK_SCALE) 
+        //  #define MCLK_DIV  (3*MCLK_SCALE) 
+    #elif F_PLL == 120000000
+        #define MCLK_MULT 2
+        #define MCLK_DIV  (5*MCLK_SCALE)
+    #elif F_PLL == 144000000
+        #define MCLK_MULT 1
+        #define MCLK_DIV  (3*MCLK_SCALE)
+    #elif F_PLL == 192000000
+        #define MCLK_MULT 1
+        #define MCLK_DIV  (4*MCLK_SCALE)
+    #elif F_PLL == 240000000
+        #define MCLK_MULT 1
+        #define MCLK_DIV  (5*MCLK_SCALE)
+    #else
+        #error "set F_CPU to (48, 96, 120, 144, 192, 240) MHz"
+    #endif
 
-uint32_t acq_count=0;
-uint32_t acq_fail=0;
-uint32_t acq_buffer[NBUF_ACQ];
+    const int32_t fsamp0=(((F_PLL*MCLK_MULT)/MCLK_DIV)/512);
 
-void acq_isr(void)
-{ acq_count++;
-  for(int ii=0;ii<128;ii++) acq_buffer[ii*NCH] = acq_count;
-  if(!pushData(acq_buffer)) acq_fail++;
-}
 
-int16_t acq_check(int16_t state)
-{ if(!state)
-  { // start acquisition
-    acq_start();
+    void acq_init(int32_t fsamp)
+    {
+
+        Serial.printf("%d %d\n",fsamp,fsamp0);
+        SIM_SCGC6 |= SIM_SCGC6_I2S;
+
+        #if I2S_CONFIG==0
+//            CORE_PIN39_CONFIG = PORT_PCR_MUX(6);  //pin39, PTA17, I2S0_MCLK
+//            CORE_PIN11_CONFIG = PORT_PCR_MUX(4);  //pin11, PTC6,  I2S0_RX_BCLK
+//            CORE_PIN12_CONFIG = PORT_PCR_MUX(4);  //pin12, PTC7,  I2S0_RX_FS
+//            CORE_PIN13_CONFIG = PORT_PCR_MUX(4);  //pin13, PTC5,  I2S0_RXD0
+        #elif I2S_CONFIG==1
+            CORE_PIN11_CONFIG = PORT_PCR_MUX(6);  //pin11, PTC6,  I2S0_MCLK
+            CORE_PIN9_CONFIG = PORT_PCR_MUX(6);   //pin9,  PTC3,  I2S0_RX_BCLK
+            CORE_PIN23_CONFIG = PORT_PCR_MUX(6);  //pin23, PTC2,  I2S0_RX_FS 
+            CORE_PIN13_CONFIG = PORT_PCR_MUX(4);  //pin13, PTC5,  I2S0_RXD0
+            CORE_PIN38_CONFIG = PORT_PCR_MUX(4);  //pin38, PTC11, I2S0_RXD1
+        #elif I2S_CONFIG==2
+//            CORE_PIN35_CONFIG = PORT_PCR_MUX(4) | PORT_PCR_SRE | PORT_PCR_DSE;  //pin35, PTC8,   I2S0_MCLK (SLEW rate (SRE)?)
+//            CORE_PIN36_CONFIG = PORT_PCR_MUX(4);  //pin36, PTC9,   I2S0_RX_BCLK
+//            CORE_PIN37_CONFIG = PORT_PCR_MUX(4);  //pin37, PTC10,  I2S0_RX_FS
+//            CORE_PIN27_CONFIG = PORT_PCR_MUX(6);  //pin27, PTA15,  I2S0_RXD0
+        #endif
+
+        I2S0_RCSR=0;
+
+        // enable MCLK output
+        I2S0_MDR = I2S_MDR_FRACT((MCLK_MULT-1)) | I2S_MDR_DIVIDE((MCLK_DIV-1));
+        while(I2S0_MCR & I2S_MCR_DUF);
+        I2S0_MCR = I2S_MCR_MICS(MCLK_SRC) | I2S_MCR_MOE;
+        
+        I2S0_RMR=0; // enable receiver mask
+        I2S0_RCR1 = I2S_RCR1_RFW(3); 
+
+        I2S0_RCR2 = I2S_RCR2_SYNC(0) 
+                    | I2S_RCR2_BCP ;
+                    
+        I2S0_RCR3 = I2S_RCR3_RCE; // single rx channel
+
+        I2S0_RCR4 = I2S_RCR4_FRSZ((FRAME_I2S-1)) // 8 words (TDM - mode)
+                    | I2S_RCR4_FSE  // frame sync early
+                    | I2S_RCR4_MF;
+        
+        I2S0_RCR5 = I2S_RCR5_WNW(31) | I2S_RCR5_W0W(31) | I2S_RCR5_FBT(31);
+
+        // DMA 
+        SIM_SCGC6 |= SIM_SCGC6_DMAMUX;
+        SIM_SCGC7 |= SIM_SCGC7_DMA;
+
+        DMA_CR = DMA_CR_EMLM | DMA_CR_EDBG;
+        DMA_CR |= DMA_CR_GRP1PRI;
+        
+        DMA_TCD0_SADDR = &I2S0_RDR0;
+        DMA_TCD0_SOFF  = 0;
+        DMA_TCD0_SLAST = 0;
+        
+        DMA_TCD0_ATTR = DMA_TCD_ATTR_SSIZE(2) | DMA_TCD_ATTR_DSIZE(2);
+        DMA_TCD0_NBYTES_MLNO = 4;
+            
+        DMA_TCD0_DADDR = tdm_rx_buffer;
+        DMA_TCD0_DOFF = 4;
+        DMA_TCD0_DLASTSGA = -sizeof(tdm_rx_buffer); // Bytes
+            
+        DMA_TCD0_CITER_ELINKNO = DMA_TCD0_BITER_ELINKNO = sizeof(tdm_rx_buffer)/4;
+            
+        DMA_TCD0_CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
+            
+        DMAMUX0_CHCFG0 = DMAMUX_DISABLE;
+        DMAMUX0_CHCFG0 = DMAMUX_SOURCE_I2S0_RX | DMAMUX_ENABLE;
+
+        // start I2S
+        I2S0_RCSR |= I2S_RCSR_RE | I2S_RCSR_BCE  | I2S_RCSR_FR | I2S_RCSR_FRDE;
+
+        //start DMA
+        _VectorsRam[IRQ_DMA_CH0 + 16] = acq_isr;
+        NVIC_SET_PRIORITY(IRQ_DMA_CH0, I2S_DMA_PRIO*16); // prio=8 is normal priority (set in mk20dx128.c)
+        NVIC_ENABLE_IRQ(IRQ_DMA_CH0); 
+        DMA_SERQ = 0;
+    }
+
+    void acq_start(void)
+    {
+
+    }
+    void acq_stop(void)
+    {
+        
+    }
+
+  #elif defined(__IMXRT1062__)
+  //Teensy 4.x
+
+    #define IMXRT_CACHE_ENABLED 2 // 0=disabled, 1=WT, 2= WB
+
+    /************************* I2S *************************************************/
+    void set_audioClock(int nfact, int32_t nmult, uint32_t ndiv, bool force) // sets PLL4
+      {
+          if (!force && (CCM_ANALOG_PLL_AUDIO & CCM_ANALOG_PLL_AUDIO_ENABLE)) return;
+
+          CCM_ANALOG_PLL_AUDIO = CCM_ANALOG_PLL_AUDIO_BYPASS | CCM_ANALOG_PLL_AUDIO_ENABLE
+                      | CCM_ANALOG_PLL_AUDIO_POST_DIV_SELECT(2) // 2: 1/4; 1: 1/2; 0: 1/1
+                      | CCM_ANALOG_PLL_AUDIO_DIV_SELECT(nfact);
+
+          CCM_ANALOG_PLL_AUDIO_NUM   = nmult & CCM_ANALOG_PLL_AUDIO_NUM_MASK;
+          CCM_ANALOG_PLL_AUDIO_DENOM = ndiv & CCM_ANALOG_PLL_AUDIO_DENOM_MASK;
+          
+          CCM_ANALOG_PLL_AUDIO &= ~CCM_ANALOG_PLL_AUDIO_POWERDOWN;//Switch on PLL
+          while (!(CCM_ANALOG_PLL_AUDIO & CCM_ANALOG_PLL_AUDIO_LOCK)) {}; //Wait for pll-lock
+          
+          const int div_post_pll = 1; // other values: 2,4
+          CCM_ANALOG_MISC2 &= ~(CCM_ANALOG_MISC2_DIV_MSB | CCM_ANALOG_MISC2_DIV_LSB);
+          if(div_post_pll>1) CCM_ANALOG_MISC2 |= CCM_ANALOG_MISC2_DIV_LSB;
+          if(div_post_pll>3) CCM_ANALOG_MISC2 |= CCM_ANALOG_MISC2_DIV_MSB;
+          
+          CCM_ANALOG_PLL_AUDIO &= ~CCM_ANALOG_PLL_AUDIO_BYPASS;   //Disable Bypass
+      }
+
+      void acq_init(int32_t fsamp)
+      {
+          CCM_CCGR5 |= CCM_CCGR5_SAI1(CCM_CCGR_ON);
+
+          // if either transmitter or receiver is enabled, do nothing
+          if (I2S1_RCSR & I2S_RCSR_RE) return;
+          //PLL:
+          int fs = fsamp;
+          int ovr = FRAME_I2S*32;
+          // PLL between 27*24 = 648MHz und 54*24=1296MHz
+          int n1 = 4;                    //4; //SAI prescaler 4 => (n1*n2) = multiple of 4
+          int n2 = 1 + (24000000 * 27) / (fs * ovr * n1);
+          Serial.printf("fs=%d, n1=%d, n2=%d, %d (>27 && < 54)\r\n", 
+                        fs, n1,n2,n1*n2*(fs/1000)*ovr/24000);
+
+          double C = ((double)fs * ovr * n1 * n2) / 24000000;
+          int c0 = C;
+          int c2 = 10000;
+          int c1 = C * c2 - (c0 * c2);
+          set_audioClock(c0, c1, c2, true);
+
+          // clear SAI1_CLK register locations
+          CCM_CSCMR1 = (CCM_CSCMR1 & ~(CCM_CSCMR1_SAI1_CLK_SEL_MASK))
+              | CCM_CSCMR1_SAI1_CLK_SEL(2); // &0x03 // (0,1,2): PLL3PFD0, PLL5, PLL4
+
+          n1 = n1 / 2; //Double Speed for TDM
+
+          CCM_CS1CDR = (CCM_CS1CDR & ~(CCM_CS1CDR_SAI1_CLK_PRED_MASK | CCM_CS1CDR_SAI1_CLK_PODF_MASK))
+              | CCM_CS1CDR_SAI1_CLK_PRED((n1-1)) // &0x07
+              | CCM_CS1CDR_SAI1_CLK_PODF((n2-1)); // &0x3f
+
+          IOMUXC_GPR_GPR1 = (IOMUXC_GPR_GPR1 & ~(IOMUXC_GPR_GPR1_SAI1_MCLK1_SEL_MASK))
+                  | (IOMUXC_GPR_GPR1_SAI1_MCLK_DIR | IOMUXC_GPR_GPR1_SAI1_MCLK1_SEL(0));	//Select MCLK
+
+          I2S1_RMR = 0;
+          I2S1_RCR1 = I2S_RCR1_RFW(4);
+          I2S1_RCR2 = I2S_RCR2_SYNC(0) | I2S_TCR2_BCP | I2S_RCR2_MSEL(1)
+              | I2S_RCR2_BCD | I2S_RCR2_DIV(0);
+          
+          I2S1_RCR4 = I2S_RCR4_FRSZ((FRAME_I2S-1)) | I2S_RCR4_SYWD(0) | I2S_RCR4_MF
+              | I2S_RCR4_FSE | I2S_RCR4_FSD;
+          I2S1_RCR5 = I2S_RCR5_WNW(31) | I2S_RCR5_W0W(31) | I2S_RCR5_FBT(31);
+
+        	CORE_PIN23_CONFIG = 3;  //1:MCLK 
+          CORE_PIN21_CONFIG = 3;  //1:RX_BCLK
+          CORE_PIN20_CONFIG = 3;  //1:RX_SYNC
+#if N_ADC==1
+          I2S1_RCR3 = I2S_RCR3_RCE;
+          CORE_PIN8_CONFIG  = 3;  //RX_DATA0
+          IOMUXC_SAI1_RX_DATA0_SELECT_INPUT = 2;
+
+          dma.TCD->SADDR = &I2S1_RDR0;
+          dma.TCD->SOFF = 0;
+          dma.TCD->ATTR = DMA_TCD_ATTR_SSIZE(2) | DMA_TCD_ATTR_DSIZE(2);
+          dma.TCD->NBYTES_MLNO = 4;
+          dma.TCD->SLAST = 0;
+#elif N_ADC==2
+          I2S1_RCR3 = I2S_RCR3_RCE_2CH;
+          CORE_PIN8_CONFIG  = 3;  //RX_DATA0
+          CORE_PIN6_CONFIG  = 3;  //RX_DATA1
+          IOMUXC_SAI1_RX_DATA0_SELECT_INPUT = 2; // GPIO_B1_00_ALT3, pg 873
+          IOMUXC_SAI1_RX_DATA1_SELECT_INPUT = 1; // GPIO_B0_10_ALT3, pg 873
+
+          dma.TCD->SADDR = &I2S1_RDR0;
+          dma.TCD->SOFF = 4;
+          dma.TCD->ATTR = DMA_TCD_ATTR_SSIZE(2) | DMA_TCD_ATTR_DSIZE(2);
+          dma.TCD->NBYTES_MLOFFYES = DMA_TCD_NBYTES_SMLOE |
+              DMA_TCD_NBYTES_MLOFFYES_MLOFF(-8) |
+              DMA_TCD_NBYTES_MLOFFYES_NBYTES(8);
+          dma.TCD->SLAST = -8;
+#endif
+          dma.TCD->DADDR = tdm_rx_buffer;
+          dma.TCD->DOFF = 4;
+          dma.TCD->CITER_ELINKNO = NBUF_I2S;
+          dma.TCD->DLASTSGA = -sizeof(tdm_rx_buffer);
+          dma.TCD->BITER_ELINKNO = NBUF_I2S;
+          dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
+          dma.triggerAtHardwareEvent(DMAMUX_SOURCE_SAI1_RX);
+          dma.enable();
+
+          I2S1_RCSR = I2S_RCSR_RE | I2S_RCSR_BCE | I2S_RCSR_FRDE | I2S_RCSR_FR;
+          dma.attachInterrupt(acq_isr,I2S_DMA_PRIO*16);	
+      }
+
+      void acq_start(void)
+      {
+
+      }
+      void acq_stop(void)
+      {
+          
+      }
+  #endif
+
+  uint32_t acq_count=0;
+  uint32_t acq_miss=0;
+
+    void acq_isr(void)
+    {
+        uint32_t daddr;
+        uint32_t *src;
+
+        DMA_CINT=0;
+        DMA_CDNE=0;
+        daddr = (uint32_t)(DMA_TCD0_DADDR);
+
+        if (daddr < (uint32_t)tdm_rx_buffer + sizeof(tdm_rx_buffer) / 2) {
+            // DMA is receiving to the first half of the buffer
+            // need to remove data from the second half
+            src = &tdm_rx_buffer[NBUF_I2S];
+        } else {
+            // DMA is receiving to the second half of the buffer
+            // need to remove data from the first half
+            src = &tdm_rx_buffer[0];
+        }
+
+        #if IMXRT_CACHE_ENABLED >=1
+            arm_dcache_delete((void*)src, sizeof(tdm_rx_buffer) / 2);
+        #endif
+
+        for(int jj=0;jj<NCH_ACQ;jj++)
+        {
+          for(int ii=0; ii<NBUF_ACQ;ii++)
+          {
+            acq_rx_buffer[jj+ii*NCH_ACQ]=src[jj+ii*NCH_I2S];
+          }
+        }
+
+        if(!pushData(acq_rx_buffer)) acq_miss++;
+
+        acq_count++;
+    }
+
+  int16_t acq_check(int16_t state)
+  { if(!state)
+    { // start acquisition
+      acq_start();
+    }
+    if(state>3)
+    { // stop acquisition
+      acq_stop();
+    }
+    return state;
   }
-  if(state>3)
-  { // stop acquisition
-    acq_stop();
+
+#else
+  /****************** Intervall timer(dummy example) *****************************/
+  #include "IntervalTimer.h"
+
+  IntervalTimer t1;
+
+  uint32_t acq_period=1000;
+  int16_t acq_state=-1;
+  void acq_isr(void);
+
+  void acq_init(int32_t fsamp)
+  { acq_period=128'000'000/fsamp;
+    acq_state=0;
   }
-  return state;
-}
+
+  void acq_start(void)
+  { if(acq_state) return;
+    resetData();
+    t1.begin(acq_isr, acq_period);
+    acq_state=1;
+  }
+
+  void acq_stop(void)
+  { if(acq_state<=0) return;
+    t1.end();
+    acq_state=0;
+  }
+
+  uint32_t acq_count=0;
+  uint32_t acq_fail=0;
+  uint32_t acq_buffer[NBUF_ACQ];
+
+  void acq_isr(void)
+  { acq_count++;
+    for(int ii=0;ii<128;ii++) acq_buffer[ii*NCH] = acq_count;
+    if(!pushData(acq_buffer)) acq_fail++;
+  }
+
+  int16_t acq_check(int16_t state)
+  { if(!state)
+    { // start acquisition
+      acq_start();
+    }
+    if(state>3)
+    { // stop acquisition
+      acq_stop();
+    }
+    return state;
+  }
+#endif
