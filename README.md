@@ -1,8 +1,8 @@
 # MTP_t4
 
-MTP Responder for Teensy 4.x and T3.x
+MTP Responder for Teensy 3.x and 4.x
 
-Uses SD and SdFat-beta as distributed via Teenyduino
+Uses SD interface and Bill Greiman's SdFat-beta as distributed via Teenyduino supporting exFAT and SDIO
 
 code is based on https://github.com/yoonghm/MTP with modification by WMXZ
 
