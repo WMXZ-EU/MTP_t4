@@ -384,7 +384,7 @@ int16_t check_filing(int16_t state)
 /****************** Data Acquisition *******************************************/
 #define DO_TEST 1
 #define DO_I2S 2
-#define DO_ACQ DO_I2S
+#define DO_ACQ DO_TEST
 
 #if DO_ACQ==DO_TEST
   /****************** Intervall timer(dummy example) *****************************/
