@@ -516,7 +516,7 @@
 //      storage_->ResetIndex();
     }
 
-#if defined(__MK66FX1M0__)
+#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MK64FX512__) || defined(__MK66FX1M0__)
 
 //  usb_packet_t *data_buffer_ = NULL;
   void MTPD::get_buffer() {
