@@ -513,7 +513,7 @@
     
     void MTPD::openSession(void)
     {
-      storage_->ResetIndex();
+//      storage_->ResetIndex();
     }
 
 #if defined(__MK66FX1M0__)

@@ -40,6 +40,6 @@ void loop()
 { 
   mtpd.loop();
 
-  logg(1000,"loop");
+  //logg(1000,"loop");
   //asm("wfi"); // may wait forever on T4.x
 }

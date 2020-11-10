@@ -6,7 +6,8 @@
     "COMMON_LIBS": [  "**",
                       "${ROOT0}/libraries/SPI/**",
                       "${ROOT0}/libraries/Time/**",
-                      "${LOCAL_LIBRARIES}/SdFat_V2/**",
+                      "${ROOT0}/libraries/SD/**",
+                      "${ROOT0}/libraries/SdFat-beta/**",
                       "${LOCAL_LIBRARIES}/MTP_t4/**",
                       "${LOCAL_LIBRARIES}/USB2/**"
                     ],
@@ -14,7 +15,7 @@
                         "USB_MTPDISK_SERIAL",
                         "LAYOUT_US_ENGLISH",
                         "ARDUINO",
-                        "USE_SDIO=0"
+                        "USE_SDIO=1"
                       ]
   },
   "configurations": [

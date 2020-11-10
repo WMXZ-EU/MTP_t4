@@ -22,16 +22,23 @@
 // SOFTWARE.
 
 // modified for SDFS by WMXZ
+// Nov 2020 adapted to SdFat-beta / SD combo
 
 #ifndef Storage_H
 #define Storage_H
 
 #include "core_pins.h"
-//#include "usb_dev.h"
-//#include "usb_serial.h"
 
-//#include "SdFat.h"
-#include "SD.h"
+// Select to use SDFAT directly (#define USE_SDFS 1) or via SD wrapper (#define USE_SDFS 0)
+
+#define USE_SDFS 0
+#if USE_SDFS==1
+  #include "SdFat.h"
+  extern SdFs sd;
+#else
+  #include "SD.h"
+  // SD is declared in SD.cpp
+#endif
 
  #ifndef USE_SDIO
   #define USE_SDIO 1  // this is default value (change for non sdio)
@@ -55,7 +62,6 @@
     //#define SD_CONFIG SdioConfig(DMA_SDIO)
 #endif 
 
-  extern SDClass sd;
   bool Storage_init();
   
 // This interface lets the MTP responder interface any storage.
@@ -67,13 +73,6 @@ public:
 
   // Does it have directories?
   virtual bool has_directories() = 0;
-
-  // Return size of storage in bytes.
-//  virtual uint64_t size() = 0;
-
-  // Return free space in bytes.
-//  virtual uint64_t free() = 0;
-
 
   virtual uint32_t clusterCount() = 0;
   virtual uint32_t freeClusters() = 0;
@@ -117,9 +116,15 @@ public:
 class MTPStorage_SD : public MTPStorageInterface 
 {
 private:
+#if USE_SDFS==1
+   FsFile index_;
+   FsFile file_;
+   FsFile child_;
+#else
    File index_;
    File file_;
    File child_;
+#endif
 
   uint32_t mode_ = 0;
   uint32_t open_file_ = 0xFFFFFFFEUL;
