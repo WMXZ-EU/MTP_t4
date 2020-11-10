@@ -24,6 +24,10 @@ Tested on T4.1 up to 450 MHz CPU speed
 ## Reset of Session
 Modification of disk content (directories and Files) by Teensy is only be visible on PC when done before mounting the MTP device. To refresh disk content it is necessary to unmount and remount Teensy MTP device. On Windows this can be done by using device manager and disable and reanable Teensy (found under portable Device). On Linux this is done with standard muount/unmount commands.
 
+## Examples
+ - mtp-test:   basic MTP test program
+ - mtp-logger: basic data logger with MTP access
+ 
 ## Installation:
  - in Storage.h edit defines to use SDIO or SPI e.g.:
    - #define USE_SDIO 1  // use SDIO
