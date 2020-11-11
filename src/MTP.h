@@ -34,6 +34,13 @@
 #include "usb_dev.h"
 
 #include "Storage.h"
+// modify strings if needed (see MTP.cpp how they are used)
+#define MTP_MANUF "PJRC"
+#define MTP_MODEL "Teensy"
+#define MTP_VERS  "1.0"
+#define MTP_SERNR "1234"
+#define MTP_STORE "SD_Card"
+#define MTP_NAME  "Teensy"
 
 // MTP Responder.
 class MTPD {

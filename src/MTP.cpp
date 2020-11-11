@@ -215,10 +215,10 @@
     write16(0x3000);  // Undefined format
     write16(0x3001);  // Folders (associations)
 
-    writestring("PJRC");     // Manufacturer
-    writestring("Teensy");   // Model
-    writestring("1.0");      // version
-    writestring("???");      // serial
+    writestring(MTP_MANUF);     // Manufacturer
+    writestring(MTP_MODEL);     // Model
+    writestring(MTP_VERS);      // version
+    writestring(MTP_SERNR);     // serial
   }
 
   void MTPD::WriteStorageIDs() {
@@ -238,7 +238,7 @@
     write64(nfree*nsect*512L);  // free space (100M)
     //
     write32(0xFFFFFFFFUL);  // free space (objects)
-    writestring("SD Card");  // storage descriptor
+    writestring(MTP_STORE);  // storage descriptor
     writestring("");  // volume identifier
   }
 
@@ -334,7 +334,7 @@
       case 0xd402: // friendly name
         // This is the name we'll actually see in the windows explorer.
         // Should probably be configurable.
-        writestring("Teensy");
+        writestring(MTP_NAME);
         break;
     }
   }
