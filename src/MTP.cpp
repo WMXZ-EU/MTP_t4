@@ -32,7 +32,11 @@
 
 #include "usb1_mtp.h"
 
-#define printf(...) Serial.printf(__VA_ARGS__)
+#if 0
+  #define printf(...) Serial.printf(__VA_ARGS__)
+#else
+  #define printf(...) 
+#endif
 
 /***************************************************************************************************/
   // Container Types
@@ -1226,9 +1230,4 @@
     }
 
 #endif
-void MTPD::test(void)
-{
-  Serial.println(storage_->getNumStorage());
-  Serial.println(storage_->clusterCount(1),HEX);
-}
 #endif

@@ -32,43 +32,6 @@
 #include "SD.h"
 extern SDClass sdx[];
 
-// Select to use SDFAT directly (#define USE_SDFS 1) or via SD wrapper (#define USE_SDFS 0)
-/*
-#define USE_SDFS 0
-#if USE_SDFS==1
-  #include "SdFat.h"
-  extern SdFs sd;
-#else
-  #include "SD.h"
-  // SD is declared in SD.cpp
-#endif
-
- #ifndef USE_SDIO
-  #define USE_SDIO 1  // this is default value (change for non sdio)
- #endif
-//#define SD_CONFIG SdSpiConfig(SD_CS_PIN, DEDICATED_SPI, SD_SCK_MHZ(50), &mySpi)
- #if USE_SDIO==0
-    #if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MK64FX512__) || defined(__MK66FX1M0__)
-            #define SD_CS  10
-            #define SD_MOSI  7
-            #define SD_MISO 12
-            #define SD_SCK  14
-    #elif defined(__IMXRT1062__)
-            #define SD_CS  33 //10 // 1:34; 2:33; 3:35; 4:36; 5:37; 6:38;
-            #define SD_MOSI 11
-            #define SD_MISO 12
-            #define SD_SCK  13
-    #endif
-    #define SD_CONFIG SdSpiConfig(SD_CS, DEDICATED_SPI, SD_SCK_MHZ(35))
- #else
-    #define SD_CONFIG SdioConfig(FIFO_SDIO)
-    //#define SD_CONFIG SdioConfig(DMA_SDIO)
-#endif 
-
-  bool Storage_init();
-  bool Storage_init(const int *cs, int nsd);
-*/
-
 // This interface lets the MTP responder interface any storage.
 // We'll need to give the MTP responder a pointer to one of these.
 class MTPStorageInterface {
@@ -114,7 +77,7 @@ public:
     uint32_t sibling;
     uint8_t isdir;
     uint8_t scanned;
-    uint16_t store;
+    uint16_t store;  // index int physical storage (0 ... num_storages-1)
     char name[64];
   };
 
@@ -124,20 +87,14 @@ public:
 // Storage implementation for SD. SD needs to be already initialized.
 class MTPStorage_SD : public MTPStorageInterface 
 {
-
 public:
   void setStorageNumbers(const char **sd_str, int num) override;
 
 private:
-#if USE_SDFS==1
-   FsFile index_;
-   FsFile file_;
-   FsFile child_;
-#else
-   File index_;
-   File file_;
-   File child_;
-#endif
+  File index_;
+  File file_;
+  File child_;
+
   int num_storage;
   const char **sd_str = 0;
 
@@ -150,8 +107,6 @@ private:
   bool readonly(uint32_t storage);
   bool has_directories(uint32_t storage) ;
   
-  //uint64_t size() ;
-  //uint64_t free() ;
   uint32_t clusterCount(uint32_t storage) ;
   uint32_t freeClusters(uint32_t storage) ;
   uint32_t clusterSize(uint32_t storage) ;

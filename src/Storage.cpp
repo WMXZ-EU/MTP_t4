@@ -29,40 +29,17 @@
 #include "usb_serial.h"
 
 #include "Storage.h"
-/*
-#if USE_SDFS==1
- SdFs sd;
 
-  #define sd_begin sd.begin
-  #define sd_open sd.open
-  #define sd_mkdir sd.mkdir
-  #define sd_rename sd.rename
-  #define sd_remove sd.remove
-  #define sd_rmdir sd.rmdir
-  #define sd_isOpen(x)  x.isOpen()
-  #define sd_getName(x,y,n) (x.getName(y,n))
-
-#else
-  #if 0
-    #define sd_begin(x,y) SD.sdfs.begin(y)
-    #define sd_open(x,y,z) SD.open(y,z)
-    #define sd_mkdir(x,y) SD.mkdir(y)
-    #define sd_rename(x,y,z) SD.sdfs.rename(x,z)
-    #define sd_remove(x,y) SD.remove(y)
-    #define sd_rmdir(x,y) SD.rmdir(y)
-  #else
-  */
   extern SDClass sdx[];
-    #define sd_begin(x,y) sdx[x].sdfs.begin(y)
-    #define sd_open(x,y,z) sdx[x].open(y,z)
-    #define sd_mkdir(x,y) sdx[x].mkdir(y)
-    #define sd_rename(x,y,z) sdx[x].sdfs.rename(x,z)
-    #define sd_remove(x,y) sdx[x].remove(y)
-    #define sd_rmdir(x,y) sdx[x].rmdir(y)
-//  #endif
+  #define sd_begin(x,y) sdx[x].sdfs.begin(y)
+  #define sd_open(x,y,z) sdx[x].open(y,z)
+  #define sd_mkdir(x,y) sdx[x].mkdir(y)
+  #define sd_rename(x,y,z) sdx[x].sdfs.rename(x,z)
+  #define sd_remove(x,y) sdx[x].remove(y)
+  #define sd_rmdir(x,y) sdx[x].rmdir(y)
+
   #define sd_isOpen(x)  (x)
   #define sd_getName(x,y,n) strcpy(y,x.name())
-// #endif
 
   #define indexFile "/mtpindex.dat"
 
@@ -79,51 +56,8 @@
     // Return low time bits in units of 10 ms.
     *ms10 = second() & 1 ? 100 : 0;
   }
-/*
- bool Storage_init()
-  { 
+  
 
-    if (!sd_begin(0,SD_CONFIG)) return false;
-
-    // Set Time callback
-    FsDateTime::callback = dateTime;
-
-    return true;
-	}
-
-bool Storage_init(const int *cs, int nsd)
-{ 
-//    if(nsd==0) return Storage_init(); 
-
-    // prepare Chip Selects
-    for(int ii=0; ii<nsd;ii++)
-    { if(cs[ii] < BUILTIN_SDCARD) 
-      { pinMode(cs[ii],OUTPUT); digitalWriteFast(cs[ii],HIGH);
-        if(!sdx[ii].sdfs.begin(SdSpiConfig(cs[ii], SHARED_SPI, SD_SCK_MHZ(33)))) 
-            return false; 
-        else 
-            Serial.printf("uSD%d %d done\n",ii+1, cs[ii]);
-      }    
-      else
-      { Serial.print(ii); Serial.print(" "); Serial.println(cs[ii]); Serial.flush(); delay(100);
-        // initialize SDIO-disk
-        if (!sdx[ii].sdfs.begin(SdioConfig(FIFO_SDIO))) return false; else Serial.println("uSD sdio done");
-      }
-      Serial.flush();
-    }
-    Serial.println("Begin Done");
-
-    // check disk space
-    for (int ii=0; ii<nsd;ii++)
-    {   uint32_t volFree  = sdx[ii].sdfs.freeClusterCount();
-        uint32_t volClust = sdx[ii].sdfs.sectorsPerCluster();
-        Serial.printf("%d %d %d\n",ii+1,volFree,volClust);
-        Serial.flush();
-    }
-    return true;
-}
-
-*/
 // TODO:
 //   support multiple storages
 //   support serialflash
@@ -136,23 +70,10 @@ void mtp_lock_storage(bool lock) {}
 
   bool MTPStorage_SD::readonly(uint32_t storage) { return false; }
   bool MTPStorage_SD::has_directories(uint32_t storage) { return true; }
-  /*
-#if USE_SDFS==1
-  uint32_t MTPStorage_SD::clusterCount(uint32_t storage) { return sd.clusterCount(); }
-  uint32_t MTPStorage_SD::freeClusters(uint32_t storage) { return sd.freeClusterCount(); }
-  uint32_t MTPStorage_SD::clusterSize(uint32_t storage) { return sd.sectorsPerCluster(); }
-#else
-  #if 0
-    uint32_t MTPStorage_SD::clusterCount(uint32_t storage) { return SD.sdfs.clusterCount(); }
-    uint32_t MTPStorage_SD::freeClusters(uint32_t storage) { return SD.sdfs.freeClusterCount(); }
-    uint32_t MTPStorage_SD::clusterSize(uint32_t storage) { return SD.sdfs.sectorsPerCluster(); }
-  #else
-  */
-    uint32_t MTPStorage_SD::clusterCount(uint32_t storage) { return sdx[storage-1].sdfs.clusterCount(); }
-    uint32_t MTPStorage_SD::freeClusters(uint32_t storage) { return sdx[storage-1].sdfs.freeClusterCount(); }
-    uint32_t MTPStorage_SD::clusterSize(uint32_t storage)  { return sdx[storage-1].sdfs.sectorsPerCluster(); }
-//  #endif
-//#endif
+
+  uint32_t MTPStorage_SD::clusterCount(uint32_t storage) { return sdx[storage-1].sdfs.clusterCount(); }
+  uint32_t MTPStorage_SD::freeClusters(uint32_t storage) { return sdx[storage-1].sdfs.freeClusterCount(); }
+  uint32_t MTPStorage_SD::clusterSize(uint32_t storage)  { return sdx[storage-1].sdfs.sectorsPerCluster(); }
 
   void MTPStorage_SD::CloseIndex()
   {
@@ -232,7 +153,6 @@ void mtp_lock_storage(bool lock) {}
   {
     if (open_file_ == i && mode_ == mode) return;
     char filename[256];
-    Serial.println(i);
     uint16_t store = ConstructFilename(i, filename, 256);
     mtp_lock_storage(true);
     if(sd_isOpen(file_)) file_.close();
@@ -320,7 +240,6 @@ void mtp_lock_storage(bool lock) {}
       follow_sibling_ = true;
       // Root folder?
       next_ = ReadIndexRecord(parent).child;
-      Serial.println(next_);
     } 
     else 
     { 

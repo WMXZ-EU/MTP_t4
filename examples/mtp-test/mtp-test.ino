@@ -26,7 +26,7 @@ void logg(uint32_t del, const char *txt)
   }
 }
 
-void storage_configure(const char **sd_str, const int *cs, SDClass *sdx, int num)
+void storage_configure(MTPStorage_SD *storage, const char **sd_str, const int *cs, SDClass *sdx, int num)
 {
     #if defined SD_SCK
       SPI.setMOSI(SD_MOSI);
@@ -34,7 +34,7 @@ void storage_configure(const char **sd_str, const int *cs, SDClass *sdx, int num
       SPI.setSCK(SD_SCK);
     #endif
 
-    storage.setStorageNumbers(sd_str,nsd);
+    storage->setStorageNumbers(sd_str,nsd);
 
     for(int ii=0; ii<nsd; ii++)
     { if(cs[ii] == BUILTIN_SDCARD)
@@ -43,7 +43,7 @@ void storage_configure(const char **sd_str, const int *cs, SDClass *sdx, int num
         uint32_t volCount  = sdx[ii].sdfs.clusterCount();
         uint32_t volFree  = sdx[ii].sdfs.freeClusterCount();
         uint32_t volClust = sdx[ii].sdfs.sectorsPerCluster();
-        Serial.printf("%d %d %d %d %d\n",ii,cs[ii],volCount,volFree,volClust);
+        Serial.printf("Storage %d %d %d %d %d\n",ii,cs[ii],volCount,volFree,volClust);
       }
       else
       {
@@ -52,9 +52,8 @@ void storage_configure(const char **sd_str, const int *cs, SDClass *sdx, int num
         uint32_t volCount  = sdx[ii].sdfs.clusterCount();
         uint32_t volFree  = sdx[ii].sdfs.freeClusterCount();
         uint32_t volClust = sdx[ii].sdfs.sectorsPerCluster();
-        Serial.printf("%d %d %d %d %d\n",ii,cs[ii],volCount,volFree,volClust);
+        Serial.printf("Storage %d %d %d %d %d\n",ii,cs[ii],volCount,volFree,volClust);
       }
-      delay(100);
     }
 }
 
@@ -64,7 +63,7 @@ void setup()
   Serial.println("MTP_test");
   
   usb_mtp_configure();
-  storage_configure(sd_str,cs, sdx, nsd);
+  storage_configure(&storage, sd_str,cs, sdx, nsd);
 
   Serial.println("Setup done");
   Serial.flush();
