@@ -32,7 +32,7 @@
         "${COMMON_DEFINES}"
       ],
       "compilerPath": "${ROOT0}/../../tools/arm/bin/arm-none-eabi-gcc.exe",
-      "intelliSenseMode": "gcc-x64"
+      "intelliSenseMode": "gcc-arm"
     },
     {
       "name": "Teensy 40",
@@ -48,7 +48,7 @@
         "${COMMON_DEFINES}"
       ],
       "compilerPath": "${ROOT0}/../../tools/arm/bin/arm-none-eabi-gcc.exe",
-      "intelliSenseMode": "gcc-x64"
+      "intelliSenseMode": "gcc-arm"
     },
     {
       "name": "Teensy 41",
@@ -64,7 +64,7 @@
         "${COMMON_DEFINES}"
       ],
       "compilerPath": "${ROOT0}/../../tools/arm/bin/arm-none-eabi-gcc.exe",
-      "intelliSenseMode": "gcc-x64"
+      "intelliSenseMode": "gcc-arm"
     }
   ],
   "version": 4

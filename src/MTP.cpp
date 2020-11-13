@@ -521,7 +521,7 @@
     
     void MTPD::openSession(void)
     {
-//      storage_->ResetIndex();
+      storage_->ResetIndex();
     }
 
 #if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MK64FX512__) || defined(__MK66FX1M0__)

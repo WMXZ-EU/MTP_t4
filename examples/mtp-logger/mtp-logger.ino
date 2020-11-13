@@ -21,13 +21,57 @@
 #include "MTP.h"
 #include "usb1_mtp.h"
 
+  #define SD_MOSI 11
+  #define SD_MISO 12
+  #define SD_SCK  13
+
+//  const char *sd_str[]={"sdio","sd1","sd2","sd3","sd4","sd5","sd6"}; // WMXZ example
+//  const int cs[] = {BUILTIN_SDCARD,34,33,35,36,37,38}; // WMXZ example
+
+  const char *sd_str[]={"sdio"}; // edit to rflect configuration (see also mtp_test)
+  const int cs[] = {BUILTIN_SDCARD}; // edit to reflect your configuration
+  const int nsd = sizeof(cs)/sizeof(int);
+
+SDClass sdx[nsd];
+
 MTPStorage_SD storage;
 MTPD       mtpd(&storage);
+
+void storage_configure(MTPStorage_SD *storage, const char **sd_str, const int *cs, SDClass *sdx, int num)
+{
+    #if defined SD_SCK
+      SPI.setMOSI(SD_MOSI);
+      SPI.setMISO(SD_MISO);
+      SPI.setSCK(SD_SCK);
+    #endif
+
+    storage->setStorageNumbers(sd_str,nsd);
+
+    for(int ii=0; ii<nsd; ii++)
+    { if(cs[ii] == BUILTIN_SDCARD)
+      {
+        if(!sdx[ii].sdfs.begin(SdioConfig(FIFO_SDIO))){Serial.println("No storage"); while(1);};
+        uint32_t volCount  = sdx[ii].sdfs.clusterCount();
+        uint32_t volFree  = sdx[ii].sdfs.freeClusterCount();
+        uint32_t volClust = sdx[ii].sdfs.sectorsPerCluster();
+        Serial.printf("Storage %d %d %d %d %d\n",ii,cs[ii],volCount,volFree,volClust);
+      }
+      else
+      {
+        pinMode(cs[ii],OUTPUT); digitalWriteFast(cs[ii],HIGH);
+        if(!sdx[ii].sdfs.begin(SdSpiConfig(cs[ii], SHARED_SPI, SD_SCK_MHZ(33)))) {Serial.println("No storage"); while(1);}
+        uint32_t volCount  = sdx[ii].sdfs.clusterCount();
+        uint32_t volFree  = sdx[ii].sdfs.freeClusterCount();
+        uint32_t volClust = sdx[ii].sdfs.sectorsPerCluster();
+        Serial.printf("Storage %d %d %d %d %d\n",ii,cs[ii],volCount,volFree,volClust);
+      }
+    }
+}
 
 void logg(uint32_t del, const char *txt);
 
 int16_t state;
-int16_t do_logger(int16_t state);
+int16_t do_logger(uint16_t store, int16_t state);
 int16_t do_menu(int16_t state);
 int16_t check_filing(int16_t state);
 
@@ -36,17 +80,17 @@ int16_t acq_check(int16_t state);
 
 void setup()
 { while(!Serial && millis()<3000); 
-
-  usb_mtp_configure();
-  if(!Storage_init()) { Serial.println("No storage"); while(1);};
-
   Serial.println("MTP logger");
 
-//  #if USE_SDIO==1
-//    pinMode(13,OUTPUT);
-//  #endif
+  usb_mtp_configure();
+  storage_configure(&storage, sd_str,cs, sdx, nsd);
+
   acq_init(93750); // is fixed for this example, to be modified below
   state=-1;
+
+  Serial.println("Setup done");
+  Serial.println(" Enter s to start acquisition and q to stop acquisition");
+  Serial.flush();
 }
 
 uint32_t loop_count=0;
@@ -59,7 +103,7 @@ void loop()
   if(state<0)
     mtpd.loop();
   else
-    state=do_logger(state);
+    state=do_logger(0,state);
 
   if(state>=0) logg(1000,"loop");
   //asm("wfi"); // may wait forever on T4.x
@@ -79,9 +123,6 @@ void logg(uint32_t del, const char *txt)
     acq_miss=0;
     maxCount=0;
     maxDel=0;
-//    #if USE_SDIO==1
-//        digitalWriteFast(13,!digitalReadFast(13));
-//    #endif
     to=millis();
   }
 }
@@ -147,7 +188,7 @@ uint16_t pullData(uint32_t * dst, uint32_t ndbl)
 }
 
 /*************************** Filing *****************************/
-int16_t file_open(void);
+int16_t file_open(uint16_t store);
 int16_t file_writeHeader(void);
 int16_t file_writeData(void *diskBuffer, uint32_t ndbl);
 int16_t file_close(void);
@@ -156,13 +197,13 @@ int16_t file_close(void);
 uint32_t diskBuffer[NBUF_DISK];
 uint32_t maxDel=0;
 
-int16_t do_logger(int16_t state)
+int16_t do_logger(uint16_t store, int16_t state)
 { uint32_t to=millis();
   if(pullData(diskBuffer,NDBL))
   {
     if(state==0)
     { // acquisition is running, need to open file
-      if(!file_open()) return -2;
+      if(!file_open(store)) return -2;
       state=1;
     }
     if(state==1)
@@ -237,20 +278,20 @@ int16_t do_menu(int16_t state)
 #include "SD.h"
 //extern SdFs SD;
 //static FsFile mfile;
-extern SDClass SD;
+extern SDClass sdx[];
 static File mfile;
 
 char header[512];
 
 void makeHeader(char *header);
 int16_t makeFilename(char *filename);
-int16_t checkPath(char *filename);
+int16_t checkPath(uint16_t store, char *filename);
 
-int16_t file_open(void)
+int16_t file_open(uint16_t store)
 { char filename[80];
   if(!makeFilename(filename)) return 0;
-  if(!checkPath(filename)) return 0;
-  mfile = SD.open(filename,FILE_WRITE);
+  if(!checkPath(store, filename)) return 0;
+  mfile = sdx[store].open(filename,FILE_WRITE);
   return !(!mfile);
 }
 
@@ -351,16 +392,16 @@ int16_t makeFilename(char *filename)
   return 1;
 }
 
-int16_t checkPath(char *filename)
+int16_t checkPath(uint16_t store, char *filename)
 {
   int ln=strlen(filename);
   int i1=-1;
   for(int ii=0;ii<ln;ii++) if(filename[ii]=='/') i1=ii;
   if(i1<0) return 1; // no path
   filename[i1]=0;
-  if(!SD.exists(filename))
+  if(!sdx[store].exists(filename))
   { Serial.println(filename); 
-    if(!SD.mkdir(filename)) return 0;
+    if(!sdx[store].mkdir(filename)) return 0;
   }
 
   filename[i1]='/';

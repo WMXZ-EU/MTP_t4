@@ -16,16 +16,6 @@ SDClass sdx[nsd];
 MTPStorage_SD storage;
 MTPD       mtpd(&storage);
 
-
-void logg(uint32_t del, const char *txt)
-{ static uint32_t to;
-  if(millis()-to > del)
-  {
-    Serial.println(txt); 
-    to=millis();
-  }
-}
-
 void storage_configure(MTPStorage_SD *storage, const char **sd_str, const int *cs, SDClass *sdx, int num)
 {
     #if defined SD_SCK
@@ -55,6 +45,15 @@ void storage_configure(MTPStorage_SD *storage, const char **sd_str, const int *c
         Serial.printf("Storage %d %d %d %d %d\n",ii,cs[ii],volCount,volFree,volClust);
       }
     }
+}
+
+void logg(uint32_t del, const char *txt)
+{ static uint32_t to;
+  if(millis()-to > del)
+  {
+    Serial.println(txt); 
+    to=millis();
+  }
 }
 
 void setup()
