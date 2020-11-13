@@ -10,7 +10,7 @@
 //  const char *sd_str[]={"sdio","sd1","sd2","sd3","sd4","sd5","sd6"}; // WMXZ example
 //  const int cs[] = {BUILTIN_SDCARD,34,33,35,36,37,38}; // WMXZ example
 
-  const char *sd_str[]={"sdio"}; // edit to rflect configuration
+  const char *sd_str[]={"sdio"}; // edit to reflect your configuration
   const int cs[] = {BUILTIN_SDCARD}; // edit to reflect your configuration
   const int nsd = sizeof(cs)/sizeof(int);
 
