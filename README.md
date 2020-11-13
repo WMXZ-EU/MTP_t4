@@ -10,9 +10,11 @@ see also https://forum.pjrc.com/threads/43050-MTP-Responder-Contribution for dis
 
 files in different copy-to directories contain modifications of cores and need to be copied to cores/teensy4, cores/teensy3 and hardware/avr, respectively. These files are only necessary until Teensyduino has integrated full MTP into cores functionality
 
-needs USB2 https://github.com/WMXZ-EU/USB2 for T4.0. (uses here usb1.h and usb1.c)
+needs USB2 https://github.com/WMXZ-EU/USB2 for T4.x. (uses here usb1.h and usb1.c)
 
 ## Features
+Supports multiple storages (SDIO and and multiple SPI disks)
+
 copying files from Teensy to PC  and from PC to Teensy is working
 
 disk I/O is buffered to get some speed-up overcoming uSD latency issues
@@ -29,16 +31,10 @@ Modification of disk content (directories and Files) by Teensy is only be visibl
  - mtp-logger: basic data logger with MTP access
  
 ## Installation:
- - in Storage.h edit defines to use SDIO or SPI e.g.:
-   - #define USE_SDIO 1  // use SDIO
-   - #define USE_SDIO 0  // use SPI
- - If you wanted USB_MTP_SERIAL  
+ - If you wanted to use USB_MTP_SERIAL  
    - T4.x edit teensy/avr/cores/teensy4/usb_desc.h with content of 'modifications_for_cores_teensy4' (insert after MTP_DISK)
    - T3.x edit teensy/avr/cores/teensy3/usb_desc.h with content of 'modifications_for_cores_teensy3' (insert after MTP_DISK)
    - edit teensy/avr/boards.txt with content of 'modifications_for_teensy_avr' (copy to end of file)
  - install also USB2 from WMXZ github
-
-## To be done:
-- add a second storage
 
  
