@@ -1,7 +1,4 @@
 #include "Arduino.h"
-#ifndef USE_SDIO
-  #define USE_SDIO 1 // change to 1 if using SDIO 
-#endif
 
 #define NDAT 128L
 #define NCH_ACQ 1
@@ -276,8 +273,6 @@ int16_t do_menu(int16_t state)
 
 /************ Basic File System Interface *************************/
 #include "SD.h"
-//extern SdFs SD;
-//static FsFile mfile;
 extern SDClass sdx[];
 static File mfile;
 
