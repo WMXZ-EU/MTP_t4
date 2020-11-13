@@ -222,31 +222,33 @@
   }
 
   void MTPD::WriteStorageIDs() {
-    write32(1); // 1 entry
-    write32(1); // 1 storage
+    uint32_t num=storage_->getNumStorage();
+    write32(num); // 1 entry
+    for(uint32_t ii=1;ii<=num;ii++)  write32(ii); // storage id
   }
 
   void MTPD::GetStorageInfo(uint32_t storage) {
-    write16(storage_->readonly() ? 0x0001 : 0x0004);   // storage type (removable RAM)
-    write16(storage_->has_directories() ? 0x0002: 0x0001);   // filesystem type (generic hierarchical)
+    write16(storage_->readonly( storage) ? 0x0001 : 0x0004);   // storage type (removable RAM)
+    write16(storage_->has_directories( storage) ? 0x0002: 0x0001);   // filesystem type (generic hierarchical)
     write16(0x0000);   // access capability (read-write)
     
-  uint64_t nclust = storage_->clusterCount() ;
-  uint64_t nsect = storage_->clusterSize() ;
-    write64(nclust*nsect*512L);  // max capacity
-  uint64_t nfree = storage_->freeClusters() ;
-    write64(nfree*nsect*512L);  // free space (100M)
+    uint32_t nclust = storage_->clusterCount( storage) ; 
+    uint32_t nsect = storage_->clusterSize(storage) ; 
+    uint32_t nfree = storage_->freeClusters(storage) ; 
+    write64((uint64_t)nclust*nsect*512L);  // max capacity
+    write64((uint64_t)nfree*nsect*512L);  // free space (100M)
     //
     write32(0xFFFFFFFFUL);  // free space (objects)
-    writestring(MTP_STORE);  // storage descriptor
+    const char *name = storage_->getStorageName(storage);
+    writestring(name);  // storage descriptor
     writestring("");  // volume identifier
   }
 
   uint32_t MTPD::GetNumObjects(uint32_t storage, uint32_t parent) 
   {
-    storage_->StartGetObjectHandles(parent);
+    storage_->StartGetObjectHandles(storage, parent);
     int num = 0;
-    while (storage_->GetNextObjectHandle()) num++;
+    while (storage_->GetNextObjectHandle(storage)) num++;
     return num;
   }
 
@@ -260,8 +262,8 @@
     else{
       write32(GetNumObjects(storage, parent));
       int handle;
-      storage_->StartGetObjectHandles(parent);
-      while ((handle = storage_->GetNextObjectHandle())) write32(handle);
+      storage_->StartGetObjectHandles(storage, parent);
+      while ((handle = storage_->GetNextObjectHandle(storage))) write32(handle);
     }
   }
   
@@ -269,9 +271,10 @@
   {
     char filename[256];
     uint32_t size, parent;
-    storage_->GetObjectInfo(handle, filename, &size, &parent);
+    uint16_t store;
+    storage_->GetObjectInfo(handle, filename, &size, &parent, &store);
 
-    write32(1); // storage
+    write32(store); // storage
     write16(size == 0xFFFFFFFFUL ? 0x3001 : 0x0000); // format
     write16(0);  // protection
     write32(size); // size
@@ -452,7 +455,8 @@
       uint32_t dir;
       uint32_t size;
       uint32_t parent;
-      storage_->GetObjectInfo(p1,name,&size,&parent);
+      uint16_t store;
+      storage_->GetObjectInfo(p1,name,&size,&parent, &store);
       dir = size == 0xFFFFFFFFUL;
       switch(p2)
       {
@@ -627,7 +631,7 @@
     uint32_t len = ReadMTPHeader();
     char filename[256];
 
-    read32(); len-=4; // storage
+    uint32_t store = read32(); len-=4; // storage
     bool dir = read16() == 0x3001; len-=2; // format
     read16();  len-=2; // protection
     read32(); len-=4; // size
@@ -648,7 +652,7 @@
     while(len>=4) { read32(); len-=4;}
     while(len) {read8(); len--;}
     
-    return storage_->Create(parent, dir, filename);
+    return storage_->Create(store, parent, dir, filename);
   }
 
   void MTPD::SendObject() {
@@ -986,7 +990,7 @@
       int len=ReadMTPHeader();
       char filename[256];
 
-      read32(); len -=4; // storage
+      int store = read32(); len -=4; // storage
       bool dir = (read16() == 0x3001); len -=2; // format
       read16(); len -=2; // protection
       read32(); len -=4; // size
@@ -1007,7 +1011,7 @@
       while(len>=4) { read32(); len-=4;}
       while(len) {read8(); len--;}
 
-      return storage_->Create(parent, dir, filename);
+      return storage_->Create(store, parent, dir, filename);
     }
 
     void MTPD::SendObject() 
@@ -1216,10 +1220,15 @@
             CONTAINER->params[0]=p1;
             //printContainer();
             memcpy(tx_data_buffer,rx_data_buffer,len);
-            push_packet(tx_data_buffer,len); // for acknowledge use rx_daza_buffer
+            push_packet(tx_data_buffer,len); // for acknowledge use rx_data_buffer
         }
       }
     }
 
 #endif
+void MTPD::test(void)
+{
+  Serial.println(storage_->getNumStorage());
+  Serial.println(storage_->clusterCount(1),HEX);
+}
 #endif

@@ -140,6 +140,7 @@ private:
   
 public:
   void loop(void) ;
+  void test(void) ;
 };
 
 #endif
