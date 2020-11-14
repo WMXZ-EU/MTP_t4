@@ -34,7 +34,7 @@
   #define sd_begin(x,y) sdx[x].sdfs.begin(y)
   #define sd_open(x,y,z) sdx[x].open(y,z)
   #define sd_mkdir(x,y) sdx[x].mkdir(y)
-  #define sd_rename(x,y,z) sdx[x].sdfs.rename(x,z)
+  #define sd_rename(x,y,z) sdx[x].sdfs.rename(y,z)
   #define sd_remove(x,y) sdx[x].remove(y)
   #define sd_rmdir(x,y) sdx[x].rmdir(y)
 
@@ -57,7 +57,6 @@
     *ms10 = second() & 1 ? 100 : 0;
   }
   
-
 // TODO:
 //   support multiple storages
 //   support serialflash
@@ -388,36 +387,92 @@ void mtp_lock_storage(bool lock) {}
     open_file_ = 0xFFFFFFFEUL;
   }
 
-  void MTPStorage_SD::rename(uint32_t handle, const char* name) 
+  bool MTPStorage_SD::rename(uint32_t handle, const char* name) 
   { char oldName[256];
     char newName[256];
+    char temp[64];
 
-    ConstructFilename(handle, oldName, 256);
+    Serial.print(handle); Serial.print(" "); Serial.println(name);
+    uint16_t store = ConstructFilename(handle, oldName, 256);
+    Serial.println(oldName);
+
     Record p1 = ReadIndexRecord(handle);
+    Serial.print(handle); Serial.print(" "); Serial.println(p1.name);
+    strcpy(temp,p1.name);
     strcpy(p1.name,name);
+
     WriteIndexRecord(handle, p1);
     ConstructFilename(handle, newName, 256);
 
-    sd_rename(0,oldName,newName);
+    if (sd_rename(store,oldName,newName)) return true;
+
+    // rename failed; undo index update
+    strcpy(p1.name,temp);
+    WriteIndexRecord(handle, p1);
+    return false;
   }
 
-  void MTPStorage_SD::move(uint32_t handle, uint32_t newParent ) 
-  { char oldName[256];
-    char newName[256];
+  bool MTPStorage_SD::move(uint32_t handle, uint32_t newParent ) 
+  { 
+    Record p1 = ReadIndexRecord(handle); 
 
-    ConstructFilename(handle, oldName, 256);
-    Record p1 = ReadIndexRecord(handle);
+    uint32_t oldParent = p1.parent;
+    Record p2 = ReadIndexRecord(newParent);
+    Record p3 = ReadIndexRecord(oldParent); 
 
-    if (newParent == 0xFFFFFFFFUL) newParent = 0;
-    Record p2 = ReadIndexRecord(newParent); // is pointing to last object in directory
+    char oldName[256];
+    uint16_t store0 = ConstructFilename(handle, oldName, 256);
 
-    p1.sibling = p2.child;
+    if(p1.store != p2.store) return false;
+
+    // rmove from old list
+    // find next record in oldParent
+    Record py = p3;
+    uint32_t jy=py.child; 
+    py = ReadIndexRecord(jy);
+    if(handle==jy)
+    { // is latest record in list;
+      p3.child=py.sibling; // simply link parent to older sibling
+    }
+    else
+    {
+      while(!(py.sibling==handle))
+      { jy=py.sibling;  py = ReadIndexRecord(jy);
+      }
+      py.sibling=p1.sibling;
+    }
+
+    // add to new list
+    // find first record in newParent
+    Record px = p2;
+
+    uint32_t jx=px.child;
+    if(!jx) // have no child yet
+    {
+      px.child=handle;
+    }
+    else
+    { 
+      px = ReadIndexRecord(jx);
+      for(; ; jx=px.sibling) 
+      { px = ReadIndexRecord(jx);
+        if(!px.sibling) break;
+      }
+      // jx points to first record
+
+      px.sibling = handle;
+    }
+    p1.sibling = 0;
     p1.parent = newParent;
 
-    p2.child = handle; 
     WriteIndexRecord(handle, p1);
     WriteIndexRecord(newParent, p2);
+    WriteIndexRecord(oldParent, p3);
+    if(jx!=newParent) WriteIndexRecord(jx, px);
+    if(jy!=handle) WriteIndexRecord(jy, py);
 
+    char newName[256];
     ConstructFilename(handle, newName, 256);
-    sd_rename(0,oldName,newName);
+
+    return sd_rename(store0,oldName,newName);
   }

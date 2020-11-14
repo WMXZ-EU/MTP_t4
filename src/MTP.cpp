@@ -236,7 +236,7 @@
     write16(storage_->has_directories( storage) ? 0x0002: 0x0001);   // filesystem type (generic hierarchical)
     write16(0x0000);   // access capability (read-write)
     
-    uint32_t nclust = storage_->clusterCount( storage) ; 
+    uint32_t nclust = storage_->clusterCount(storage) ; 
     uint32_t nsect = storage_->clusterSize(storage) ; 
     uint32_t nfree = storage_->freeClusters(storage) ; 
     write64((uint64_t)nclust*nsect*512L);  // max capacity
@@ -321,7 +321,8 @@
       read(NULL, len * 2);
     } else {
       for (int i = 0; i < len; i++) {
-        *(buffer++) = read16();
+        int16_t c2;
+        *(buffer++) = c2 = read16();
       }
     }
   }
@@ -465,7 +466,7 @@
       switch(p2)
       {
         case MTP_PROPERTY_STORAGE_ID:         //0xDC01:
-          write32(p1);
+          write32(store);
           break;
         case MTP_PROPERTY_OBJECT_FORMAT:      //0xDC02:
           write16(dir?0x3001:0x3000);
@@ -515,8 +516,7 @@
     uint32_t MTPD::moveObject(uint32_t p1, uint32_t p3)
     { // p1 object
       // p3 new directory
-      storage_->move(p1,p3);
-      return 0x2001;
+      if(storage_->move(p1,p3)) return 0x2001; else return  0x2005;
     }
     
     void MTPD::openSession(void)
@@ -1066,17 +1066,15 @@
 
     uint32_t MTPD::setObjectPropValue(uint32_t p1, uint32_t p2)
     { pull_packet(rx_data_buffer);
-//      printContainer(); 
-      
+      //printContainer(); 
+      read(0,0);
+         
       if(p2==0xDC07)
-      {
-        char filename[128];
+      { 
+        char filename[128]; 
         ReadMTPHeader();
         readstring(filename);
-
-        storage_->rename(p1,filename);
-
-        return 0x2001;
+        if(storage_->rename(p1,filename)) return 0x2001; else return 0x2005;
       }
       else
         return 0x2005;

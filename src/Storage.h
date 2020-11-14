@@ -67,8 +67,8 @@ public:
   virtual void CloseIndex() = 0;
 
   virtual void ResetIndex() = 0;
-  virtual void rename(uint32_t handle, const char* name) = 0 ;
-  virtual void move(uint32_t handle, uint32_t newParent ) = 0 ;
+  virtual bool rename(uint32_t handle, const char* name) = 0 ;
+  virtual bool move(uint32_t handle, uint32_t newParent ) = 0 ;
 };
 
   struct Record 
@@ -142,8 +142,8 @@ private:
   void write(const char* data, uint32_t bytes) override ;
   void close() override ;
 
-  void rename(uint32_t handle, const char* name) override ;
-  void move(uint32_t handle, uint32_t newParent ) override ;
+  bool rename(uint32_t handle, const char* name) override ;
+  bool move(uint32_t handle, uint32_t newParent ) override ;
   
   void ResetIndex() override ;
 };

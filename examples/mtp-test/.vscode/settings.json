@@ -9,6 +9,7 @@
         "initializer_list": "cpp",
         "utility": "cpp",
         "type_traits": "cpp",
-        "typeinfo": "cpp"
+        "typeinfo": "cpp",
+        "cstdio": "cpp"
     }
 }
