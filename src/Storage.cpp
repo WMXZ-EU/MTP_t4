@@ -503,6 +503,6 @@ void mtp_lock_storage(bool lock) {}
   //
   // copy from one store to another (to be implemented)
   // store0:oldName -> store1:newName
-  // needs done ba physically copy file from one store to the next and delete in old store
+  // needs done by physically copying file from one store to another one and delete in old store
   return false;
   }
