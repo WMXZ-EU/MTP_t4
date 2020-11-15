@@ -37,4 +37,6 @@ Modification of disk content (directories and Files) by Teensy is only be visibl
    - edit teensy/avr/boards.txt with content of 'modifications_for_teensy_avr' (copy to end of file)
  - install also USB2 from WMXZ github
 
- 
+ ## ToBeDone
+ - copy files
+ - move files cross different storages
