@@ -68,7 +68,7 @@ public:
 
   virtual void ResetIndex() = 0;
   virtual bool rename(uint32_t handle, const char* name) = 0 ;
-  virtual bool move(uint32_t handle, uint32_t newParent ) = 0 ;
+  virtual bool move(uint32_t handle, uint32_t newStore, uint32_t newParent ) = 0 ;
 };
 
   struct Record 
@@ -144,7 +144,7 @@ private:
   void close() override ;
 
   bool rename(uint32_t handle, const char* name) override ;
-  bool move(uint32_t handle, uint32_t newParent ) override ;
+  bool move(uint32_t handle, uint32_t newStore, uint32_t newParent ) override ;
   
   void ResetIndex() override ;
 };

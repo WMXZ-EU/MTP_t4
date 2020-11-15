@@ -512,10 +512,11 @@
         return 0x2001;
     }
 
-    uint32_t MTPD::moveObject(uint32_t p1, uint32_t p3)
+    uint32_t MTPD::moveObject(uint32_t p1, uint32_t p2, uint32_t p3)
     { // p1 object
+      // p2 new storage
       // p3 new directory
-      if(storage_->move(p1,p3)) return 0x2001; else return  0x2005;
+      if(storage_->move(p1,p2,p3)) return 0x2001; else return  0x2005;
     }
     
     void MTPD::openSession(void)
@@ -774,7 +775,7 @@
               break;
 
           case 0x1019:  // MoveObject
-              return_code = moveObject(CONTAINER->params[0],CONTAINER->params[2]);
+              return_code = moveObject(CONTAINER->params[0],CONTAINER->params[1],CONTAINER->params[2]);
               CONTAINER->len  = receive_buffer->len = 12;
               break;
 
@@ -955,7 +956,7 @@
     } while(0)
 
 
-    #define printContainer() {   if (0) printf("%x %d %d %d: %x %x %x\n", \
+    #define printContainer() { if (0) printf("%x %d %d %d: %x %x %x\n", \
                 CONTAINER->op, CONTAINER->len, CONTAINER->type, CONTAINER->transaction_id, \
                 CONTAINER->params[0], CONTAINER->params[1], CONTAINER->params[2]);  }
 
@@ -1183,7 +1184,7 @@
               break;
 
           case 0x1019:  // MoveObject
-              return_code = moveObject(p1,p3);
+              return_code = moveObject(p1,p2,p3);
               CONTAINER->len  = len = 12;
               break;
 
@@ -1219,7 +1220,7 @@
             CONTAINER->transaction_id=id;
             CONTAINER->params[0]=p1;
             printContainer();
-            
+
             memcpy(tx_data_buffer,rx_data_buffer,len);
             push_packet(tx_data_buffer,len); // for acknowledge use rx_data_buffer
         }

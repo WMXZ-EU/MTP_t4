@@ -415,12 +415,12 @@ void mtp_lock_storage(bool lock) {}
   {
     for(uint32_t ii=0; ii<index_entries_; ii++)
     { Record p = ReadIndexRecord(ii);
-      Serial.printf("%d: %d %d %d %d %s\n",ii, p.isdir,p.parent,p.sibling,p.child,p.name);
+      Serial.printf("%d: %d %d %d %d %d %s\n",ii, p.store, p.isdir,p.parent,p.sibling,p.child,p.name);
     }
   }
 
   void printRecord(int h, Record *p) 
-  { Serial.printf("%d: %d %d %d %d\n",h, p->isdir,p->parent,p->sibling,p->child); }
+  { Serial.printf("%d: %d %d %d %d %d\n",h, p->store,p->isdir,p->parent,p->sibling,p->child); }
   
 /*
  * //index list management for moving object around
@@ -448,20 +448,24 @@ void mtp_lock_storage(bool lock) {}
  */
 
 
-  bool MTPStorage_SD::move(uint32_t handle, uint32_t newParent ) 
+  bool MTPStorage_SD::move(uint32_t handle,uint32_t storage, uint32_t newParent ) 
   { 
+    //Serial.printf("%d -> %d %d\n",handle,storage,newParent);
     Record p1 = ReadIndexRecord(handle); 
 
     uint32_t oldParent = p1.parent;
+    if(newParent==0) newParent=(storage-1); //storage runs from 1, while record.store runs from 0
+    //Serial.printf("%d -> %d %d\n",handle,storage,newParent);
+
     Record p2 = ReadIndexRecord(newParent);
     Record p3 = ReadIndexRecord(oldParent); 
 
+    if(p1.store != p2.store) return false; // remove after disk to disk is implemented
+
     char oldName[256];
     uint16_t store0 = ConstructFilename(handle, oldName, 256);
-//    Serial.println(oldName);
-//    printIndexList();
-
-    if(p1.store != p2.store) return false;
+    //Serial.println(oldName);
+    //printIndexList();
 
     // remove from old direcory
     if(p3.child==handle)
@@ -483,6 +487,7 @@ void mtp_lock_storage(bool lock) {}
   
     // add to new directory
     p1.parent = newParent;
+    p1.store = p2.store;
     p1.sibling = p2.child;
     p2.child = handle;
     WriteIndexRecord(handle, p1);
@@ -493,5 +498,9 @@ void mtp_lock_storage(bool lock) {}
 //    Serial.println(newName);
 //    printIndexList();
 
+  if(p2.store == p3.store)
     return sd_rename(store0,oldName,newName);
+  //
+  // copy from one store to another (to be implemented)
+  return false;
   }

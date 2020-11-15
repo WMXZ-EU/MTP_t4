@@ -5858,9 +5858,9 @@ class Print
   bool MTPStorage_SD::move(uint32_t handle, uint32_t newParent ) 
   { 
     1780:	stmdb	sp!, {r4, r5, r6, r7, r8, r9, sl, lr}
-    1784:	mov	r5, r1
+    1784:	mov	r7, r1
     1786:	sub.w	sp, sp, #888	; 0x378
-    178a:	mov	r4, r0
+    178a:	mov	r5, r0
     Record p1 = ReadIndexRecord(handle); 
     178c:	mov	r1, r0
  * 
@@ -5869,243 +5869,255 @@ class Print
 
   bool MTPStorage_SD::move(uint32_t handle, uint32_t newParent ) 
   { 
-    178e:	mov	r9, r2
+    178e:	mov	r8, r2
     Record p1 = ReadIndexRecord(handle); 
     1790:	add	r0, sp, #136	; 0x88
-    1792:	mov	r2, r5
+    1792:	mov	r2, r7
     1794:	bl	132c <MTPStorage_SD::ReadIndexRecord(unsigned long)>
 
     uint32_t oldParent = p1.parent;
-    1798:	ldr	r6, [sp, #136]	; 0x88
+    1798:	ldr	r4, [sp, #136]	; 0x88
     Record p2 = ReadIndexRecord(newParent);
-    179a:	mov	r2, r9
-    179c:	mov	r1, r4
+    179a:	mov	r2, r8
+    179c:	mov	r1, r5
     179e:	add	r0, sp, #216	; 0xd8
     17a0:	bl	132c <MTPStorage_SD::ReadIndexRecord(unsigned long)>
     Record p3 = ReadIndexRecord(oldParent); 
-    17a4:	mov	r2, r6
-    17a6:	mov	r1, r4
+    17a4:	mov	r2, r4
+    17a6:	mov	r1, r5
     17a8:	add	r0, sp, #296	; 0x128
     17aa:	bl	132c <MTPStorage_SD::ReadIndexRecord(unsigned long)>
 
     char oldName[256];
     uint16_t store0 = ConstructFilename(handle, oldName, 256);
-    17ae:	add	r2, sp, #376	; 0x178
-    17b0:	mov.w	r3, #256	; 0x100
-    17b4:	mov	r1, r5
-    17b6:	mov	r0, r4
+    17ae:	mov	r1, r7
+    17b0:	mov	r0, r5
+    17b2:	add	r2, sp, #376	; 0x178
+    17b4:	mov.w	r3, #256	; 0x100
     17b8:	bl	1460 <MTPStorage_SD::ConstructFilename(int, char*, int)>
-//    Serial.println(oldName);
 //    printIndexList();
 
-    if(p1.store != p2.store) return false;
-    17bc:	ldrh.w	r2, [sp, #150]	; 0x96
-    17c0:	ldrh.w	r3, [sp, #230]	; 0xe6
-    17c4:	cmp	r2, r3
-    17c6:	beq.n	17d2 <MTPStorage_SD::move(unsigned long, unsigned long)+0x52>
-    17c8:	movs	r0, #0
-    ConstructFilename(handle, newName, 256);
-//    Serial.println(newName);
-//    printIndexList();
-
-    return sd_rename(store0,oldName,newName);
-  }
-    17ca:	add.w	sp, sp, #888	; 0x378
-    17ce:	ldmia.w	sp!, {r4, r5, r6, r7, r8, r9, sl, pc}
-//    printIndexList();
-
-    if(p1.store != p2.store) return false;
+//    if(p1.store != p2.store) return false;
 
     // remove from old direcory
     if(p3.child==handle)
-    17d2:	ldr.w	sl, [sp, #300]	; 0x12c
-    17d6:	cmp	r5, sl
-    17d8:	mov	r8, r0
-    17da:	beq.n	18bc <MTPStorage_SD::move(unsigned long, unsigned long)+0x13c>
+    17bc:	ldr.w	r9, [sp, #300]	; 0x12c
+    17c0:	cmp	r7, r9
+    uint32_t oldParent = p1.parent;
+    Record p2 = ReadIndexRecord(newParent);
+    Record p3 = ReadIndexRecord(oldParent); 
+
+    char oldName[256];
+    uint16_t store0 = ConstructFilename(handle, oldName, 256);
+    17c2:	mov	sl, r0
+//    printIndexList();
+
+//    if(p1.store != p2.store) return false;
+
+    // remove from old direcory
+    if(p3.child==handle)
+    17c4:	beq.n	1846 <MTPStorage_SD::move(unsigned long, unsigned long)+0xc6>
       p3.child = p1.sibling;
       WriteIndexRecord(oldParent, p3);    
     }
     else
     { uint32_t jx = p3.child;
       Record px = ReadIndexRecord(jx); 
-    17dc:	add	r6, sp, #632	; 0x278
-    17de:	mov	r0, r6
-    17e0:	mov	r2, sl
-    17e2:	mov	r1, r4
-    17e4:	bl	132c <MTPStorage_SD::ReadIndexRecord(unsigned long)>
+    17c6:	add	r4, sp, #632	; 0x278
+    17c8:	mov	r0, r4
+    17ca:	mov	r2, r9
+    17cc:	mov	r1, r5
+    17ce:	bl	132c <MTPStorage_SD::ReadIndexRecord(unsigned long)>
       while(handle != px.sibling)
-    17e8:	ldr	r7, [r6, #8]
-    17ea:	cmp	r5, r7
-    17ec:	bne.n	17f2 <MTPStorage_SD::move(unsigned long, unsigned long)+0x72>
-    17ee:	b.n	18ce <MTPStorage_SD::move(unsigned long, unsigned long)+0x14e>
-    17f0:	mov	r7, r3
+    17d2:	ldr	r6, [r4, #8]
+    17d4:	cmp	r7, r6
+    17d6:	bne.n	17dc <MTPStorage_SD::move(unsigned long, unsigned long)+0x5c>
+    17d8:	b.n	18ce <MTPStorage_SD::move(unsigned long, unsigned long)+0x14e>
+    17da:	mov	r6, r3
       {
         jx = px.sibling;
         px = ReadIndexRecord(jx); 
-    17f2:	mov	r2, r7
-    17f4:	mov	r1, r4
-    17f6:	mov	r0, sp
-    17f8:	bl	132c <MTPStorage_SD::ReadIndexRecord(unsigned long)>
-    17fc:	movs	r2, #80	; 0x50
-    17fe:	mov	r1, sp
-    1800:	mov	r0, r6
-    1802:	bl	8f84 <memcpy>
+    17dc:	mov	r2, r6
+    17de:	mov	r1, r5
+    17e0:	mov	r0, sp
+    17e2:	bl	132c <MTPStorage_SD::ReadIndexRecord(unsigned long)>
+    17e6:	movs	r2, #80	; 0x50
+    17e8:	mov	r1, sp
+    17ea:	mov	r0, r4
+    17ec:	bl	8f84 <memcpy>
       WriteIndexRecord(oldParent, p3);    
     }
     else
     { uint32_t jx = p3.child;
       Record px = ReadIndexRecord(jx); 
       while(handle != px.sibling)
-    1806:	ldr	r3, [r6, #8]
-    1808:	cmp	r5, r3
-    180a:	bne.n	17f0 <MTPStorage_SD::move(unsigned long, unsigned long)+0x70>
+    17f0:	ldr	r3, [r4, #8]
+    17f2:	cmp	r7, r3
+    17f4:	bne.n	17da <MTPStorage_SD::move(unsigned long, unsigned long)+0x5a>
       {
         jx = px.sibling;
         px = ReadIndexRecord(jx); 
       }
       px.sibling = p1.sibling;
-    180c:	ldr	r3, [sp, #144]	; 0x90
-    180e:	str	r3, [r6, #8]
+    17f6:	ldr	r3, [sp, #144]	; 0x90
+    17f8:	str	r3, [r4, #8]
       WriteIndexRecord(jx, px);
-    1810:	mov	r1, r7
-    1812:	mov	r2, r6
-    1814:	mov	r0, r4
-    1816:	bl	1240 <MTPStorage_SD::WriteIndexRecord(unsigned long, Record const&)>
+    17fa:	mov	r1, r6
+    17fc:	mov	r2, r4
+    17fe:	mov	r0, r5
+    1800:	bl	1240 <MTPStorage_SD::WriteIndexRecord(unsigned long, Record const&)>
     }
   
     // add to new directory
     p1.parent = newParent;
     p1.sibling = p2.child;
-    181a:	ldr	r3, [sp, #220]	; 0xdc
-    181c:	str	r3, [sp, #144]	; 0x90
+    1804:	ldr	r3, [sp, #220]	; 0xdc
+    1806:	str	r3, [sp, #144]	; 0x90
     p2.child = handle;
     WriteIndexRecord(handle, p1);
-    181e:	mov	r0, r4
-    1820:	add	r2, sp, #136	; 0x88
-    1822:	mov	r1, r5
+    1808:	add	r2, sp, #136	; 0x88
+    180a:	mov	r1, r7
+    180c:	mov	r0, r5
       px.sibling = p1.sibling;
       WriteIndexRecord(jx, px);
     }
   
     // add to new directory
     p1.parent = newParent;
-    1824:	str.w	r9, [sp, #136]	; 0x88
+    180e:	str.w	r8, [sp, #136]	; 0x88
     p1.sibling = p2.child;
     p2.child = handle;
-    1828:	str	r5, [sp, #220]	; 0xdc
+    1812:	str	r7, [sp, #220]	; 0xdc
     WriteIndexRecord(handle, p1);
-    182a:	bl	1240 <MTPStorage_SD::WriteIndexRecord(unsigned long, Record const&)>
+    1814:	bl	1240 <MTPStorage_SD::WriteIndexRecord(unsigned long, Record const&)>
     WriteIndexRecord(newParent,p2);
-    182e:	mov	r0, r4
-    1830:	add	r2, sp, #216	; 0xd8
-    1832:	mov	r1, r9
-    1834:	bl	1240 <MTPStorage_SD::WriteIndexRecord(unsigned long, Record const&)>
+    1818:	add	r2, sp, #216	; 0xd8
+    181a:	mov	r1, r8
+    181c:	mov	r0, r5
+    181e:	bl	1240 <MTPStorage_SD::WriteIndexRecord(unsigned long, Record const&)>
 
     char newName[256];
     ConstructFilename(handle, newName, 256);
-    1838:	mov	r0, r4
-    183a:	mov.w	r3, #256	; 0x100
-    183e:	mov	r2, r6
-    1840:	mov	r1, r5
-    1842:	bl	1460 <MTPStorage_SD::ConstructFilename(int, char*, int)>
+    1822:	mov.w	r3, #256	; 0x100
+    1826:	mov	r2, r4
+    1828:	mov	r1, r7
+    182a:	mov	r0, r5
+    182c:	bl	1460 <MTPStorage_SD::ConstructFilename(int, char*, int)>
 //    Serial.println(newName);
 //    printIndexList();
 
+  if(p2.store == p3.store)
+    1830:	ldrh.w	r2, [sp, #230]	; 0xe6
+    1834:	ldrh.w	r3, [sp, #310]	; 0x136
+    1838:	cmp	r2, r3
+    183a:	beq.n	1858 <MTPStorage_SD::move(unsigned long, unsigned long)+0xd8>
     return sd_rename(store0,oldName,newName);
-    1846:	ldr	r3, [pc, #140]	; (18d4 <MTPStorage_SD::move(unsigned long, unsigned long)+0x154>)
-    1848:	mov.w	r2, #1200	; 0x4b0
-    184c:	mla	r8, r2, r8, r3
-    1850:	add.w	r8, r8, #4
-    1854:	ldr.w	r4, [r8, #1144]	; 0x478
-    1858:	cbz	r4, 1888 <MTPStorage_SD::move(unsigned long, unsigned long)+0x108>
-    185a:	movs	r5, #0
+  return false;
+    183c:	movs	r0, #0
+  }
+    183e:	add.w	sp, sp, #888	; 0x378
+    1842:	ldmia.w	sp!, {r4, r5, r6, r7, r8, r9, sl, pc}
+
+    // remove from old direcory
+    if(p3.child==handle)
+    {
+      p3.child = p1.sibling;
+      WriteIndexRecord(oldParent, p3);    
+    1846:	mov	r1, r4
+//    if(p1.store != p2.store) return false;
+
+    // remove from old direcory
+    if(p3.child==handle)
+    {
+      p3.child = p1.sibling;
+    1848:	ldr	r3, [sp, #144]	; 0x90
+    184a:	str	r3, [sp, #300]	; 0x12c
+      WriteIndexRecord(oldParent, p3);    
+    184c:	add	r2, sp, #296	; 0x128
+    184e:	mov	r0, r5
+    1850:	bl	1240 <MTPStorage_SD::WriteIndexRecord(unsigned long, Record const&)>
+    1854:	add	r4, sp, #632	; 0x278
+    1856:	b.n	1804 <MTPStorage_SD::move(unsigned long, unsigned long)+0x84>
+    ConstructFilename(handle, newName, 256);
+//    Serial.println(newName);
+//    printIndexList();
+
+  if(p2.store == p3.store)
+    return sd_rename(store0,oldName,newName);
+    1858:	ldr	r3, [pc, #120]	; (18d4 <MTPStorage_SD::move(unsigned long, unsigned long)+0x154>)
+    185a:	mov.w	r2, #1200	; 0x4b0
+    185e:	mla	sl, r2, sl, r3
+    1862:	add.w	sl, sl, #4
+    1866:	ldr.w	r5, [sl, #1144]	; 0x478
+    186a:	cbz	r5, 189a <MTPStorage_SD::move(unsigned long, unsigned long)+0x11a>
+    186c:	movs	r6, #0
     return truncate(path.c_str(), length);
   }
 #endif  // ENABLE_ARDUINO_STRING
 
  private:
   FatFile* vwd() {return &m_vwd;}
-    185c:	add.w	r4, r4, #1088	; 0x440
+    186e:	add.w	r5, r5, #1088	; 0x440
    *
    * \return true for success or false for failure.
    */
   bool rename(const char *oldPath, const char *newPath) {
     FatFile file;
     return file.open(vwd(), oldPath, O_RDONLY) && file.rename(vwd(), newPath);
-    1860:	add	r2, sp, #376	; 0x178
-    1862:	mov	r1, r4
-    1864:	add	r0, sp, #80	; 0x50
-    1866:	mov	r3, r5
-    1868:	strb.w	r5, [sp, #80]	; 0x50
-    186c:	strb.w	r5, [sp, #81]	; 0x51
-    1870:	strb.w	r5, [sp, #82]	; 0x52
-    1874:	bl	5bd8 <FatFile::open(FatFile*, char const*, int)>
-    1878:	cmp	r0, #0
-    187a:	beq.n	17ca <MTPStorage_SD::move(unsigned long, unsigned long)+0x4a>
-    187c:	mov	r2, r6
-    187e:	mov	r1, r4
-    1880:	add	r0, sp, #80	; 0x50
-    1882:	bl	5eb8 <FatFile::rename(FatFile*, char const*)>
-    1886:	b.n	17ca <MTPStorage_SD::move(unsigned long, unsigned long)+0x4a>
-    1888:	ldr.w	r1, [r8, #1148]	; 0x47c
-    188c:	cmp	r1, #0
-    188e:	beq.n	17c8 <MTPStorage_SD::move(unsigned long, unsigned long)+0x48>
+    1872:	add	r2, sp, #376	; 0x178
+    1874:	mov	r1, r5
+    1876:	add	r0, sp, #80	; 0x50
+    1878:	mov	r3, r6
+    187a:	strb.w	r6, [sp, #80]	; 0x50
+    187e:	strb.w	r6, [sp, #81]	; 0x51
+    1882:	strb.w	r6, [sp, #82]	; 0x52
+    1886:	bl	5bd8 <FatFile::open(FatFile*, char const*, int)>
+    188a:	cmp	r0, #0
+    188c:	beq.n	183e <MTPStorage_SD::move(unsigned long, unsigned long)+0xbe>
+    188e:	mov	r2, r4
+    1890:	mov	r1, r5
+    1892:	add	r0, sp, #80	; 0x50
+    1894:	bl	5eb8 <FatFile::rename(FatFile*, char const*)>
+    1898:	b.n	183e <MTPStorage_SD::move(unsigned long, unsigned long)+0xbe>
+    189a:	ldr.w	r0, [sl, #1148]	; 0x47c
+    189e:	cmp	r0, #0
+    18a0:	beq.n	183e <MTPStorage_SD::move(unsigned long, unsigned long)+0xbe>
   bool rmdir(const char* path);
 #endif  //  USE_EXFAT_UNICODE_NAMES
 
  private:
   friend ExFatFile;
   ExFatFile* vwd() {return &m_vwd;}
-    1890:	add.w	r5, r1, #1088	; 0x440
+    18a2:	add.w	r6, r0, #1088	; 0x440
    *
    * \return true for success or false for failure.
    */
   bool rename(const ExChar_t* oldPath, const ExChar_t* newPath) {
     ExFatFile file;
     return file.open(vwd(), oldPath, O_RDONLY) && file.rename(vwd(), newPath);
-    1894:	add	r2, sp, #376	; 0x178
-    1896:	mov	r1, r5
-    1898:	mov	r3, r4
-    189a:	add	r0, sp, #80	; 0x50
-    189c:	strb.w	r4, [sp, #129]	; 0x81
-    18a0:	strb.w	r4, [sp, #130]	; 0x82
-    18a4:	strb.w	r4, [sp, #131]	; 0x83
-    18a8:	bl	471c <ExFatFile::open(ExFatFile*, char const*, int)>
-    18ac:	cmp	r0, #0
-    18ae:	beq.n	17ca <MTPStorage_SD::move(unsigned long, unsigned long)+0x4a>
-    18b0:	mov	r2, r6
-    18b2:	mov	r1, r5
-    18b4:	add	r0, sp, #80	; 0x50
-    18b6:	bl	53dc <ExFatFile::rename(ExFatFile*, char const*)>
-    18ba:	b.n	17ca <MTPStorage_SD::move(unsigned long, unsigned long)+0x4a>
-
-    // remove from old direcory
-    if(p3.child==handle)
-    {
-      p3.child = p1.sibling;
+    18a6:	add	r2, sp, #376	; 0x178
+    18a8:	mov	r1, r6
+    18aa:	mov	r3, r5
+    18ac:	add	r0, sp, #80	; 0x50
+    18ae:	strb.w	r5, [sp, #129]	; 0x81
+    18b2:	strb.w	r5, [sp, #130]	; 0x82
+    18b6:	strb.w	r5, [sp, #131]	; 0x83
+    18ba:	bl	471c <ExFatFile::open(ExFatFile*, char const*, int)>
+    18be:	cmp	r0, #0
+    18c0:	beq.n	183e <MTPStorage_SD::move(unsigned long, unsigned long)+0xbe>
+    18c2:	mov	r2, r4
+    18c4:	mov	r1, r6
+    18c6:	add	r0, sp, #80	; 0x50
+    18c8:	bl	53dc <ExFatFile::rename(ExFatFile*, char const*)>
+    18cc:	b.n	183e <MTPStorage_SD::move(unsigned long, unsigned long)+0xbe>
       WriteIndexRecord(oldParent, p3);    
-    18bc:	mov	r1, r6
-    if(p1.store != p2.store) return false;
-
-    // remove from old direcory
-    if(p3.child==handle)
-    {
-      p3.child = p1.sibling;
-    18be:	ldr	r3, [sp, #144]	; 0x90
-    18c0:	str	r3, [sp, #300]	; 0x12c
-      WriteIndexRecord(oldParent, p3);    
-    18c2:	add	r2, sp, #296	; 0x128
-    18c4:	mov	r0, r4
-    18c6:	bl	1240 <MTPStorage_SD::WriteIndexRecord(unsigned long, Record const&)>
-    18ca:	add	r6, sp, #632	; 0x278
-    18cc:	b.n	181a <MTPStorage_SD::move(unsigned long, unsigned long)+0x9a>
     }
     else
     { uint32_t jx = p3.child;
       Record px = ReadIndexRecord(jx); 
       while(handle != px.sibling)
-    18ce:	mov	r7, sl
-    18d0:	b.n	180c <MTPStorage_SD::move(unsigned long, unsigned long)+0x8c>
+    18ce:	mov	r6, r9
+    18d0:	b.n	17f6 <MTPStorage_SD::move(unsigned long, unsigned long)+0x76>
     18d2:	nop
     18d4:	.word	0x1fff14d8
 

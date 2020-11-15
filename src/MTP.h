@@ -134,7 +134,7 @@ private:
   uint32_t setObjectPropValue(uint32_t p1, uint32_t p2) ;
 
   uint32_t deleteObject(uint32_t p1) ;
-  uint32_t moveObject(uint32_t p1, uint32_t p3) ;
+  uint32_t moveObject(uint32_t p1,uint32_t p2, uint32_t p3) ;
   void openSession(void) ;
   
 public:
