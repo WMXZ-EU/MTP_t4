@@ -494,7 +494,7 @@ void mtp_lock_storage(bool lock) {}
     WriteIndexRecord(newParent,p2);
 
     char newName[256];
-    ConstructFilename(handle, newName, 256);
+    uint32_t store1 = ConstructFilename(handle, newName, 256);
 //    Serial.println(newName);
 //    printIndexList();
 
@@ -502,5 +502,7 @@ void mtp_lock_storage(bool lock) {}
     return sd_rename(store0,oldName,newName);
   //
   // copy from one store to another (to be implemented)
+  // store0:oldName -> store1:newName
+  // needs done ba physically copy file from one store to the next and delete in old store
   return false;
   }
