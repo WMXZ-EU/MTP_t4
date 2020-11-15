@@ -103,6 +103,7 @@ private:
 
   uint32_t index_entries_ = 0;
   bool index_generated = false;
+  void printIndexList(void);
 
   bool readonly(uint32_t storage);
   bool has_directories(uint32_t storage) ;

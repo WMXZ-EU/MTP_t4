@@ -392,17 +392,16 @@ void mtp_lock_storage(bool lock) {}
     char newName[256];
     char temp[64];
 
-    Serial.print(handle); Serial.print(" "); Serial.println(name);
     uint16_t store = ConstructFilename(handle, oldName, 256);
     Serial.println(oldName);
 
     Record p1 = ReadIndexRecord(handle);
-    Serial.print(handle); Serial.print(" "); Serial.println(p1.name);
     strcpy(temp,p1.name);
     strcpy(p1.name,name);
 
     WriteIndexRecord(handle, p1);
     ConstructFilename(handle, newName, 256);
+    Serial.println(newName);
 
     if (sd_rename(store,oldName,newName)) return true;
 
@@ -411,6 +410,43 @@ void mtp_lock_storage(bool lock) {}
     WriteIndexRecord(handle, p1);
     return false;
   }
+
+  void MTPStorage_SD::printIndexList(void)
+  {
+    for(uint32_t ii=0; ii<index_entries_; ii++)
+    { Record p = ReadIndexRecord(ii);
+      Serial.printf("%d: %d %d %d %d %s\n",ii, p.isdir,p.parent,p.sibling,p.child,p.name);
+    }
+  }
+
+  void printRecord(int h, Record *p) 
+  { Serial.printf("%d: %d %d %d %d\n",h, p->isdir,p->parent,p->sibling,p->child); }
+  
+/*
+ * //index list management for moving object around
+ * p1 is record of handle
+ * p2 is record of new dir
+ * p3 is record of old dir
+ * 
+ *  // remove from old direcory
+ * if p3.child == handle  / handle is last in old dir
+ *      p3.child = p1.sibling   / simply relink old dir
+ *      save p3
+ * else
+ *      px record of p3.child
+ *      while( px.sibling != handle ) update px = record of px.sibling
+ *      px.sibling = p1.sibling
+ *      save px
+ * 
+ *  // add to new directory
+ * p1.parent = new
+ * p1.sibling = p2.child
+ * p2.child = handle
+ * save p1
+ * save p2
+ * 
+ */
+
 
   bool MTPStorage_SD::move(uint32_t handle, uint32_t newParent ) 
   { 
@@ -422,57 +458,40 @@ void mtp_lock_storage(bool lock) {}
 
     char oldName[256];
     uint16_t store0 = ConstructFilename(handle, oldName, 256);
+//    Serial.println(oldName);
+//    printIndexList();
 
     if(p1.store != p2.store) return false;
 
-    // rmove from old list
-    // find next record in oldParent
-    Record py = p3;
-    uint32_t jy=py.child; 
-    py = ReadIndexRecord(jy);
-    if(handle==jy)
-    { // is latest record in list;
-      p3.child=py.sibling; // simply link parent to older sibling
+    // remove from old direcory
+    if(p3.child==handle)
+    {
+      p3.child = p1.sibling;
+      WriteIndexRecord(oldParent, p3);    
     }
     else
-    {
-      while(!(py.sibling==handle))
-      { jy=py.sibling;  py = ReadIndexRecord(jy);
+    { uint32_t jx = p3.child;
+      Record px = ReadIndexRecord(jx); 
+      while(handle != px.sibling)
+      {
+        jx = px.sibling;
+        px = ReadIndexRecord(jx); 
       }
-      py.sibling=p1.sibling;
+      px.sibling = p1.sibling;
+      WriteIndexRecord(jx, px);
     }
-
-    // add to new list
-    // find first record in newParent
-    Record px = p2;
-
-    uint32_t jx=px.child;
-    if(!jx) // have no child yet
-    {
-      px.child=handle;
-    }
-    else
-    { 
-      px = ReadIndexRecord(jx);
-      for(; ; jx=px.sibling) 
-      { px = ReadIndexRecord(jx);
-        if(!px.sibling) break;
-      }
-      // jx points to first record
-
-      px.sibling = handle;
-    }
-    p1.sibling = 0;
+  
+    // add to new directory
     p1.parent = newParent;
-
+    p1.sibling = p2.child;
+    p2.child = handle;
     WriteIndexRecord(handle, p1);
-    WriteIndexRecord(newParent, p2);
-    WriteIndexRecord(oldParent, p3);
-    if(jx!=newParent) WriteIndexRecord(jx, px);
-    if(jy!=handle) WriteIndexRecord(jy, py);
+    WriteIndexRecord(newParent,p2);
 
     char newName[256];
     ConstructFilename(handle, newName, 256);
+//    Serial.println(newName);
+//    printIndexList();
 
     return sd_rename(store0,oldName,newName);
   }

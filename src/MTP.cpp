@@ -32,7 +32,7 @@
 
 #include "usb1_mtp.h"
 
-#if 0
+#if 1
   #define printf(...) Serial.printf(__VA_ARGS__)
 #else
   #define printf(...) 
@@ -155,8 +155,8 @@
     MTP_PROPERTY_PROTECTION_STATUS                      ,//0xDC03
     MTP_PROPERTY_OBJECT_SIZE                            ,//0xDC04
     MTP_PROPERTY_OBJECT_FILE_NAME                       ,//0xDC07
-    MTP_PROPERTY_DATE_CREATED                           ,//0xDC08
-    MTP_PROPERTY_DATE_MODIFIED                          ,//0xDC09
+//    MTP_PROPERTY_DATE_CREATED                           ,//0xDC08
+//    MTP_PROPERTY_DATE_MODIFIED                          ,//0xDC09
     MTP_PROPERTY_PARENT_OBJECT                          ,//0xDC0B
     MTP_PROPERTY_PERSISTENT_UID                         ,//0xDC41
     MTP_PROPERTY_NAME                                    //0xDC44
@@ -298,7 +298,6 @@
     writestring("");  // date modified
     writestring("");  // keywords
   }
-
 
   uint32_t MTPD::ReadMTPHeader() 
   {
@@ -607,7 +606,7 @@
       data_buffer_ = NULL;                                \
     } while(0)
 
-    #define printContainer() {   printf("%x %d %d %d: %x %x %x\n", \
+    #define printContainer() {   if (0) printf("%x %d %d %d: %x %x %x\n", \
                 CONTAINER->op, CONTAINER->len, CONTAINER->type, CONTAINER->transaction_id, \
                 CONTAINER->params[0], CONTAINER->params[1], CONTAINER->params[2]);  }
 
@@ -956,7 +955,7 @@
     } while(0)
 
 
-    #define printContainer() {   printf("%x %d %d %d: %x %x %x\n", \
+    #define printContainer() {   if (0) printf("%x %d %d %d: %x %x %x\n", \
                 CONTAINER->op, CONTAINER->len, CONTAINER->type, CONTAINER->transaction_id, \
                 CONTAINER->params[0], CONTAINER->params[1], CONTAINER->params[2]);  }
 
@@ -1157,7 +1156,6 @@
               }
               break;
 
-
           case 0x100C:  // SendObjectInfo
               if (!p1) p1 = 1;
               CONTAINER->params[2] = SendObjectInfo(p1, // storage
@@ -1220,7 +1218,8 @@
             CONTAINER->op=return_code;
             CONTAINER->transaction_id=id;
             CONTAINER->params[0]=p1;
-            //printContainer();
+            printContainer();
+            
             memcpy(tx_data_buffer,rx_data_buffer,len);
             push_packet(tx_data_buffer,len); // for acknowledge use rx_data_buffer
         }
