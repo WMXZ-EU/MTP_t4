@@ -37,6 +37,11 @@ Modification of disk content (directories and Files) by Teensy is only be visibl
    - edit teensy/avr/boards.txt with content of 'modifications_for_teensy_avr' (copy to end of file)
  - install also USB2 from WMXZ github
 
+ ## Known Issues
+  - move of multiple files cross different storages will block MTP 
+  - moving files within storage should work
+  - moving single files cross different storages should work (if files can be opened and read)
+  
  ## ToBeDone
- - copy files
- - move files cross different storages
+ - copy files 
+
