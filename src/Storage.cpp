@@ -540,27 +540,27 @@ void mtp_lock_storage(bool lock) {}
       return false;
     }
     // move needs to be done by physically copying file from one store to another one and deleting in old store
-
-    Serial.print(store0); Serial.print(": ");Serial.println(oldName);
-    Serial.print(store1); Serial.print(": ");Serial.println(newName);
+    #if DEBUG==1
+      Serial.print(store0); Serial.print(": ");Serial.println(oldName);
+      Serial.print(store1); Serial.print(": ");Serial.println(newName);
+    #endif
 
     const int nbuf = 2048;
     char buffer[nbuf];
-    File f2 = sd_open(store1,newName,(unsigned)(O_CREAT | O_WRONLY | O_TRUNC));
+    File f2 = sd_open(store1,newName,FILE_WRITE);
     if(sd_isOpen(f2))
-    {
-      File f1 = sd_open(store0,oldName,O_RDONLY);
+    { f2.seek(0); // position file to beginning (ARDUINO opens at end of file)
+      File f1 = sd_open(store0,oldName,FILE_READ);
       int nd;
       while(1)
       { nd=f1.read(buffer,nbuf);
-        Serial.printf("%d ",nd);
         if(nd<0) break;
         f2.write(buffer,nd);
         if(nd<nbuf) break;
       }
       // check error
-      if(nd<0) Serial.println(f1.getReadError());
-      Serial.println();
+      if(nd<0) { Serial.print("File Read Error :"); Serial.println(f1.getReadError());}
+
       // close all files
       f1.close();
       f2.close();
