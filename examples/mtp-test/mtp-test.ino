@@ -3,6 +3,7 @@
 #include "MTP.h"
 #include "usb1_mtp.h"
 
+  // edit SPI to reflect your configuration
   #define SD_MOSI 11
   #define SD_MISO 12
   #define SD_SCK  13
@@ -10,8 +11,10 @@
 //  const char *sd_str[]={"sdio","sd1","sd2","sd3","sd4","sd5","sd6"}; // WMXZ example
 //  const int cs[] = {BUILTIN_SDCARD,34,33,35,36,37,38}; // WMXZ example
 
-  const char *sd_str[]={"sdio"}; // edit to reflect your configuration
-  const int cs[] = {BUILTIN_SDCARD}; // edit to reflect your configuration
+//  const char *sd_str[]={"sdio","sd6"}; // WMXZ testing
+//  const int cs[] = {BUILTIN_SDCARD,38}; // WMXZ testing
+  const char *sd_str[]={"sdio"};      // edit to reflect your configuration
+  const int cs[] = {BUILTIN_SDCARD};  // edit to reflect your configuration
   const int nsd = sizeof(cs)/sizeof(int);
 
 SDClass sdx[nsd];

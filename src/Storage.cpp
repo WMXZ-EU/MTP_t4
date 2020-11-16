@@ -30,6 +30,8 @@
 
 #include "Storage.h"
 
+#define DEBUG 0
+
   extern SDClass sdx[];
   #define sd_begin(x,y) sdx[x].sdfs.begin(y)
   #define sd_open(x,y,z) sdx[x].open(y,z)
@@ -447,10 +449,11 @@ void mtp_lock_storage(bool lock) {}
  * 
  */
 
-
   bool MTPStorage_SD::move(uint32_t handle,uint32_t storage, uint32_t newParent ) 
   { 
-    //Serial.printf("%d -> %d %d\n",handle,storage,newParent);
+    #if DEBUG==1
+      Serial.printf("%d -> %d %d\n",handle,storage,newParent);
+    #endif
     Record p1 = ReadIndexRecord(handle); 
 
     uint32_t oldParent = p1.parent;
@@ -460,12 +463,14 @@ void mtp_lock_storage(bool lock) {}
     Record p2 = ReadIndexRecord(newParent);
     Record p3 = ReadIndexRecord(oldParent); 
 
-    if(p1.store != p2.store) return false; // remove after disk to disk is implemented
+    if(p1.store != p2.store) return false; //comment or remove after disk to disk move is proven to work
 
     char oldName[256];
     uint16_t store0 = ConstructFilename(handle, oldName, 256);
-    //Serial.println(oldName);
-    //printIndexList();
+    #if DEBUG==1
+      Serial.print(store0); Serial.print(": ");Serial.println(oldName);
+      printIndexList();
+    #endif
 
     // remove from old direcory
     if(p3.child==handle)
@@ -495,14 +500,47 @@ void mtp_lock_storage(bool lock) {}
 
     char newName[256];
     uint32_t store1 = ConstructFilename(handle, newName, 256);
-//    Serial.println(newName);
-//    printIndexList();
+    #if DEBUG==1
+      Serial.print(store1); Serial.print(": ");Serial.println(newName);
+      printIndexList();
+    #endif
 
   if(p2.store == p3.store)
     return sd_rename(store0,oldName,newName);
   //
-  // copy from one store to another (to be implemented)
+  // copy from one store to another (not completely tested yet)
   // store0:oldName -> store1:newName
-  // needs done by physically copying file from one store to another one and delete in old store
+  // do not move directories cross storages
+  if(p1.isdir) return false;
+  // move needs to be done by physically copying file from one store to another one and deleting in old store
+
+      Serial.print(store0); Serial.print(": ");Serial.println(oldName);
+      Serial.print(store1); Serial.print(": ");Serial.println(newName);
+
+  const int nbuf = 2048;
+  char buffer[nbuf];
+  File f2 = sd_open(store1,newName,O_CREAT | O_WRONLY | O_TRUNC);
+  if(sd_isOpen(f2))
+  {
+    File f1 = sd_open(store0,oldName,O_RDONLY);
+    int nd;
+    while(1)
+    { nd=f1.read(buffer,nbuf);
+      Serial.printf("%d ",nd);
+      if(nd<0) break;
+      f2.write(buffer,nd);
+      if(nd<nbuf) break;
+    }
+    // check error
+    if(nd<0) Serial.println(f1.getReadError());
+    Serial.println();
+    // close all files
+    f1.close();
+    f2.close();
+    if(nd<0) {sd_remove(store1,newName); return false;}
+
+    // remove old files
+    sd_remove(store0,oldName); return true;
+  }
   return false;
   }

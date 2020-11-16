@@ -32,7 +32,8 @@
 
 #include "usb1_mtp.h"
 
-#if 1
+#define DEBUG 0
+#if DEBUG==1
   #define printf(...) Serial.printf(__VA_ARGS__)
 #else
   #define printf(...) 
@@ -492,7 +493,7 @@
         case MTP_PROPERTY_PERSISTENT_UID:     //0xDC41:
           write32(p1);
           write32(parent);
-          write32(1);
+          write32(store);
           write32(0);
           break;
         case MTP_PROPERTY_NAME:               //0xDC44:
@@ -607,7 +608,7 @@
       data_buffer_ = NULL;                                \
     } while(0)
 
-    #define printContainer() {   if (0) printf("%x %d %d %d: %x %x %x\n", \
+    #define printContainer() {   printf("%x %d %d %d: %x %x %x\n", \
                 CONTAINER->op, CONTAINER->len, CONTAINER->type, CONTAINER->transaction_id, \
                 CONTAINER->params[0], CONTAINER->params[1], CONTAINER->params[2]);  }
 
@@ -956,7 +957,7 @@
     } while(0)
 
 
-    #define printContainer() { if (0) printf("%x %d %d %d: %x %x %x\n", \
+    #define printContainer() { printf("%x %d %d %d: %x %x %x\n", \
                 CONTAINER->op, CONTAINER->len, CONTAINER->type, CONTAINER->transaction_id, \
                 CONTAINER->params[0], CONTAINER->params[1], CONTAINER->params[2]);  }
 
@@ -1083,7 +1084,7 @@
     void MTPD::loop(void)
     { if(!usb_mtp_available()) return;
       if(fetch_packet(rx_data_buffer))
-      { printContainer();
+      { printContainer(); // to switch on set debug to 1 at beginning of file
 
         int op = CONTAINER->op;
         int p1 = CONTAINER->params[0];
@@ -1219,7 +1220,7 @@
             CONTAINER->op=return_code;
             CONTAINER->transaction_id=id;
             CONTAINER->params[0]=p1;
-            printContainer();
+            printContainer(); // to switch on set debug to 1 at beginning of file
 
             memcpy(tx_data_buffer,rx_data_buffer,len);
             push_packet(tx_data_buffer,len); // for acknowledge use rx_data_buffer
