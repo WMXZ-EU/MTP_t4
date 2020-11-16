@@ -32,14 +32,6 @@
 
 #define DEBUG 0
 
-  extern SDClass sdx[];
-  #define sd_begin(x,y) sdx[x].sdfs.begin(y)
-  #define sd_open(x,y,z) sdx[x].open(y,z)
-  #define sd_mkdir(x,y) sdx[x].mkdir(y)
-  #define sd_rename(x,y,z) sdx[x].sdfs.rename(y,z)
-  #define sd_remove(x,y) sdx[x].remove(y)
-  #define sd_rmdir(x,y) sdx[x].rmdir(y)
-
   #define sd_isOpen(x)  (x)
   #define sd_getName(x,y,n) strcpy(y,x.name())
 
@@ -60,7 +52,6 @@
   }
   
 // TODO:
-//   support multiple storages
 //   support serialflash
 //   partial object fetch/receive
 //   events (notify usb host when local storage changes) (But, this seems too difficult)
@@ -72,9 +63,9 @@ void mtp_lock_storage(bool lock) {}
   bool MTPStorage_SD::readonly(uint32_t storage) { return false; }
   bool MTPStorage_SD::has_directories(uint32_t storage) { return true; }
 
-  uint32_t MTPStorage_SD::clusterCount(uint32_t storage) { return sdx[storage-1].sdfs.clusterCount(); }
-  uint32_t MTPStorage_SD::freeClusters(uint32_t storage) { return sdx[storage-1].sdfs.freeClusterCount(); }
-  uint32_t MTPStorage_SD::clusterSize(uint32_t storage)  { return sdx[storage-1].sdfs.sectorsPerCluster(); }
+  uint32_t MTPStorage_SD::clusterCount(uint32_t storage) { return sd_totalClusterCount(storage-1); }
+  uint32_t MTPStorage_SD::freeClusters(uint32_t storage) { return sd_freeClusterCount(storage-1); }
+  uint32_t MTPStorage_SD::clusterSize(uint32_t storage)  { return sd_sectorsPerCluster(storage-1); }
 
   void MTPStorage_SD::CloseIndex()
   {

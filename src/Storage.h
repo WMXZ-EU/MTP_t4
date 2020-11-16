@@ -30,7 +30,22 @@
 #include "core_pins.h"
 
 #include "SD.h"
+
+// following is a device specific base class for storage classs
 extern SDClass sdx[];
+class mSD_Base
+{ 
+  public:
+  File sd_open(uint32_t store, const char *filename, uint32_t mode) { return sdx[store].open(filename,mode);}
+  bool sd_mkdir(uint32_t store, char *filename) { return sdx[store].mkdir(filename);}
+  bool sd_rename(uint32_t store, char *oldfilename, char *newfilename) { return sdx[store].sdfs.rename(oldfilename,newfilename);}
+  bool sd_remove(uint32_t store, const char *filename) { return sdx[store].remove(filename);}
+  bool sd_rmdir(uint32_t store, char *filename) { return sdx[store].rmdir(filename);}
+    
+  uint32_t sd_totalClusterCount(uint32_t store) { return sdx[store].sdfs.clusterCount();}
+  uint32_t sd_freeClusterCount(uint32_t store)  { return sdx[store].sdfs.freeClusterCount();}
+  uint32_t sd_sectorsPerCluster(uint32_t store) { return sdx[store].sdfs.sectorsPerCluster();}
+};
 
 // This interface lets the MTP responder interface any storage.
 // We'll need to give the MTP responder a pointer to one of these.
@@ -85,7 +100,7 @@ public:
 
 
 // Storage implementation for SD. SD needs to be already initialized.
-class MTPStorage_SD : public MTPStorageInterface 
+class MTPStorage_SD : public MTPStorageInterface, mSD_Base
 {
 public:
   void setStorageNumbers(const char **sd_str, int num) override;
