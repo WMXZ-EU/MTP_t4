@@ -462,6 +462,10 @@ void mtp_lock_storage(bool lock) {}
 
     Record p2 = ReadIndexRecord(newParent);
     Record p3 = ReadIndexRecord(oldParent); 
+    // keep oroginal sorages
+    Record p1o = p1;
+    Record p2o = p2;
+    Record p3o = p3;
 
     if(p1.store != p2.store) return false; //comment or remove after disk to disk move is proven to work
 
@@ -473,18 +477,23 @@ void mtp_lock_storage(bool lock) {}
     #endif
 
     // remove from old direcory
+    uint32_t jx=-1;
+    Record px;
+    Record pxo;
     if(p3.child==handle)
     {
       p3.child = p1.sibling;
       WriteIndexRecord(oldParent, p3);    
     }
     else
-    { uint32_t jx = p3.child;
-      Record px = ReadIndexRecord(jx); 
+    { jx = p3.child;
+      px = ReadIndexRecord(jx); 
+      pxo = px;
       while(handle != px.sibling)
       {
         jx = px.sibling;
         px = ReadIndexRecord(jx); 
+        pxo = px;
       }
       px.sibling = p1.sibling;
       WriteIndexRecord(jx, px);
@@ -505,42 +514,75 @@ void mtp_lock_storage(bool lock) {}
       printIndexList();
     #endif
 
-  if(p2.store == p3.store)
-    return sd_rename(store0,oldName,newName);
-  //
-  // copy from one store to another (not completely tested yet)
-  // store0:oldName -> store1:newName
-  // do not move directories cross storages
-  if(p1.isdir) return false;
-  // move needs to be done by physically copying file from one store to another one and deleting in old store
-
-      Serial.print(store0); Serial.print(": ");Serial.println(oldName);
-      Serial.print(store1); Serial.print(": ");Serial.println(newName);
-
-  const int nbuf = 2048;
-  char buffer[nbuf];
-  File f2 = sd_open(store1,newName,O_CREAT | O_WRONLY | O_TRUNC);
-  if(sd_isOpen(f2))
-  {
-    File f1 = sd_open(store0,oldName,O_RDONLY);
-    int nd;
-    while(1)
-    { nd=f1.read(buffer,nbuf);
-      Serial.printf("%d ",nd);
-      if(nd<0) break;
-      f2.write(buffer,nd);
-      if(nd<nbuf) break;
+    if(p2.store == p3.store)
+    {
+      if(sd_rename(store0,oldName,newName)) 
+        return true; 
+      else 
+      {
+        // undo changes in index list
+        if(jx<0) WriteIndexRecord(oldParent, p3o); else WriteIndexRecord(jx, pxo);
+        WriteIndexRecord(handle, p1o);
+        WriteIndexRecord(newParent,p2o);      
+        return false;
+      }
     }
-    // check error
-    if(nd<0) Serial.println(f1.getReadError());
-    Serial.println();
-    // close all files
-    f1.close();
-    f2.close();
-    if(nd<0) {sd_remove(store1,newName); return false;}
+    //
+    // copy from one store to another (not completely tested yet)
+    // store0:oldName -> store1:newName
+    // do not move directories cross storages
+    if(p1.isdir) 
+    {
+      // undo changes in index list
+      if(jx<0) WriteIndexRecord(oldParent, p3o); else WriteIndexRecord(jx, pxo);
+      WriteIndexRecord(handle, p1o);
+      WriteIndexRecord(newParent,p2o);      
+      return false;
+    }
+    // move needs to be done by physically copying file from one store to another one and deleting in old store
 
-    // remove old files
-    sd_remove(store0,oldName); return true;
-  }
-  return false;
+    Serial.print(store0); Serial.print(": ");Serial.println(oldName);
+    Serial.print(store1); Serial.print(": ");Serial.println(newName);
+
+    const int nbuf = 2048;
+    char buffer[nbuf];
+    File f2 = sd_open(store1,newName,(unsigned)(O_CREAT | O_WRONLY | O_TRUNC));
+    if(sd_isOpen(f2))
+    {
+      File f1 = sd_open(store0,oldName,O_RDONLY);
+      int nd;
+      while(1)
+      { nd=f1.read(buffer,nbuf);
+        Serial.printf("%d ",nd);
+        if(nd<0) break;
+        f2.write(buffer,nd);
+        if(nd<nbuf) break;
+      }
+      // check error
+      if(nd<0) Serial.println(f1.getReadError());
+      Serial.println();
+      // close all files
+      f1.close();
+      f2.close();
+      if(nd<0) //  something went wrong
+      { sd_remove(store1,newName); 
+        // undo changes in index list
+        if(jx<0) WriteIndexRecord(oldParent, p3o); else WriteIndexRecord(jx, pxo);
+        WriteIndexRecord(handle, p1o);
+        WriteIndexRecord(newParent,p2o);      
+        return false;
+      }
+
+      // remove old files
+      if(sd_remove(store0,oldName)) 
+        return true; 
+      else 
+      { // undo changes in index list
+        if(jx<0) WriteIndexRecord(oldParent, p3o); else WriteIndexRecord(jx, pxo);
+        WriteIndexRecord(handle, p1o);
+        WriteIndexRecord(newParent,p2o);      
+        return false;
+      }
+    }
+    return false;
   }
