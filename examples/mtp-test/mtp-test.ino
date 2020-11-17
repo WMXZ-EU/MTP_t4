@@ -35,20 +35,16 @@ void storage_configure(MTPStorage_SD *storage, const char **sd_str, const int *c
     { if(cs[ii] == BUILTIN_SDCARD)
       {
         if(!sdx[ii].sdfs.begin(SdioConfig(FIFO_SDIO))){Serial.println("No storage"); while(1);};
-        uint32_t volCount  = sdx[ii].sdfs.clusterCount();
-        uint32_t volFree  = sdx[ii].sdfs.freeClusterCount();
-        uint32_t volClust = sdx[ii].sdfs.sectorsPerCluster();
-        Serial.printf("Storage %d %d %d %d %d\n",ii,cs[ii],volCount,volFree,volClust);
       }
       else
       {
         pinMode(cs[ii],OUTPUT); digitalWriteFast(cs[ii],HIGH);
         if(!sdx[ii].sdfs.begin(SdSpiConfig(cs[ii], SHARED_SPI, SD_SCK_MHZ(33)))) {Serial.println("No storage"); while(1);}
-        uint32_t volCount  = sdx[ii].sdfs.clusterCount();
-        uint32_t volFree  = sdx[ii].sdfs.freeClusterCount();
-        uint32_t volClust = sdx[ii].sdfs.sectorsPerCluster();
-        Serial.printf("Storage %d %d %d %d %d\n",ii,cs[ii],volCount,volFree,volClust);
       }
+      uint32_t volCount  = sdx[ii].sdfs.clusterCount();
+      uint32_t volFree  = sdx[ii].sdfs.freeClusterCount();
+      uint32_t volClust = sdx[ii].sdfs.sectorsPerCluster();
+      Serial.printf("Storage %d %d %s %d %d %d\n",ii,cs[ii],sd_str[ii],volCount,volFree,volClust);
     }
 }
 /****  End of device specific change area  ****/
