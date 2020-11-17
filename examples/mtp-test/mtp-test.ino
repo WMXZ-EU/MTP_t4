@@ -3,6 +3,8 @@
 #include "MTP.h"
 #include "usb1_mtp.h"
 
+/****  Start device specific change area  ****/
+
   // edit SPI to reflect your configuration
   #define SD_MOSI 11
   #define SD_MISO 12
@@ -18,9 +20,6 @@
   const int nsd = sizeof(cs)/sizeof(int);
 
 SDClass sdx[nsd];
-
-MTPStorage_SD storage;
-MTPD       mtpd(&storage);
 
 void storage_configure(MTPStorage_SD *storage, const char **sd_str, const int *cs, SDClass *sdx, int num)
 {
@@ -52,6 +51,10 @@ void storage_configure(MTPStorage_SD *storage, const char **sd_str, const int *c
       }
     }
 }
+/****  End of device specific change area  ****/
+
+MTPStorage_SD storage;
+MTPD       mtpd(&storage);
 
 void logg(uint32_t del, const char *txt)
 { static uint32_t to;
