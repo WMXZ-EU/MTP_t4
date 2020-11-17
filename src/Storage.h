@@ -133,13 +133,13 @@ private:
   uint32_t AppendIndexRecord(const Record& r) ;
   Record ReadIndexRecord(uint32_t i) ;
   uint16_t ConstructFilename(int i, char* out, int len) ;
-  void OpenFileByIndex(uint32_t i, uint32_t mode = O_RDONLY) ;
+  void OpenFileByIndex(uint32_t i, uint32_t mode = FILE_READ) ;
 
   bool all_scanned_ = false;
   
   void GenerateIndex(uint32_t storage) ;
   void ScanDir(uint32_t storage, uint32_t i) ;
-  
+
   void ScanAll(uint32_t storage) ;
 
   uint32_t next_;

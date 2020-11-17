@@ -404,7 +404,7 @@ void mtp_lock_storage(bool lock) {}
     return false;
   }
 
-  void MTPStorage_SD::printIndexList(void)
+  void MTPStorage_SD::dumpIndexList(void)
   {
     for(uint32_t ii=0; ii<index_entries_; ii++)
     { Record p = ReadIndexRecord(ii);
@@ -412,7 +412,7 @@ void mtp_lock_storage(bool lock) {}
     }
   }
 
-  void printRecord(int h, Record *p) 
+  void MTPStorage_SD::printRecord(int h, Record *p) 
   { Serial.printf("%d: %d %d %d %d %d\n",h, p->store,p->isdir,p->parent,p->sibling,p->child); }
   
 /*
