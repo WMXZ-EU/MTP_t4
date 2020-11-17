@@ -116,10 +116,6 @@ private:
   uint32_t mode_ = 0;
   uint32_t open_file_ = 0xFFFFFFFEUL;
 
-  uint32_t index_entries_ = 0;
-  bool index_generated = false;
-  void printIndexList(void);
-
   bool readonly(uint32_t storage);
   bool has_directories(uint32_t storage) ;
   
@@ -129,21 +125,24 @@ private:
 
   void CloseIndex() ;
   void OpenIndex() ;
+  void GenerateIndex(uint32_t storage) ;
+  void ScanDir(uint32_t storage, uint32_t i) ;
+  void ScanAll(uint32_t storage) ;
+
+  uint32_t index_entries_ = 0;
+  bool index_generated = false;
+
+  bool all_scanned_ = false;
+  uint32_t next_;
+  bool follow_sibling_;
+
   void WriteIndexRecord(uint32_t i, const Record& r) ;
   uint32_t AppendIndexRecord(const Record& r) ;
   Record ReadIndexRecord(uint32_t i) ;
   uint16_t ConstructFilename(int i, char* out, int len) ;
   void OpenFileByIndex(uint32_t i, uint32_t mode = FILE_READ) ;
-
-  bool all_scanned_ = false;
-  
-  void GenerateIndex(uint32_t storage) ;
-  void ScanDir(uint32_t storage, uint32_t i) ;
-
-  void ScanAll(uint32_t storage) ;
-
-  uint32_t next_;
-  bool follow_sibling_;
+  void dumpIndexList(void);
+  void printRecord(int h, Record *p);
 
   uint32_t getNumStorage() override;
   const char * getStorageName(uint32_t storage) override;
