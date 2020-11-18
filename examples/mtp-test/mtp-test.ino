@@ -34,7 +34,7 @@
 
 SDClass sdx[nsd];
 #if __has_include("LittleFS.h")
-  LittleFS_RAM ramfs;
+  LittleFS_RAM ramfs; // needs to be defined if LittleFS.h exists in include path
 #endif
 
 void storage_configure(MTPStorage_SD *storage, const char **sd_str, const int *cs, SDClass *sdx, int num)
