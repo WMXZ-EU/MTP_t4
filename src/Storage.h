@@ -113,7 +113,7 @@ private:
   File file_;
   File child_;
 
-  int num_storage;
+  int num_storage = 0;
   const char **sd_str = 0;
 
   uint32_t mode_ = 0;

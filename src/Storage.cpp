@@ -218,9 +218,16 @@ void mtp_lock_storage(bool lock) {}
     for (uint32_t i = 0; i < index_entries_; i++)  ScanDir(storage,i);
   }
 
-  void  MTPStorage_SD::setStorageNumbers(const char **str, int num) {sd_str = str; num_storage=num;}
-  uint32_t MTPStorage_SD::getNumStorage() {return num_storage;}
-  const char * MTPStorage_SD::getStorageName(uint32_t storage) {return sd_str[storage-1];}
+  void  MTPStorage_SD::setStorageNumbers(const char **str, int num) 
+  { sd_str = str; 
+    num_storage=num;
+  }
+  uint32_t MTPStorage_SD::getNumStorage() 
+  { if(num_storage) return num_storage; else return 1;
+  }
+  const char * MTPStorage_SD::getStorageName(uint32_t storage) 
+  { if(sd_str) return sd_str[storage-1]; else return "SD_DISK";
+  }
 
   void MTPStorage_SD::StartGetObjectHandles(uint32_t storage, uint32_t parent) 
   { 
