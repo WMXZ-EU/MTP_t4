@@ -453,7 +453,7 @@ void mtp_lock_storage(bool lock) {}
 
     Record p2 = ReadIndexRecord(newParent);
     Record p3 = ReadIndexRecord(oldParent); 
-    // keep oroginal sorages
+    // keep original storages
     Record p1o = p1;
     Record p2o = p2;
     Record p3o = p3;
