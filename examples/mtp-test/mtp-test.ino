@@ -17,6 +17,8 @@
   #define SD_MISO 12
   #define SD_SCK  13
 
+  #define SPI_SPEED SD_SCK_MHZ(16)  // adjust to sd card 
+
 //  const char *sd_str[]={"sdio","sd1","sd2","sd3","sd4","sd5","sd6"}; // WMXZ example
 //  const int cs[] = {BUILTIN_SDCARD,34,33,35,36,37,38}; // WMXZ example
 
@@ -56,7 +58,7 @@ void storage_configure(MTPStorage_SD *storage, const char **sd_str, const int *c
       else if(cs[ii]<BUILTIN_SDCARD)
       {
         pinMode(cs[ii],OUTPUT); digitalWriteFast(cs[ii],HIGH);
-        if(!sdx[ii].sdfs.begin(SdSpiConfig(cs[ii], SHARED_SPI, SD_SCK_MHZ(33)))) {Serial.println("No storage"); while(1);}
+        if(!sdx[ii].sdfs.begin(SdSpiConfig(cs[ii], SHARED_SPI, SPI_SPEED))) {Serial.println("No storage"); while(1);}
       }
       #if DO_LITTLEFS==1
         else if(cs[ii]==256) // LittleFS_RAM
