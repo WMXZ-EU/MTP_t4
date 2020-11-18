@@ -5,6 +5,7 @@
 #else
   #define DO_LITTLEFS 0
 #endif
+
 #include "MTP.h"
 #include "usb1_mtp.h"
 
@@ -27,8 +28,8 @@
 #else
 //  const char *sd_str[]={"sdio"};      // edit to reflect your configuration
 //  const int cs[] = {BUILTIN_SDCARD};  // edit to reflect your configuration
-  const char *sd_str[]={"sd1"};      // edit to reflect your configuration
-  const int cs[] = {38};  // edit to reflect your configuration
+  const char *sd_str[]={"sd1"};         // edit to reflect your configuration
+  const int cs[] = {38};                // edit to reflect your configuration
 #endif
   const int nsd = sizeof(cs)/sizeof(int);
 
