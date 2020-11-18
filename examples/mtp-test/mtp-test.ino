@@ -1,7 +1,9 @@
 #include "Arduino.h"
 
+#define DO_LITTLEFS 1    // set to zero if not wanted // needs LittleFS installed as library
 #include "MTP.h"
 #include "usb1_mtp.h"
+
 
 /****  Start device specific change area  ****/
 
@@ -15,11 +17,19 @@
 
 //  const char *sd_str[]={"sdio","sd6"}; // WMXZ testing
 //  const int cs[] = {BUILTIN_SDCARD,38}; // WMXZ testing
+#if DO_LITTLEFS==1
+  const char *sd_str[]={"sdio","RAM"};      // edit to reflect your configuration
+  const int cs[] = {BUILTIN_SDCARD, 256};  // edit to reflect your configuration
+#else
   const char *sd_str[]={"sdio"};      // edit to reflect your configuration
   const int cs[] = {BUILTIN_SDCARD};  // edit to reflect your configuration
+#endif
   const int nsd = sizeof(cs)/sizeof(int);
 
 SDClass sdx[nsd];
+#if DO_LITTLEFS==1
+  LittleFS_RAM ramfs;
+#endif
 
 void storage_configure(MTPStorage_SD *storage, const char **sd_str, const int *cs, SDClass *sdx, int num)
 {
@@ -29,22 +39,30 @@ void storage_configure(MTPStorage_SD *storage, const char **sd_str, const int *c
       SPI.setSCK(SD_SCK);
     #endif
 
-    storage->setStorageNumbers(sd_str,nsd);
+    storage->setStorageNumbers(sd_str, cs, nsd);
 
     for(int ii=0; ii<nsd; ii++)
     { if(cs[ii] == BUILTIN_SDCARD)
       {
         if(!sdx[ii].sdfs.begin(SdioConfig(FIFO_SDIO))){Serial.println("No storage"); while(1);};
       }
-      else
+      else if(cs[ii]<BUILTIN_SDCARD)
       {
         pinMode(cs[ii],OUTPUT); digitalWriteFast(cs[ii],HIGH);
         if(!sdx[ii].sdfs.begin(SdSpiConfig(cs[ii], SHARED_SPI, SD_SCK_MHZ(33)))) {Serial.println("No storage"); while(1);}
       }
-      uint32_t volCount  = sdx[ii].sdfs.clusterCount();
-      uint32_t volFree  = sdx[ii].sdfs.freeClusterCount();
-      uint32_t volClust = sdx[ii].sdfs.sectorsPerCluster();
-      Serial.printf("Storage %d %d %s %d %d %d\n",ii,cs[ii],sd_str[ii],volCount,volFree,volClust);
+      #if DO_LITTLEFS==1
+        else if(cs[ii]==256) // LittleFS
+        { if(!ramfs.begin(8'000'000)) { Serial.println("No storage"); while(1);}
+        }
+      #endif
+      if(ii<256)
+      {
+        uint32_t volCount  = sdx[ii].sdfs.clusterCount();
+        uint32_t volFree  = sdx[ii].sdfs.freeClusterCount();
+        uint32_t volClust = sdx[ii].sdfs.sectorsPerCluster();
+        Serial.printf("Storage %d %d %s %d %d %d\n",ii,cs[ii],sd_str[ii],volCount,volFree,volClust);
+      }
     }
 }
 /****  End of device specific change area  ****/
@@ -68,6 +86,20 @@ void setup()
   
   usb_mtp_configure();
   storage_configure(&storage, sd_str,cs, sdx, nsd);
+
+  #if DO_LITTLEFS==1
+  // store some files into disks (but only once)
+  for(int ii=0; ii<10;ii++)
+  { char filename[80];
+    sprintf(filename,"test_%d.txt",ii);
+    if(!ramfs.exists(filename))
+    {
+      File file=ramfs.open(filename,FILE_WRITE_BEGIN);
+      file.println("This is a test line");
+      file.close();
+    }
+  }
+  #endif
 
   Serial.println("Setup done");
   Serial.flush();

@@ -36,25 +36,74 @@
 
 // following is a device specific base class for storage classs
 extern SDClass sdx[];
+
+#if __has_include("LittleFS.h")
+#include "LittleFS.h"
+extern LittleFS_RAM ramfs;
+
 class mSD_Base
 { 
   public:
-  File sd_open(uint32_t store, const char *filename, uint32_t mode) { return sdx[store].open(filename,mode);}
-  bool sd_mkdir(uint32_t store, char *filename) { return sdx[store].mkdir(filename);}
-  bool sd_rename(uint32_t store, char *oldfilename, char *newfilename) { return sdx[store].rename(oldfilename,newfilename);}
-  bool sd_remove(uint32_t store, const char *filename) { return sdx[store].remove(filename);}
-  bool sd_rmdir(uint32_t store, char *filename) { return sdx[store].rmdir(filename);}
+  File sd_open(uint32_t store, const char *filename, uint32_t mode) 
+  { if(!cs || (cs[store]<256)) return sdx[store].open(filename,mode); else return ramfs.open(filename,mode);
+  }
+  bool sd_mkdir(uint32_t store, char *filename) 
+  { if(!cs || (cs[store]<256)) return sdx[store].mkdir(filename); else return ramfs.mkdir(filename);
+  }
+
+  bool sd_rename(uint32_t store, char *oldfilename, char *newfilename) 
+  { if(!cs || (cs[store]<256)) return sdx[store].rename(oldfilename,newfilename); else return ramfs.rename(oldfilename,newfilename);
     
-  uint32_t sd_totalClusterCount(uint32_t store) { return sdx[store].sdfs.clusterCount();}
-  uint32_t sd_freeClusterCount(uint32_t store)  { return sdx[store].sdfs.freeClusterCount();}
-  uint32_t sd_sectorsPerCluster(uint32_t store) { return sdx[store].sdfs.sectorsPerCluster();}
+  }
+  bool sd_remove(uint32_t store, const char *filename) 
+  { if(!cs || (cs[store]<256)) return sdx[store].remove(filename); else return ramfs.remove(filename);
+  }
+  bool sd_rmdir(uint32_t store, char *filename) 
+  { if(!cs || (cs[store]<256)) return sdx[store].rmdir(filename); else return ramfs.rmdir(filename);
+  }
+    
+  uint32_t sd_totalClusterCount(uint32_t store) 
+  { if(!cs || (cs[store]<256)) return sdx[store].sdfs.clusterCount(); else return ramfs.totalSize()/512;
+  }
+  uint32_t sd_freeClusterCount(uint32_t store)  
+  { if(!cs || (cs[store]<256)) return sdx[store].sdfs.freeClusterCount(); else return (ramfs.totalSize()-ramfs.usedSize())/512;
+  }
+  uint32_t sd_sectorsPerCluster(uint32_t store) 
+  { if(!cs || (cs[store]<256)) return sdx[store].sdfs.sectorsPerCluster(); else return 1;
+  }
+
+  bool setCs(const int *csx) { cs = csx; return true; }
+
+  private:
+  const int * cs = 0;
 };
+#else
+class mSD_Base
+{ 
+  public:
+  File sd_open(uint32_t store, const char *filename, uint32_t mode) { return sdx[store].open(filename,mode); }
+  bool sd_mkdir(uint32_t store, char *filename) { return sdx[store].mkdir(filename); }
+
+  bool sd_rename(uint32_t store, char *oldfilename, char *newfilename) { return sdx[store].rename(oldfilename,newfilename); }
+  bool sd_remove(uint32_t store, const char *filename) { return sdx[store].remove(filename); }
+  bool sd_rmdir(uint32_t store, char *filename) { return sdx[store].rmdir(filename); }
+    
+  uint32_t sd_totalClusterCount(uint32_t store) { return sdx[store].sdfs.clusterCount(); }
+  uint32_t sd_freeClusterCount(uint32_t store)  { return sdx[store].sdfs.freeClusterCount(); }
+  uint32_t sd_sectorsPerCluster(uint32_t store) { return sdx[store].sdfs.sectorsPerCluster();  }
+
+  bool setCs(const int *csx) { cs = csx; return true; }
+
+  private:
+  const int * cs = 0;
+};
+#endif
 
 // This interface lets the MTP responder interface any storage.
 // We'll need to give the MTP responder a pointer to one of these.
 class MTPStorageInterface {
 public:
-  virtual void setStorageNumbers(const char **sd_str, int num) =0;
+  virtual void setStorageNumbers(const char **sd_str, const int *cs, int num) =0;
 
   // Return true if this storage is read-only
   virtual bool readonly(uint32_t storage) = 0;
@@ -106,7 +155,7 @@ public:
 class MTPStorage_SD : public MTPStorageInterface, mSD_Base
 {
 public:
-  void setStorageNumbers(const char **sd_str, int num) override;
+  void setStorageNumbers(const char **sd_str, const int *cs, int num) override;
 
 private:
   File index_;
@@ -115,7 +164,7 @@ private:
 
   int num_storage = 0;
   const char **sd_str = 0;
-
+  
   uint32_t mode_ = 0;
   uint32_t open_file_ = 0xFFFFFFFEUL;
 
