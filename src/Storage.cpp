@@ -79,7 +79,7 @@ void mtp_lock_storage(bool lock) {}
   void MTPStorage_SD::OpenIndex() 
   { if(sd_isOpen(index_)) return; // only once
     mtp_lock_storage(true);
-    index_=sd_open(0,indexFile, FILE_WRITE);
+    index_=sd_open(0,indexFile, FILE_WRITE_BEGIN);
     mtp_lock_storage(false);
   }
 
@@ -356,7 +356,7 @@ void mtp_lock_storage(bool lock) {}
     } 
     else 
     {
-      OpenFileByIndex(ret, FILE_WRITE);
+      OpenFileByIndex(ret, FILE_WRITE_BEGIN);
     }
     return ret;
   }
@@ -538,7 +538,7 @@ void mtp_lock_storage(bool lock) {}
 
     const int nbuf = 2048;
     char buffer[nbuf];
-    File f2 = sd_open(store1,newName,FILE_WRITE);
+    File f2 = sd_open(store1,newName,FILE_WRITE_BEGIN);
     if(sd_isOpen(f2))
     { f2.seek(0); // position file to beginning (ARDUINO opens at end of file)
       File f1 = sd_open(store0,oldName,FILE_READ);

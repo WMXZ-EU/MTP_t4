@@ -30,6 +30,9 @@
 #include "core_pins.h"
 
 #include "SD.h"
+#ifndef FILE_WRITE_BEGIN
+  #define FILE_WRITE_BEGIN 2
+#endif
 
 // following is a device specific base class for storage classs
 extern SDClass sdx[];
