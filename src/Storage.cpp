@@ -293,7 +293,7 @@ void mtp_lock_storage(bool lock) {}
   bool MTPStorage_SD::DeleteObject(uint32_t object)
   {
     char filename[256];
-    if(object==0xFFFFFFFFUL) return false;
+    if(object==0xFFFFFFFFUL) return false; // don't do anything if trying to delete a root directory
     Record r;
     while (true) {
       r = ReadIndexRecord(object == 0xFFFFFFFFUL ? 0 : object); //
