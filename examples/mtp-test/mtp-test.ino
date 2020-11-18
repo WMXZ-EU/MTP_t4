@@ -1,5 +1,6 @@
 #include "Arduino.h"
 
+#include "LittleFS_dummy.h" // add an empty file to LittleFS/src
 #if __has_include("LittleFS.h")
   #define DO_LITTLEFS 1    // set to zero if not wanted // needs LittleFS installed as library
 #else

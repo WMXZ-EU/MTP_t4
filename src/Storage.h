@@ -37,6 +37,7 @@
 // following is a device specific base class for storage classs
 extern SDClass sdx[];
 
+#include "LittleFS_dummy.h" // add an empty file to LittleFS/src
 #if __has_include("LittleFS.h")
 #include "LittleFS.h"
 extern LittleFS_RAM ramfs;
