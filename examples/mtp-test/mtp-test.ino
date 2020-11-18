@@ -19,19 +19,12 @@
 
   #define SPI_SPEED SD_SCK_MHZ(16)  // adjust to sd card 
 
-//  const char *sd_str[]={"sdio","sd1","sd2","sd3","sd4","sd5","sd6"}; // WMXZ example
-//  const int cs[] = {BUILTIN_SDCARD,34,33,35,36,37,38}; // WMXZ example
-
-//  const char *sd_str[]={"sdio","sd6"}; // WMXZ testing
-//  const int cs[] = {BUILTIN_SDCARD,38}; // WMXZ testing
 #if DO_LITTLEFS==1
-  const char *sd_str[]={"sdio","RAM"};      // edit to reflect your configuration
+  const char *sd_str[]={"sdio","RAM"};     // edit to reflect your configuration
   const int cs[] = {BUILTIN_SDCARD, 256};  // edit to reflect your configuration
 #else
-//  const char *sd_str[]={"sdio"};      // edit to reflect your configuration
-//  const int cs[] = {BUILTIN_SDCARD};  // edit to reflect your configuration
-  const char *sd_str[]={"sd1"};         // edit to reflect your configuration
-  const int cs[] = {38};                // edit to reflect your configuration
+  const char *sd_str[]={"sdio","sd6"}; // edit to reflect your configuration
+  const int cs[] = {BUILTIN_SDCARD,38}; // edit to reflect your configuration
 #endif
   const int nsd = sizeof(cs)/sizeof(int);
 

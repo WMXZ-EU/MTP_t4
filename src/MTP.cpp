@@ -32,7 +32,7 @@
 
 #include "usb1_mtp.h"
 
-#define DEBUG 0
+#define DEBUG 1
 #if DEBUG==1
   #define printf(...) Serial.printf(__VA_ARGS__)
 #else
@@ -990,12 +990,11 @@
     uint32_t MTPD::SendObjectInfo(uint32_t storage, uint32_t parent) {
       pull_packet(rx_data_buffer);
 //      printContainer(); 
-      
       read(0,0); // resync read
       int len=ReadMTPHeader();
       char filename[256];
 
-      int store = read32(); len -=4; // storage
+      read32(); len -=4; // storage
       bool dir = (read16() == 0x3001); len -=2; // format
       read16(); len -=2; // protection
       read32(); len -=4; // size
@@ -1010,13 +1009,12 @@
       read16(); len -=2; // association type
       read32(); len -=4; // association description
       read32(); len -=4; // sequence number
-
       readstring(filename); len -= (2*(strlen(filename)+1)+1); 
       // ignore rest of ObjectInfo
       while(len>=4) { read32(); len-=4;}
       while(len) {read8(); len--;}
 
-      return storage_->Create(store, parent, dir, filename);
+      return storage_->Create(storage, parent, dir, filename);
     }
 
     void MTPD::SendObject() 

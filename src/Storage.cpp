@@ -340,7 +340,7 @@ void mtp_lock_storage(bool lock) {}
   uint32_t MTPStorage_SD::Create(uint32_t storage, uint32_t parent,  bool folder, const char* filename)
   {
     uint32_t ret;
-    if (parent == 0xFFFFFFFFUL) parent = 0;
+    if (parent == 0xFFFFFFFFUL) parent = storage-1;
     Record p = ReadIndexRecord(parent);
     Record r;
     if (strlen(filename) > 62) return 0;
@@ -456,7 +456,7 @@ void mtp_lock_storage(bool lock) {}
     Record p1 = ReadIndexRecord(handle); 
 
     uint32_t oldParent = p1.parent;
-    if(newParent==0) newParent=(storage-1); //storage runs from 1, while record.store runs from 0
+    if(newParent<=0) newParent=(storage-1); //storage runs from 1, while record.store runs from 0
     //Serial.printf("%d -> %d %d\n",handle,storage,newParent);
 
     Record p2 = ReadIndexRecord(newParent);
