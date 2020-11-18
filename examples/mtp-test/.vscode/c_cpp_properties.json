@@ -44,7 +44,7 @@
       "forcedInclude": [],
       "defines": [
         "__IMXRT1062__",
-        "ARDUINO_T40",
+        "ARDUINO_TEENSY40",
         "F_CPU=600000000",
         "${COMMON_DEFINES}"
       ],
@@ -60,7 +60,7 @@
       "forcedInclude": [],
       "defines": [
         "__IMXRT1062__",
-        "ARDUINO_T41",
+        "ARDUINO_TEENSY41",
         "F_CPU=600000000",
         "${COMMON_DEFINES}"
       ],

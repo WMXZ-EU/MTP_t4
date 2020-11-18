@@ -139,11 +139,12 @@ void logg(uint32_t del, const char *txt)
   #if HAVE_PSRAM==1
     #define MAXBUF (1000) // 3000 kB   // < 5461 for 16 MByte PSRAM
 
-    extern "C" uint8_t external_psram_size;
-    uint8_t size = external_psram_size;
-    uint32_t *memory_begin = (uint32_t *)(0x70000000);
+//    extern "C" uint8_t external_psram_size;
+//    uint8_t size = external_psram_size;
+//    uint32_t *memory_begin = (uint32_t *)(0x70000000);
+//    uint32_t *data_buffer = memory_begin;
 
-    uint32_t *data_buffer = memory_begin;
+    uint32_t *data_buffer = (uint32_t *)extmem_malloc(MAXBUF*128*sizeof(uint32_t));
   #else
     #if defined(ARDUINO_TEENSY41)
       #define MAXBUF (46)           // 138 kB

@@ -59,7 +59,7 @@ void storage_configure(MTPStorage_SD *storage, const char **sd_str, const int *c
         if(!sdx[ii].sdfs.begin(SdSpiConfig(cs[ii], SHARED_SPI, SD_SCK_MHZ(33)))) {Serial.println("No storage"); while(1);}
       }
       #if DO_LITTLEFS==1
-        else if(cs[ii]==256) // LittleFS
+        else if(cs[ii]==256) // LittleFS_RAM
         { if(!ramfs.begin(8'000'000)) { Serial.println("No storage"); while(1);}
         }
       #endif
