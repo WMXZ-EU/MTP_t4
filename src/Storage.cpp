@@ -293,9 +293,10 @@ void mtp_lock_storage(bool lock) {}
   bool MTPStorage_SD::DeleteObject(uint32_t object)
   {
     char filename[256];
+    if(object==0xFFFFFFFFUL) return false;
     Record r;
     while (true) {
-      r = ReadIndexRecord(object == 0xFFFFFFFFUL ? 0 : object);
+      r = ReadIndexRecord(object == 0xFFFFFFFFUL ? 0 : object); //
       if (!r.isdir) break;
       if (!r.child) break;
       if (!DeleteObject(r.child))  return false;
@@ -308,7 +309,7 @@ void mtp_lock_storage(bool lock) {}
     ConstructFilename(object, filename, 256);
     bool success;
     mtp_lock_storage(true);
-    if (r.isdir) success = sd_rmdir(0,filename); else  success = sd_remove(0,filename);
+    if (r.isdir) success = sd_rmdir(r.store,filename); else  success = sd_remove(r.store,filename);
     mtp_lock_storage(false);
     if (!success) return false;
     

@@ -1,7 +1,7 @@
 #include "Arduino.h"
 
 #if __has_include("LittleFS.h")
-  #define DO_LITTLEFS 0    // set to zero if not wanted // needs LittleFS installed as library
+  #define DO_LITTLEFS 1    // set to zero if not wanted // needs LittleFS installed as library
 #else
   #define DO_LITTLEFS 0
 #endif
