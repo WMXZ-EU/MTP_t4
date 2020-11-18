@@ -1,13 +1,17 @@
 #include "Arduino.h"
 
-#define DO_LITTLEFS 1    // set to zero if not wanted // needs LittleFS installed as library
+#if __has_include("LittleFS.h")
+  #define DO_LITTLEFS 1    // set to zero if not wanted // needs LittleFS installed as library
+#else
+  #define DO_LITTLEFS 0
+#endif
 #include "MTP.h"
 #include "usb1_mtp.h"
 
 
 /****  Start device specific change area  ****/
 
-  // edit SPI to reflect your configuration
+  // edit SPI to reflect your configuration (following is fot T4.1)
   #define SD_MOSI 11
   #define SD_MISO 12
   #define SD_SCK  13
