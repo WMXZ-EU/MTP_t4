@@ -1,7 +1,7 @@
 #include "Arduino.h"
 
 #if __has_include("LittleFS.h")
-  #define DO_LITTLEFS 1    // set to zero if not wanted // needs LittleFS installed as library
+  #define DO_LITTLEFS 0    // set to zero if not wanted // needs LittleFS installed as library
 #else
   #define DO_LITTLEFS 0
 #endif
@@ -25,13 +25,15 @@
   const char *sd_str[]={"sdio","RAM"};      // edit to reflect your configuration
   const int cs[] = {BUILTIN_SDCARD, 256};  // edit to reflect your configuration
 #else
-  const char *sd_str[]={"sdio"};      // edit to reflect your configuration
-  const int cs[] = {BUILTIN_SDCARD};  // edit to reflect your configuration
+//  const char *sd_str[]={"sdio"};      // edit to reflect your configuration
+//  const int cs[] = {BUILTIN_SDCARD};  // edit to reflect your configuration
+  const char *sd_str[]={"sd1"};      // edit to reflect your configuration
+  const int cs[] = {38};  // edit to reflect your configuration
 #endif
   const int nsd = sizeof(cs)/sizeof(int);
 
 SDClass sdx[nsd];
-#if DO_LITTLEFS==1
+#if __has_include("LittleFS.h")
   LittleFS_RAM ramfs;
 #endif
 
