@@ -458,7 +458,11 @@ void mtp_lock_storage(bool lock) {}
     Record p2o = p2;
     Record p3o = p3;
 
-    if(p1.store != p2.store) return false; //comment or remove after disk to disk move is proven to work
+    #define DISK2DISK_MOVE 0 //set to 1 after disk to disk move is proven to work
+    #if DISK_2DISK_MOVE==0
+      if(p1.store != p2.store) 
+      { Serial.println(" Disk to Disk move is not supported"); return false; }
+    #endif
 
     char oldName[256];
     uint16_t store0 = ConstructFilename(handle, oldName, 256);
