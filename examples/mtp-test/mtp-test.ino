@@ -1,14 +1,14 @@
 #include "Arduino.h"
 
-#include "LittleFS_dummy.h" // add an empty file to LittleFS/src
-#if __has_include("LittleFS.h")
-  #define DO_LITTLEFS 1    // set to zero if not wanted // needs LittleFS installed as library
+#include "MTP.h"
+#include "usb1_mtp.h"
+
+#if HAVE_LITTLEFS==1        // is defined in storage.h
+  #define DO_LITTLEFS 1     // set to zero if not wanted // needs LittleFS installed as library
+  #define RAM_DISK_STORAGE (8'000'000)
 #else
   #define DO_LITTLEFS 0
 #endif
-
-#include "MTP.h"
-#include "usb1_mtp.h"
 
 
 /****  Start device specific change area  ****/
@@ -29,9 +29,10 @@
 #endif
   const int nsd = sizeof(cs)/sizeof(int);
 
+// classes need to be declared here (in storage.h there are declared external)
 SDClass sdx[nsd];
-#if __has_include("LittleFS.h")
-  LittleFS_RAM ramfs; // needs to be defined if LittleFS.h exists in include path
+#if HAVE_LITTLEFS==1
+  LittleFS_RAM ramfs; // needs to be declared if LittleFS is used in storage.h
 #endif
 
 void storage_configure(MTPStorage_SD *storage, const char **sd_str, const int *cs, SDClass *sdx, int num)
@@ -56,16 +57,25 @@ void storage_configure(MTPStorage_SD *storage, const char **sd_str, const int *c
       }
       #if DO_LITTLEFS==1
         else if(cs[ii]==256) // LittleFS_RAM
-        { if(!ramfs.begin(8'000'000)) { Serial.println("No storage"); while(1);}
+        { if(!ramfs.begin(RAM_DISK_STORAGE)) { Serial.println("No storage"); while(1);}
         }
       #endif
-      if(ii<256)
+      if(cs[ii]<256)
       {
-        uint32_t volCount  = sdx[ii].sdfs.clusterCount();
+        uint32_t volCount = sdx[ii].sdfs.clusterCount();
         uint32_t volFree  = sdx[ii].sdfs.freeClusterCount();
-        uint32_t volClust = sdx[ii].sdfs.sectorsPerCluster();
+        uint32_t volClust = sdx[ii].sdfs.sectorsPerCluster()*512;
         Serial.printf("Storage %d %d %s %d %d %d\n",ii,cs[ii],sd_str[ii],volCount,volFree,volClust);
       }
+      #if DO_LITTLEFS==1
+        else if(cs[ii]==256) // LittleFS_RAM
+        {
+          uint32_t volCount = ramfs.totalSize();
+          uint32_t volFree  = volCount - ramfs.usedSize();
+          uint32_t volClust = 1;
+          Serial.printf("Storage %d %d %s %d %d %d\n",ii,cs[ii],sd_str[ii],volCount,volFree,volClust);
+        }
+      #endif
     }
 }
 /****  End of device specific change area  ****/

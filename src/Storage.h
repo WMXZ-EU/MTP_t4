@@ -29,6 +29,8 @@
 
 #include "core_pins.h"
 
+#define HAVE_LITTLEFS 1 // set to zero if no LtttleFS is existing or to be used
+
 #include "SD.h"
 #ifndef FILE_WRITE_BEGIN
   #define FILE_WRITE_BEGIN 2
@@ -37,40 +39,73 @@
 // following is a device specific base class for storage classs
 extern SDClass sdx[];
 
-#include "LittleFS_dummy.h" // add an empty file to LittleFS/src
-#if __has_include("LittleFS.h")
+
+#if HAVE_LITTLEFS==1
 #include "LittleFS.h"
 extern LittleFS_RAM ramfs;
+#endif
 
 class mSD_Base
 { 
   public:
   File sd_open(uint32_t store, const char *filename, uint32_t mode) 
-  { if(!cs || (cs[store]<256)) return sdx[store].open(filename,mode); else return ramfs.open(filename,mode);
+  { if(!cs || (cs[store]<256)) return sdx[store].open(filename,mode); 
+    #if HAVE_LITTLEFS==1
+    else if(cs[store]==256) return ramfs.open(filename,mode);
+    #endif
+    else return 0;
   }
   bool sd_mkdir(uint32_t store, char *filename) 
-  { if(!cs || (cs[store]<256)) return sdx[store].mkdir(filename); else return ramfs.mkdir(filename);
+  { if(!cs || (cs[store]<256)) return sdx[store].mkdir(filename); 
+    #if HAVE_LITTLEFS==1
+    else if(cs[store]==256)  return ramfs.mkdir(filename);
+    #endif
+    else return false;
   }
 
   bool sd_rename(uint32_t store, char *oldfilename, char *newfilename) 
-  { if(!cs || (cs[store]<256)) return sdx[store].rename(oldfilename,newfilename); else return ramfs.rename(oldfilename,newfilename);
-    
+  { if(!cs || (cs[store]<256)) return sdx[store].rename(oldfilename,newfilename); 
+    #if HAVE_LITTLEFS==1
+    else if(cs[store]==256)  return ramfs.rename(oldfilename,newfilename);
+    #endif
+    else return false;
   }
+
   bool sd_remove(uint32_t store, const char *filename) 
-  { if(!cs || (cs[store]<256)) return sdx[store].remove(filename); else return ramfs.remove(filename);
+  { if(!cs || (cs[store]<256)) return sdx[store].remove(filename); 
+    #if HAVE_LITTLEFS==1
+    else if(cs[store]==256)  return ramfs.remove(filename);
+    #endif
+    else return false;
   }
   bool sd_rmdir(uint32_t store, char *filename) 
-  { if(!cs || (cs[store]<256)) return sdx[store].rmdir(filename); else return ramfs.rmdir(filename);
+  { if(!cs || (cs[store]<256)) return sdx[store].rmdir(filename); 
+    #if HAVE_LITTLEFS==1
+    else if(cs[store]==256)  return ramfs.rmdir(filename);
+    #endif
+    else return false;
   }
     
   uint32_t sd_totalClusterCount(uint32_t store) 
-  { if(!cs || (cs[store]<256)) return sdx[store].sdfs.clusterCount(); else return ramfs.totalSize()/512;
-  }
+  { if(!cs || (cs[store]<256)) return sdx[store].sdfs.clusterCount(); 
+    #if HAVE_LITTLEFS==1
+    else if(cs[store]==256)  return ramfs.totalSize()/512; 
+    #endif
+    else return 0;
+ }
   uint32_t sd_freeClusterCount(uint32_t store)  
-  { if(!cs || (cs[store]<256)) return sdx[store].sdfs.freeClusterCount(); else return (ramfs.totalSize()-ramfs.usedSize())/512;
+  { if(!cs || (cs[store]<256)) return sdx[store].sdfs.freeClusterCount(); 
+    #if HAVE_LITTLEFS==1
+    else if(cs[store]==256)  return (ramfs.totalSize()-ramfs.usedSize())/512; 
+    #endif
+    else return 0;
   }
   uint32_t sd_sectorsPerCluster(uint32_t store) 
-  { if(!cs || (cs[store]<256)) return sdx[store].sdfs.sectorsPerCluster(); else return 1;
+  { if(!cs || (cs[store]<256)) return sdx[store].sdfs.sectorsPerCluster();
+    #if HAVE_LITTLEFS==1
+    else if(cs[store]==256)  return 1;
+    #endif
+    else return 0;
   }
 
   bool setCs(const int *csx) { cs = csx; return true; }
@@ -78,27 +113,6 @@ class mSD_Base
   private:
   const int * cs = 0;
 };
-#else
-class mSD_Base
-{ 
-  public:
-  File sd_open(uint32_t store, const char *filename, uint32_t mode) { return sdx[store].open(filename,mode); }
-  bool sd_mkdir(uint32_t store, char *filename) { return sdx[store].mkdir(filename); }
-
-  bool sd_rename(uint32_t store, char *oldfilename, char *newfilename) { return sdx[store].rename(oldfilename,newfilename); }
-  bool sd_remove(uint32_t store, const char *filename) { return sdx[store].remove(filename); }
-  bool sd_rmdir(uint32_t store, char *filename) { return sdx[store].rmdir(filename); }
-    
-  uint32_t sd_totalClusterCount(uint32_t store) { return sdx[store].sdfs.clusterCount(); }
-  uint32_t sd_freeClusterCount(uint32_t store)  { return sdx[store].sdfs.freeClusterCount(); }
-  uint32_t sd_sectorsPerCluster(uint32_t store) { return sdx[store].sdfs.sectorsPerCluster();  }
-
-  bool setCs(const int *csx) { cs = csx; return true; }
-
-  private:
-  const int * cs = 0;
-};
-#endif
 
 // This interface lets the MTP responder interface any storage.
 // We'll need to give the MTP responder a pointer to one of these.
