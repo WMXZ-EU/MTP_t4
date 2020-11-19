@@ -12,8 +12,9 @@ files in different copy-to directories contain modifications of cores and need t
 
 needs USB2 https://github.com/WMXZ-EU/USB2 for T4.x. (uses here usb1.h and usb1.c)
 
+
 ## Features
-Supports multiple storages (SDIO and and multiple SPI disks)
+Supports multiple storages (SDIO, multiple SPI disks, LittleFS_xxx disks)
 
 copying files from Teensy to PC  and from PC to Teensy is working
 
@@ -36,11 +37,13 @@ Modification of disk content (directories and Files) by Teensy is only be visibl
    - T3.x edit teensy/avr/cores/teensy3/usb_desc.h with content of 'modifications_for_cores_teensy3' (insert after MTP_DISK)
    - edit teensy/avr/boards.txt with content of 'modifications_for_teensy_avr' (copy to end of file)
  - install also USB2 from WMXZ github
+ - install LittleFS from https://github.com/PaulStoffregen/LittleFS 
 
  ## Known Issues
   - move of multiple files cross different storages will block MTP 
   - moving files within storage should work
   - moving single files cross different storages should work (if files can be opened and read)
+  - only LittlteFS_RAM implemented and tested
   
  ## ToBeDone
  - copy files 
