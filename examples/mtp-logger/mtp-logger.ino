@@ -15,8 +15,21 @@
 //PIN  13 RXD0
 //PIN  38 RXD1
 
+#include "SD.h"
+
 #include "MTP.h"
 #include "usb1_mtp.h"
+
+#define HAVE_LITTLEFS 1 // set to zero if no LtttleFS is existing or to be used
+
+#if HAVE_LITTLEFS==1        // is defined in storage.h
+  #define DO_LITTLEFS 1     // set to zero if not wanted // needs LittleFS installed as library
+  #define RAM_DISK_STORAGE (8'000'000)
+
+  #include "LittleFS.h"
+#else
+  #define DO_LITTLEFS 0
+#endif
 
 /****  Start device specific change area  ****/
 
@@ -36,12 +49,16 @@
   const int cs[] = {BUILTIN_SDCARD};  // edit to reflect your configuration
   const int nsd = sizeof(cs)/sizeof(int);
 
+// classes need to be declared here (in storage.h there are declared external)
 SDClass sdx[nsd];
-#if __has_include("LittleFS.h")
-  LittleFS_RAM ramfs; // needs to be defined if LittleFS.h exists in include path
+#if HAVE_LITTLEFS==1
+  LittleFS_RAM ramfs; // needs to be declared if LittleFS is used in storage.h
 #endif
 
-void storage_configure(MTPStorage_SD *storage, const char **sd_str, const int *cs, SDClass *sdx, int num)
+MTPStorage_SD storage;
+MTPD       mtpd(&storage);
+
+void storage_configure()
 {
     #if defined SD_SCK
       SPI.setMOSI(SD_MOSI);
@@ -49,28 +66,41 @@ void storage_configure(MTPStorage_SD *storage, const char **sd_str, const int *c
       SPI.setSCK(SD_SCK);
     #endif
 
-    storage->setStorageNumbers(sd_str,nsd);
-
     for(int ii=0; ii<nsd; ii++)
     { if(cs[ii] == BUILTIN_SDCARD)
       {
-        if(!sdx[ii].sdfs.begin(SdioConfig(FIFO_SDIO))){Serial.println("No storage"); while(1);};
+        if(!sdx[ii].sdfs.begin(SdioConfig(FIFO_SDIO))) {Serial.println("No storage"); while(1);};
+        storage.addFilesystem(sdx[ii],cs[ii],sd_str[ii]);
       }
-      else
+      else if(cs[ii]<BUILTIN_SDCARD)
       {
         pinMode(cs[ii],OUTPUT); digitalWriteFast(cs[ii],HIGH);
         if(!sdx[ii].sdfs.begin(SdSpiConfig(cs[ii], SHARED_SPI, SPI_SPEED))) {Serial.println("No storage"); while(1);}
+        storage.addFilesystem(sdx[ii],cs[ii],sd_str[ii]);
       }
-      uint32_t volCount  = sdx[ii].sdfs.clusterCount();
-      uint32_t volFree  = sdx[ii].sdfs.freeClusterCount();
-      uint32_t volClust = sdx[ii].sdfs.sectorsPerCluster();
-      Serial.printf("Storage %d %d %s %d %d %d\n",ii,cs[ii],sd_str[ii],volCount,volFree,volClust);
+      #if DO_LITTLEFS==1
+        else if(cs[ii]==256) // LittleFS_RAM
+        { if(!ramfs.begin(RAM_DISK_STORAGE)) { Serial.println("No storage"); while(1);}
+          storage.addFilesystem(ramfs,cs[ii],sd_str[ii]);
+        }
+      #endif
+      if(cs[ii]<256)
+      {
+        uint64_t totalSize = sdx[ii].totalSize();
+        uint64_t usedSize  = sdx[ii].usedSize();
+        Serial.printf("Storage %d %d %s ",ii,cs[ii],sd_str[ii]); Serial.print(totalSize); Serial.print(" "); Serial.println(usedSize);
+      }
+      #if DO_LITTLEFS==1
+        else if(cs[ii]==256) // LittleFS_RAM
+        {
+        uint64_t totalSize = ramfs.totalSize();
+        uint64_t usedSize  = ramfs.usedSize();
+        Serial.printf("Storage %d %d %s ",ii,cs[ii],sd_str[ii]); Serial.print(totalSize); Serial.print(" "); Serial.println(usedSize);
+        }
+      #endif
     }
 }
 /****  End of device specific change area  ****/
-
-MTPStorage_SD storage;
-MTPD       mtpd(&storage);
 
 void logg(uint32_t del, const char *txt);
 
@@ -87,7 +117,7 @@ void setup()
   Serial.println("MTP logger");
 
   usb_mtp_configure();
-  storage_configure(&storage, sd_str,cs, sdx, nsd);
+  storage_configure();
 
   acq_init(93750); // is fixed for this example, to be modified below
   state=-1;

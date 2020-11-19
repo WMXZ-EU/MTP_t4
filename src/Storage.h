@@ -23,102 +23,65 @@
 
 // modified for SDFS by WMXZ
 // Nov 2020 adapted to SdFat-beta / SD combo
+// 19-nov-2020 adapted to FS
 
 #ifndef Storage_H
 #define Storage_H
 
 #include "core_pins.h"
 
-#define HAVE_LITTLEFS 1 // set to zero if no LtttleFS is existing or to be used
-
-#include "SD.h"
+#include "Fs.h"
 #ifndef FILE_WRITE_BEGIN
   #define FILE_WRITE_BEGIN 2
 #endif
 
-// following is a device specific base class for storage classs
-extern SDClass sdx[];
 
-
-#if HAVE_LITTLEFS==1
-#include "LittleFS.h"
-extern LittleFS_RAM ramfs;
-#endif
+#define MTPD_MAX_FILESYSEMS  20
 
 class mSD_Base
-{ 
+{
   public:
-  File sd_open(uint32_t store, const char *filename, uint32_t mode) 
-  { if(!cs || (cs[store]<256)) return sdx[store].open(filename,mode); 
-    #if HAVE_LITTLEFS==1
-    else if(cs[store]==256) return ramfs.open(filename,mode);
-    #endif
-    else return 0;
-  }
-  bool sd_mkdir(uint32_t store, char *filename) 
-  { if(!cs || (cs[store]<256)) return sdx[store].mkdir(filename); 
-    #if HAVE_LITTLEFS==1
-    else if(cs[store]==256)  return ramfs.mkdir(filename);
-    #endif
-    else return false;
-  }
+    mSD_Base() {
+      fsCount = 0;
+    }
 
-  bool sd_rename(uint32_t store, char *oldfilename, char *newfilename) 
-  { if(!cs || (cs[store]<256)) return sdx[store].rename(oldfilename,newfilename); 
-    #if HAVE_LITTLEFS==1
-    else if(cs[store]==256)  return ramfs.rename(oldfilename,newfilename);
-    #endif
-    else return false;
-  }
+    void sd_addFilesystem(FS &fs, int ics, const char *name) {
+      if (fsCount < MTPD_MAX_FILESYSEMS) {
+        cs[fsCount] = ics;
+        sd_name[fsCount] = name;
+        sdx[fsCount++] = &fs;
+      }
+    }
 
-  bool sd_remove(uint32_t store, const char *filename) 
-  { if(!cs || (cs[store]<256)) return sdx[store].remove(filename); 
-    #if HAVE_LITTLEFS==1
-    else if(cs[store]==256)  return ramfs.remove(filename);
-    #endif
-    else return false;
-  }
-  bool sd_rmdir(uint32_t store, char *filename) 
-  { if(!cs || (cs[store]<256)) return sdx[store].rmdir(filename); 
-    #if HAVE_LITTLEFS==1
-    else if(cs[store]==256)  return ramfs.rmdir(filename);
-    #endif
-    else return false;
-  }
-    
-  uint32_t sd_totalClusterCount(uint32_t store) 
-  { if(!cs || (cs[store]<256)) return sdx[store].sdfs.clusterCount(); 
-    #if HAVE_LITTLEFS==1
-    else if(cs[store]==256)  return ramfs.totalSize()/512; 
-    #endif
-    else return 0;
- }
-  uint32_t sd_freeClusterCount(uint32_t store)  
-  { if(!cs || (cs[store]<256)) return sdx[store].sdfs.freeClusterCount(); 
-    #if HAVE_LITTLEFS==1
-    else if(cs[store]==256)  return (ramfs.totalSize()-ramfs.usedSize())/512; 
-    #endif
-    else return 0;
-  }
-  uint32_t sd_sectorsPerCluster(uint32_t store) 
-  { if(!cs || (cs[store]<256)) return sdx[store].sdfs.sectorsPerCluster();
-    #if HAVE_LITTLEFS==1
-    else if(cs[store]==256)  return 1;
-    #endif
-    else return 0;
-  }
+    uint32_t sd_getFSCount(void) {return fsCount;}
+    const char *sd_getFSName(uint32_t storage) { return sd_name[storage-1];}
 
-  bool setCs(const int *csx) { cs = csx; return true; }
+    File sd_open(uint32_t store, const char *filename, uint32_t mode) { return sdx[store]->open(filename,mode);  }
+    bool sd_mkdir(uint32_t store, char *filename) {  return sdx[store]->mkdir(filename);  }
+    bool sd_rename(uint32_t store, char *oldfilename, char *newfilename) { return sdx[store]->rename(oldfilename,newfilename);  }
+    bool sd_remove(uint32_t store, const char *filename) { return sdx[store]->remove(filename);  }
+    bool sd_rmdir(uint32_t store, char *filename) { return sdx[store]->rmdir(filename);  }
+    uint64_t sd_totalSize(uint32_t store) { return sdx[store]->totalSize();  }
+    uint64_t sd_usedSize(uint32_t store)  { return sdx[store]->usedSize();  }
 
   private:
-  const int * cs = 0;
+    int fsCount;
+    const char *sd_name[MTPD_MAX_FILESYSEMS];
+    FS *sdx[MTPD_MAX_FILESYSEMS];
+    int cs[MTPD_MAX_FILESYSEMS];
+
 };
 
 // This interface lets the MTP responder interface any storage.
 // We'll need to give the MTP responder a pointer to one of these.
 class MTPStorageInterface {
 public:
-  virtual void setStorageNumbers(const char **sd_str, const int *cs, int num) =0;
+  virtual void addFilesystem(FS &filesystem, int ics, const char *name)=0;
+  virtual uint32_t get_FSCount(void) = 0;
+  virtual const char *get_FSName(uint32_t storage) = 0;
+
+  virtual uint64_t totalSize(uint32_t storage) = 0;
+  virtual uint64_t usedSize(uint32_t storage) = 0;
 
   // Return true if this storage is read-only
   virtual bool readonly(uint32_t storage) = 0;
@@ -126,18 +89,9 @@ public:
   // Does it have directories?
   virtual bool has_directories(uint32_t storage) = 0;
 
-  virtual uint32_t clusterCount(uint32_t storage) = 0;
-  virtual uint32_t freeClusters(uint32_t storage) = 0;
-  virtual uint32_t clusterSize(uint32_t storage) = 0;
-
-  virtual uint32_t getNumStorage() = 0;
-  virtual const char * getStorageName(uint32_t storage) = 0;
-  // parent = 0 means get all handles.
-  // parent = 0xFFFFFFFF means get root folder.
   virtual void StartGetObjectHandles(uint32_t storage, uint32_t parent) = 0;
   virtual uint32_t GetNextObjectHandle(uint32_t  storage) = 0;
 
-  // Size should be 0xFFFFFFFF if it's a directory.
   virtual void GetObjectInfo(uint32_t handle, char* name, uint32_t* size, uint32_t* parent, uint16_t *store) = 0;
   virtual uint32_t GetSize(uint32_t handle) = 0;
 
@@ -168,9 +122,9 @@ public:
 
 // Storage implementation for SD. SD needs to be already initialized.
 class MTPStorage_SD : public MTPStorageInterface, mSD_Base
-{
+{ 
 public:
-  void setStorageNumbers(const char **sd_str, const int *cs, int num) override;
+  void addFilesystem(FS &fs, int ics, const char *name) { sd_addFilesystem(fs,ics,name);}
 
 private:
   File index_;
@@ -186,9 +140,8 @@ private:
   bool readonly(uint32_t storage);
   bool has_directories(uint32_t storage) ;
   
-  uint32_t clusterCount(uint32_t storage) ;
-  uint32_t freeClusters(uint32_t storage) ;
-  uint32_t clusterSize(uint32_t storage) ;
+  uint64_t totalSize(uint32_t storage) ;
+  uint64_t usedSize(uint32_t storage) ;
 
   void CloseIndex() ;
   void OpenIndex() ;
@@ -211,8 +164,9 @@ private:
   void dumpIndexList(void);
   void printRecord(int h, Record *p);
 
-  uint32_t getNumStorage() override;
-  const char * getStorageName(uint32_t storage) override;
+  uint32_t get_FSCount(void) {return sd_getFSCount();}
+  const char *get_FSName(uint32_t storage) { return sd_getFSName(storage);}
+
   void StartGetObjectHandles(uint32_t storage, uint32_t parent) override ;
   uint32_t GetNextObjectHandle(uint32_t  storage) override ;
   void GetObjectInfo(uint32_t handle, char* name, uint32_t* size, uint32_t* parent, uint16_t *store) override ;

@@ -64,7 +64,7 @@ LIBS_SHARED_BASE := $(ROOT0)\Arduino\libraries
 LIBS_SHARED      := MTP_t4 USB2
 
 LIBS_LOCAL_BASE  := $(ARDUINO)\teensy\avr\libraries
-LIBS_LOCAL       := SdFat-beta SD SPI Time
+LIBS_LOCAL       := SdFat-beta SD SPI Time  LittleFS
 
 CORE_BASE        := $(ARDUINO)\teensy\avr\cores\$(Family)
 GCC_BASE         := $(ARDUINO)\tools\arm\bin

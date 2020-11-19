@@ -227,7 +227,8 @@
   }
 
   void MTPD::WriteStorageIDs() {
-    uint32_t num=storage_->getNumStorage();
+//    uint32_t num=storage_->getNumStorage();
+    uint32_t num=storage_->get_FSCount();
     write32(num); // 1 entry
     for(uint32_t ii=1;ii<=num;ii++)  write32(ii); // storage id
   }
@@ -237,23 +238,24 @@
     write16(storage_->has_directories( storage) ? 0x0002: 0x0001);   // filesystem type (generic hierarchical)
     write16(0x0000);   // access capability (read-write)
     
-    uint32_t nclust = storage_->clusterCount(storage) ; 
-    uint32_t nsect = storage_->clusterSize(storage) ; 
-    uint32_t nfree = storage_->freeClusters(storage) ; 
-    write64((uint64_t)nclust*nsect*512L);  // max capacity
-    write64((uint64_t)nfree*nsect*512L);  // free space (100M)
+    uint64_t ntotal = storage_->totalSize(storage) ; 
+    uint64_t nused = storage_->usedSize(storage) ; 
+    write64(ntotal);  // max capacity
+    write64((ntotal-nused));  // free space (100M)
     //
     write32(0xFFFFFFFFUL);  // free space (objects)
-    const char *name = storage_->getStorageName(storage);
+//    const char *name = storage_->getStorageName(storage);
+    const char *name = storage_->get_FSName(storage);
     writestring(name);  // storage descriptor
     writestring("");  // volume identifier
   }
 
   uint32_t MTPD::GetNumObjects(uint32_t storage, uint32_t parent) 
-  {
+  { printf("%d %d\n",storage,parent);
     storage_->StartGetObjectHandles(storage, parent);
     int num = 0;
     while (storage_->GetNextObjectHandle(storage)) num++;
+    printf("%d\n",num);
     return num;
   }
 

@@ -44,7 +44,8 @@
 // MTP Responder.
 class MTPD {
 public:
-  explicit MTPD(MTPStorageInterface* storage) : storage_(storage) {}
+
+  explicit MTPD(MTPStorageInterface* storage): storage_(storage) {}
 
 private:
   MTPStorageInterface* storage_;

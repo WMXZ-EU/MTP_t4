@@ -36,7 +36,7 @@
   #define sd_getName(x,y,n) strcpy(y,x.name())
 
   #define indexFile "/mtpindex.dat"
-
+/*
    #include "TimeLib.h"
   // Call back for file timestamps.  Only called for file create and sync().
   void dateTime(uint16_t* date, uint16_t* time, uint8_t* ms10) 
@@ -50,7 +50,7 @@
     // Return low time bits in units of 10 ms.
     *ms10 = second() & 1 ? 100 : 0;
   }
-  
+*/
 // TODO:
 //   support serialflash
 //   partial object fetch/receive
@@ -63,9 +63,8 @@ void mtp_lock_storage(bool lock) {}
   bool MTPStorage_SD::readonly(uint32_t storage) { return false; }
   bool MTPStorage_SD::has_directories(uint32_t storage) { return true; }
 
-  uint32_t MTPStorage_SD::clusterCount(uint32_t storage) { return sd_totalClusterCount(storage-1); }
-  uint32_t MTPStorage_SD::freeClusters(uint32_t storage) { return sd_freeClusterCount(storage-1); }
-  uint32_t MTPStorage_SD::clusterSize(uint32_t storage)  { return sd_sectorsPerCluster(storage-1); }
+  uint64_t MTPStorage_SD::totalSize(uint32_t storage) { return sd_totalSize(storage-1); }
+  uint64_t MTPStorage_SD::usedSize(uint32_t storage) { return sd_usedSize(storage-1); }
 
   void MTPStorage_SD::CloseIndex()
   {
@@ -94,8 +93,7 @@ void mtp_lock_storage(bool lock) {}
   }
 
   void MTPStorage_SD::WriteIndexRecord(uint32_t i, const Record& r) 
-  {
-    OpenIndex();
+  { OpenIndex();
     mtp_lock_storage(true);
     index_.seek(sizeof(r) * i);
     index_.write((char*)&r, sizeof(r));
@@ -165,6 +163,8 @@ void mtp_lock_storage(bool lock) {}
     sd_remove(0,indexFile);
     mtp_lock_storage(false);
 
+    num_storage = sd_getFSCount();
+
     index_entries_ = 0;
     Record r;
     for(int ii=0; ii<num_storage; ii++)
@@ -218,17 +218,17 @@ void mtp_lock_storage(bool lock) {}
     for (uint32_t i = 0; i < index_entries_; i++)  ScanDir(storage,i);
   }
 
-  void  MTPStorage_SD::setStorageNumbers(const char **str, const int *csx, int num) 
-  { sd_str = str; 
-    num_storage=num;
-    setCs(csx);
-  }
-  uint32_t MTPStorage_SD::getNumStorage() 
-  { if(num_storage) return num_storage; else return 1;
-  }
-  const char * MTPStorage_SD::getStorageName(uint32_t storage) 
-  { if(sd_str) return sd_str[storage-1]; else return "SD_DISK";
-  }
+//  void  MTPStorage_SD::setStorageNumbers(const char **str, const int *csx, int num) 
+//  { sd_str = str; 
+//    num_storage=num;
+//    setCs(csx);
+//  }
+//  uint32_t MTPStorage_SD::getNumStorage() 
+//  { if(num_storage) return num_storage; else return 1;
+//  }
+//  const char * MTPStorage_SD::getStorageName(uint32_t storage) 
+//  { if(sd_str) return sd_str[storage-1]; else return "SD_DISK";
+//  }
 
   void MTPStorage_SD::StartGetObjectHandles(uint32_t storage, uint32_t parent) 
   { 
