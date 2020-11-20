@@ -44,7 +44,8 @@ Modification of disk content (directories and Files) by Teensy is only be visibl
   - moving files within storage should work
   - moving single files cross different storages should work (if files can be opened and read)
   - only LittlteFS_RAM implemented and tested
+  - directories can conly be deleted if empty
   
  ## ToBeDone
- - copy files 
+ - copying files 
 
