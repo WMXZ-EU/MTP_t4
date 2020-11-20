@@ -16,7 +16,6 @@
   #define SPI_SPEED SD_SCK_MHZ(16)  // adjust to sd card 
 
 // SDClasses
-
   const char *sd_str[]={"sdio","sd6"}; // edit to reflect your configuration
   const int cs[] = {BUILTIN_SDCARD,38}; // edit to reflect your configuration
   const int nsd = sizeof(cs)/sizeof(int);

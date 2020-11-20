@@ -8,7 +8,7 @@
                       "${ROOT0}/libraries/Time/**",
                       "${ROOT0}/libraries/SD/**",
                       "${ROOT0}/libraries/LittleFS/**",
-                      "${ROOT0}/libraries/SdFat-beta/**",
+                      "${ROOT0}/libraries/SdFat/**",
                       "${LOCAL_LIBRARIES}/MTP_t4/**",
                       "${LOCAL_LIBRARIES}/USB2/**"
                     ],
