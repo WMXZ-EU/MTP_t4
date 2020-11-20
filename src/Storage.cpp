@@ -279,8 +279,63 @@ void mtp_lock_storage(bool lock) {}
   bool MTPStorage_SD::DeleteObject(uint32_t object)
   {
     char filename[256];
-    if(object==0xFFFFFFFFUL) return false; // don't do anything if trying to delete a root directory
-    Record r;
+//    Serial.printf("delete %x\n",object);
+
+    if(object==0xFFFFFFFFUL) return true; // don't do anything if trying to delete a root directory see below
+
+    Record r= ReadIndexRecord(object);
+    Record t = ReadIndexRecord(r.parent);
+    Record ro = r;
+    Record to = t;
+    Record x;
+    Record xo;
+    uint32_t is=0;
+//    Serial.printf("%d %d %d %s\n",r.isdir,r.child,r.scanned,r.name);
+    if(!r.isdir || (!r.child && r.scanned)) // if file or empty directory
+    { // first create full filename
+      ConstructFilename(object, filename, 256);
+      //
+      { if(t.child==object)
+        { // we are the jungest, simply relink parent to older sibling
+          t.child = r.sibling;
+          WriteIndexRecord(r.parent, t);
+//          Serial.printf("A: %x %x %s\n",object,is,t.name);
+        }
+        else
+        { // link junger to older sibling
+          // find junger sibling
+          is=t.child; // jungest sibling
+          x = ReadIndexRecord(is); 
+          while((is>r.store) && (x.sibling != object)) { is=x.sibling; x=ReadIndexRecord(is);}
+          // is points now to junder sibling
+          xo=x;
+          x.sibling = r.sibling;
+//          Serial.printf("B: %x %x %s\n",object,is,x.name);
+          WriteIndexRecord(is, x);
+        }
+        // delete now file
+        mtp_lock_storage(true);
+        Serial.println(filename);
+        bool success = r.isdir ? sd_rmdir(r.store,filename): sd_remove(r.store,filename);
+        mtp_lock_storage(false);
+        if(success)
+        { // mark object as deleted
+          r.name[0]=0;
+          WriteIndexRecord(object, r);
+        }
+        else
+        { // undo index manipulation
+           WriteIndexRecord(object, ro);
+           WriteIndexRecord(ro.parent, to);
+           if(is>0)WriteIndexRecord(is, xo);
+        }
+//        Serial.print("Success :"); Serial.println(success);
+        return success;
+      }
+    }
+    return true;
+
+    /*
     while (true) {
       r = ReadIndexRecord(object == 0xFFFFFFFFUL ? 0 : object); //
       if (!r.isdir) break;
@@ -322,6 +377,8 @@ void mtp_lock_storage(bool lock) {}
       }
     }
     return true;
+    */
+   
   }
 
   uint32_t MTPStorage_SD::Create(uint32_t storage, uint32_t parent,  bool folder, const char* filename)
@@ -463,7 +520,7 @@ void mtp_lock_storage(bool lock) {}
     uint16_t store0 = ConstructFilename(handle, oldName, 256);
     #if DEBUG==1
       Serial.print(store0); Serial.print(": ");Serial.println(oldName);
-      printIndexList();
+      dumpIndexList();
     #endif
 
     // remove from old direcory

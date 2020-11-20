@@ -35,7 +35,7 @@
 
 
 #define DEBUG 0
-#if DEBUG==1
+#if DEBUG>0
   #define printf(...) Serial.printf(__VA_ARGS__)
 #else
   #define printf(...) 
@@ -1220,7 +1220,9 @@
             CONTAINER->op=return_code;
             CONTAINER->transaction_id=id;
             CONTAINER->params[0]=p1;
-            printContainer(); // to switch on set debug to 1 at beginning of file
+            #if DEBUG >1
+              printContainer(); // to switch on set debug to 2 at beginning of file
+            #endif
 
             memcpy(tx_data_buffer,rx_data_buffer,len);
             push_packet(tx_data_buffer,len); // for acknowledge use rx_data_buffer

@@ -4,7 +4,7 @@
 #include "MTP.h"
 #include "usb1_mtp.h"
 
-#define HAVE_LITTLEFS 0 // set to zero if no LtttleFS is existing or to be used
+#define HAVE_LITTLEFS 1 // set to zero if no LtttleFS is existing or to be used
 
 /****  Start device specific change area  ****/
 
@@ -18,7 +18,7 @@
 // SDClasses
   const char *sd_str[]={"sdio","sd6"}; // edit to reflect your configuration
   const int cs[] = {BUILTIN_SDCARD,38}; // edit to reflect your configuration
-  const int nsd = 1;//sizeof(cs)/sizeof(int);
+  const int nsd = sizeof(cs)/sizeof(int);
 
 SDClass sdx[nsd];
 
