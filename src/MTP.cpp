@@ -872,7 +872,9 @@
       else 
       { 
         static uint8_t *dst=0;
-        if(!write_length_) dst=tx_data_buffer;   write_length_ += len;
+        if(!write_length_) dst=tx_data_buffer;   
+        write_length_ += len;
+        
         const char * src=data;
         //
         int pos = 0; // into data
