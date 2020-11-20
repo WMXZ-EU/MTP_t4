@@ -283,18 +283,19 @@ void mtp_lock_storage(bool lock) {}
 
     if(object==0xFFFFFFFFUL) return true; // don't do anything if trying to delete a root directory see below
 
-    Record r= ReadIndexRecord(object);
+    // first create full filename
+      ConstructFilename(object, filename, 256);
+
+    Record r = ReadIndexRecord(object);
     Record t = ReadIndexRecord(r.parent);
     Record ro = r;
     Record to = t;
     Record x;
     Record xo;
-    uint32_t is=0;
-//    Serial.printf("%d %d %d %s\n",r.isdir,r.child,r.scanned,r.name);
+    uint32_t is=-1;
+    Serial.printf("%d %d %d %s\n",r.isdir,r.child,r.scanned,r.name);
     if(!r.isdir || (!r.child && r.scanned)) // if file or empty directory
-    { // first create full filename
-      ConstructFilename(object, filename, 256);
-      //
+    { //
       { if(t.child==object)
         { // we are the jungest, simply relink parent to older sibling
           t.child = r.sibling;
@@ -333,6 +334,16 @@ void mtp_lock_storage(bool lock) {}
         return success;
       }
     }
+    if(!r.scanned) ScanDir(r.store, object) ; // have no info on directory, so scan it
+    Serial.printf("delete %d %d %d %s\n",object,r.child,r.scanned,r.name);
+    uint32_t ix = r.child;
+    while(ix)
+    { Record x= ReadIndexRecord(ix);
+      Serial.printf("%d %s\n",ix,x.name);
+      DeleteObject(ix);
+      ix=x.sibling;
+    }
+    DeleteObject(object);
     return true;
 
     /* // was old code
