@@ -29,8 +29,10 @@
 
 #undef USB_DESC_LIST_DEFINE
 #include "usb_desc.h"
+#if defined(__IMXRT1062__)
+  #include "usb1_mtp.h"
+#endif
 
-#include "usb1_mtp.h"
 
 #define DEBUG 0
 #if DEBUG==1
