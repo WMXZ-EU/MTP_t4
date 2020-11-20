@@ -366,7 +366,7 @@ void mtp_lock_storage(bool lock) {}
   void MTPStorage_SD::close() 
   {
     mtp_lock_storage(true);
-    uint64_t size = file_.size();
+    uint32_t size = (uint32_t) file_.size();
     file_.close();
     mtp_lock_storage(false);
     Record r = ReadIndexRecord(open_file_);
