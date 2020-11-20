@@ -2,7 +2,7 @@
 
 MTP Responder for Teensy 3.x and 4.x
 
-Uses SD interface and Bill Greiman's SdFat-beta as distributed via Teenyduino supporting exFAT and SDIO
+Uses SD interface and Bill Greiman's SdFat_V2 as distributed via Teenyduino supporting exFAT and SDIO
 
 code is based on https://github.com/yoonghm/MTP with modification by WMXZ
 
