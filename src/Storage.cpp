@@ -36,21 +36,6 @@
   #define sd_getName(x,y,n) strcpy(y,x.name())
 
   #define indexFile "/mtpindex.dat"
-/*
-   #include "TimeLib.h"
-  // Call back for file timestamps.  Only called for file create and sync().
-  void dateTime(uint16_t* date, uint16_t* time, uint8_t* ms10) 
-  { 
-    // Return date using FS_DATE macro to format fields.
-    *date = FS_DATE(year(), month(), day());
-
-    // Return time using FS_TIME macro to format fields.
-    *time = FS_TIME(hour(), minute(), second());
-    
-    // Return low time bits in units of 10 ms.
-    *ms10 = second() & 1 ? 100 : 0;
-  }
-*/
 // TODO:
 //   support serialflash
 //   partial object fetch/receive
@@ -95,7 +80,7 @@ void mtp_lock_storage(bool lock) {}
   void MTPStorage_SD::WriteIndexRecord(uint32_t i, const Record& r) 
   { OpenIndex();
     mtp_lock_storage(true);
-    index_.seek(sizeof(r) * i);
+    index_.seek((sizeof(r) * i));
     index_.write((char*)&r, sizeof(r));
     mtp_lock_storage(false);
   }
@@ -120,6 +105,7 @@ void mtp_lock_storage(bool lock) {}
     index_.seek(sizeof(ret) * i);
     index_.read((char *)&ret, sizeof(ret));
     mtp_lock_storage(false);
+
     return ret;
   }
 

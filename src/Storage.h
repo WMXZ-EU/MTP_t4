@@ -30,7 +30,7 @@
 
 #include "core_pins.h"
 
-#include "Fs.h"
+#include "FS.h"
 #ifndef FILE_WRITE_BEGIN
   #define FILE_WRITE_BEGIN 2
 #endif
@@ -45,9 +45,8 @@ class mSD_Base
       fsCount = 0;
     }
 
-    void sd_addFilesystem(FS &fs, int ics, const char *name) {
+    void sd_addFilesystem(FS &fs, const char *name) {
       if (fsCount < MTPD_MAX_FILESYSEMS) {
-        cs[fsCount] = ics;
         sd_name[fsCount] = name;
         sdx[fsCount++] = &fs;
       }
@@ -68,7 +67,6 @@ class mSD_Base
     int fsCount;
     const char *sd_name[MTPD_MAX_FILESYSEMS];
     FS *sdx[MTPD_MAX_FILESYSEMS];
-    int cs[MTPD_MAX_FILESYSEMS];
 
 };
 
@@ -76,7 +74,7 @@ class mSD_Base
 // We'll need to give the MTP responder a pointer to one of these.
 class MTPStorageInterface {
 public:
-  virtual void addFilesystem(FS &filesystem, int ics, const char *name)=0;
+  virtual void addFilesystem(FS &filesystem, const char *name)=0;
   virtual uint32_t get_FSCount(void) = 0;
   virtual const char *get_FSName(uint32_t storage) = 0;
 
@@ -124,7 +122,7 @@ public:
 class MTPStorage_SD : public MTPStorageInterface, mSD_Base
 { 
 public:
-  void addFilesystem(FS &fs, int ics, const char *name) { sd_addFilesystem(fs,ics,name);}
+  void addFilesystem(FS &fs, const char *name) { sd_addFilesystem(fs, name);}
 
 private:
   File index_;

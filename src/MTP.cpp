@@ -251,11 +251,9 @@
   }
 
   uint32_t MTPD::GetNumObjects(uint32_t storage, uint32_t parent) 
-  { printf("%d %d\n",storage,parent);
-    storage_->StartGetObjectHandles(storage, parent);
+  { storage_->StartGetObjectHandles(storage, parent);
     int num = 0;
     while (storage_->GetNextObjectHandle(storage)) num++;
-    printf("%d\n",num);
     return num;
   }
 
