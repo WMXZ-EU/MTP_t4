@@ -8,7 +8,7 @@
 
 /****  Start device specific change area  ****/
 
-  // edit SPI to reflect your configuration (following is fot T4.1)
+  // edit SPI to reflect your configuration (following is for T4.1)
   #define SD_MOSI 11
   #define SD_MISO 12
   #define SD_SCK  13

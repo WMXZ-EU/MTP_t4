@@ -335,7 +335,7 @@ void mtp_lock_storage(bool lock) {}
     }
     return true;
 
-    /*
+    /* // was old code
     while (true) {
       r = ReadIndexRecord(object == 0xFFFFFFFFUL ? 0 : object); //
       if (!r.isdir) break;
@@ -378,7 +378,7 @@ void mtp_lock_storage(bool lock) {}
     }
     return true;
     */
-   
+
   }
 
   uint32_t MTPStorage_SD::Create(uint32_t storage, uint32_t parent,  bool folder, const char* filename)
@@ -426,6 +426,8 @@ void mtp_lock_storage(bool lock) {}
     uint32_t size = (uint32_t) file_.size();
     file_.close();
     mtp_lock_storage(false);
+    //
+    // update record with file size
     Record r = ReadIndexRecord(open_file_);
     r.child = size;
     WriteIndexRecord(open_file_, r);
