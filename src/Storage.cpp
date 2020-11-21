@@ -524,12 +524,6 @@ void mtp_lock_storage(bool lock) {}
     Record p2o = p2;
     Record p3o = p3;
 
-    #define DISK2DISK_MOVE 0 //set to 1 after disk to disk move is proven to work
-    #if DISK_2DISK_MOVE==0
-      if(p1.store != p2.store) 
-      { Serial.println(" Disk to Disk move is not supported"); return false; }
-    #endif
-
     char oldName[MAX_FILENAME_LEN];
     uint16_t store0 = ConstructFilename(handle, oldName, MAX_FILENAME_LEN);
     #if DEBUG==1
@@ -572,7 +566,7 @@ void mtp_lock_storage(bool lock) {}
     uint32_t store1 = ConstructFilename(handle, newName, MAX_FILENAME_LEN);
     #if DEBUG==1
       Serial.print(store1); Serial.print(": ");Serial.println(newName);
-      printIndexList();
+      dumpIndexList();
     #endif
 
     if(p2.store == p3.store)
@@ -610,14 +604,13 @@ void mtp_lock_storage(bool lock) {}
     char buffer[nbuf];
     File f2 = sd_open(store1,newName,FILE_WRITE_BEGIN);
     if(sd_isOpen(f2))
-    { f2.seek(0); // position file to beginning (ARDUINO opens at end of file)
-      File f1 = sd_open(store0,oldName,FILE_READ);
+    { File f1 = sd_open(store0,oldName,FILE_READ);
       int nd;
       while(1)
       { nd=f1.read(buffer,nbuf);
-        if(nd<0) break;
+        if(nd<0) break;     // read error
         f2.write(buffer,nd);
-        if(nd<nbuf) break;
+        if(nd<nbuf) break;  // end of file
       }
       // check error
       if(nd<0) { Serial.print("File Read Error :"); Serial.println(f1.getReadError());}
@@ -625,6 +618,7 @@ void mtp_lock_storage(bool lock) {}
       // close all files
       f1.close();
       f2.close();
+      //
       if(nd<0) //  something went wrong
       { sd_remove(store1,newName); 
         // undo changes in index list
