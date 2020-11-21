@@ -232,7 +232,7 @@ extern struct usb_string_descriptor_struct usb_string_serial_number;
     char buf[20];    
     
     dtostrf( (float)(TEENSYDUINO / 100.0f), 3, 2, buf);
-    strlcat(buf, " MTP:" MTP_VERS, sizeof(buf) );
+    strlcat(buf, " / MTP " MTP_VERS, sizeof(buf) );
     writestring( buf );    
     
     for (size_t i=0; i<10; i++) buf[i] = usb_string_serial_number.wString[i];
