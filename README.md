@@ -14,16 +14,20 @@ needs USB2 https://github.com/WMXZ-EU/USB2 for T4.x. (uses here usb1.h and usb1.
 
 
 ## Features
-Supports multiple storages (SDIO, multiple SPI disks, LittleFS_xxx disks)
+ - Supports multiple MTP-disks (SDIO, multiple SPI disks, LittleFS_xxx disks)
+ - copying files from Teensy to PC  and from PC to Teensy is working
+ - disk I/O is buffered to get some speed-up overcoming uSD latency issues
+ - both Serialemu and true Serial may be used- True Serial port is, however, showing up as Everything in Com port. This is a workaround to get Serial working.
+ - deletion of files
+ - recursive deletion of directories
+ - creation of directories
+ - moving files and directories within a MTP-disk
 
-copying files from Teensy to PC  and from PC to Teensy is working
-
-disk I/O is buffered to get some speed-up overcoming uSD latency issues
-
-both Serialemu and true Serial may be used- True Serial port is, however, showing up as Everything in Com port. This is a workaround to get Serial working.
-
-Tested on T4.1 up to 450 MHz CPU speed
-
+## Limitations
+ - Maximal filename length is 256 but can be changed in Storage.h by changing the MAX_FILENAME_LEN definition
+ - within-MTP copy not implemented 
+ - creation of files is not supported
+ 
 ## Reset of Session
 Modification of disk content (directories and Files) by Teensy is only be visible on PC when done before mounting the MTP device. To refresh disk content it is necessary to unmount and remount Teensy MTP device. On Windows this can be done by using device manager and disable and reanable Teensy (found under portable Device). On Linux this is done with standard muount/unmount commands.
 
@@ -40,12 +44,10 @@ Modification of disk content (directories and Files) by Teensy is only be visibl
  - install LittleFS from https://github.com/PaulStoffregen/LittleFS 
 
  ## Known Issues
-  - move of multiple files cross different storages will block MTP 
-  - moving files within storage should work
-  - moving single files cross different storages should work (if files can be opened and read)
+  - move of multiple files cross different MTP-disks will block MTP 
+  - moving single files cross different MTP-disks should work  but needs more testing (if files can be opened and read)
   - only LittlteFS_RAM implemented and tested
-  - directories can conly be deleted if empty
-  
+   
  ## ToBeDone
  - copying files 
 
