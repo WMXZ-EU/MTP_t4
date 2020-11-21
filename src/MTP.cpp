@@ -33,6 +33,8 @@
   #include "usb1_mtp.h"
 #endif
 
+#include "usb_names.h"
+extern struct usb_string_descriptor_struct usb_string_serial_number; 
 
 #define DEBUG 0
 #if DEBUG>0
@@ -225,7 +227,10 @@
     writestring(MTP_MANUF);     // Manufacturer
     writestring(MTP_MODEL);     // Model
     writestring(MTP_VERS);      // version
-    writestring(MTP_SERNR);     // serial
+    //writestring(MTP_SERNR);     // serial
+    char buf[11];		// use Teensy usb-serial
+    for (size_t i=0; i<10; i++) buf[i] = usb_string_serial_number.wString[i];
+    writestring(buf);    
   }
 
   void MTPD::WriteStorageIDs() {
