@@ -226,9 +226,15 @@ extern struct usb_string_descriptor_struct usb_string_serial_number;
 
     writestring(MTP_MANUF);     // Manufacturer
     writestring(MTP_MODEL);     // Model
-    writestring(MTP_VERS);      // version
+    //writestring(MTP_VERS);      // version
     //writestring(MTP_SERNR);     // serial
-    char buf[11];		// use Teensy usb-serial
+    
+    char buf[20];    
+    
+    dtostrf( (float)(TEENSYDUINO / 100.0f), 3, 2, buf);
+    strlcat(buf, " MTP:" MTP_VERS, sizeof(buf) );
+    writestring( buf );    
+    
     for (size_t i=0; i<10; i++) buf[i] = usb_string_serial_number.wString[i];
     writestring(buf);    
   }
