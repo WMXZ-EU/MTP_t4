@@ -33,7 +33,7 @@
 #define DEBUG 0
 
   #define sd_isOpen(x)  (x)
-  #define sd_getName(x,y,n) strcpy(y,x.name())
+  #define sd_getName(x,y,n) strlcpy(y,x.name(),n)
 
   #define indexFile "/mtpindex.dat"
 // TODO:
@@ -119,8 +119,8 @@ void mtp_lock_storage(bool lock) {}
     }
     else 
     { ConstructFilename(tmp.parent, out, len);
-      if (out[strlen(out)-1] != '/') strcat(out, "/");
-      if(((strlen(out)+strlen(tmp.name)+1) < (unsigned) len)) strcat(out, tmp.name);
+      if (out[strlen(out)-1] != '/') strlcat(out, "/",len);
+      strlcat(out, tmp.name,len);
       return tmp.store;
     }
   }
@@ -128,8 +128,9 @@ void mtp_lock_storage(bool lock) {}
   void MTPStorage_SD::OpenFileByIndex(uint32_t i, uint32_t mode) 
   {
     if (open_file_ == i && mode_ == mode) return;
-    char filename[256];
-    uint16_t store = ConstructFilename(i, filename, 256);
+    char filename[MAX_FILENAME_LEN];
+    uint16_t store = ConstructFilename(i, filename, MAX_FILENAME_LEN);
+
     mtp_lock_storage(true);
     if(sd_isOpen(file_)) file_.close();
     file_=sd_open(store,filename,mode);
@@ -186,7 +187,7 @@ void mtp_lock_storage(bool lock) {}
         r.isdir = child_.isDirectory();
         r.child = r.isdir ? 0 : child_.size();
         r.scanned = false;
-        sd_getName(child_,r.name,64);
+        sd_getName(child_,r.name, MAX_FILENAME_LEN);
         sibling = AppendIndexRecord(r);
         child_.close();
       }
@@ -278,13 +279,13 @@ void mtp_lock_storage(bool lock) {}
 
   bool MTPStorage_SD::DeleteObject(uint32_t object)
   {
-    char filename[256];
+    char filename[MAX_FILENAME_LEN];
 //    Serial.printf("delete %x\n",object);
 
     if(object==0xFFFFFFFFUL) return true; // don't do anything if trying to delete a root directory see below
 
     // first create full filename
-      ConstructFilename(object, filename, 256);
+      ConstructFilename(object, filename, MAX_FILENAME_LEN);
 
     Record r = ReadIndexRecord(object);
     Record t = ReadIndexRecord(r.parent);
@@ -411,8 +412,8 @@ void mtp_lock_storage(bool lock) {}
     WriteIndexRecord(parent, p);
     if (folder) 
     {
-      char filename[256];
-      uint16_t store =ConstructFilename(ret, filename, 256);
+      char filename[MAX_FILENAME_LEN];
+      uint16_t store =ConstructFilename(ret, filename, MAX_FILENAME_LEN);
       mtp_lock_storage(true);
       sd_mkdir(store,filename);
       mtp_lock_storage(false);
@@ -446,25 +447,25 @@ void mtp_lock_storage(bool lock) {}
   }
 
   bool MTPStorage_SD::rename(uint32_t handle, const char* name) 
-  { char oldName[256];
-    char newName[256];
-    char temp[64];
+  { char oldName[MAX_FILENAME_LEN];
+    char newName[MAX_FILENAME_LEN];
+    char temp[MAX_FILENAME_LEN];
 
-    uint16_t store = ConstructFilename(handle, oldName, 256);
+    uint16_t store = ConstructFilename(handle, oldName, MAX_FILENAME_LEN);
     Serial.println(oldName);
 
     Record p1 = ReadIndexRecord(handle);
-    strcpy(temp,p1.name);
-    strcpy(p1.name,name);
+    strlcpy(temp,p1.name,MAX_FILENAME_LEN);
+    strlcpy(p1.name,name,MAX_FILENAME_LEN);
 
     WriteIndexRecord(handle, p1);
-    ConstructFilename(handle, newName, 256);
+    ConstructFilename(handle, newName, MAX_FILENAME_LEN);
     Serial.println(newName);
 
     if (sd_rename(store,oldName,newName)) return true;
 
     // rename failed; undo index update
-    strcpy(p1.name,temp);
+    strlcpy(p1.name,temp,MAX_FILENAME_LEN);
     WriteIndexRecord(handle, p1);
     return false;
   }
@@ -529,8 +530,8 @@ void mtp_lock_storage(bool lock) {}
       { Serial.println(" Disk to Disk move is not supported"); return false; }
     #endif
 
-    char oldName[256];
-    uint16_t store0 = ConstructFilename(handle, oldName, 256);
+    char oldName[MAX_FILENAME_LEN];
+    uint16_t store0 = ConstructFilename(handle, oldName, MAX_FILENAME_LEN);
     #if DEBUG==1
       Serial.print(store0); Serial.print(": ");Serial.println(oldName);
       dumpIndexList();
@@ -567,8 +568,8 @@ void mtp_lock_storage(bool lock) {}
     WriteIndexRecord(handle, p1);
     WriteIndexRecord(newParent,p2);
 
-    char newName[256];
-    uint32_t store1 = ConstructFilename(handle, newName, 256);
+    char newName[MAX_FILENAME_LEN];
+    uint32_t store1 = ConstructFilename(handle, newName, MAX_FILENAME_LEN);
     #if DEBUG==1
       Serial.print(store1); Serial.print(": ");Serial.println(newName);
       printIndexList();

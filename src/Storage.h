@@ -37,6 +37,9 @@
 
 
 #define MTPD_MAX_FILESYSEMS  20
+#ifndef MAX_FILENAME_LEN
+  #define MAX_FILENAME_LEN 256
+#endif
 
 class mSD_Base
 {
@@ -112,7 +115,7 @@ public:
     uint8_t isdir;
     uint8_t scanned;
     uint16_t store;  // index int physical storage (0 ... num_storages-1)
-    char name[64];
+    char name[MAX_FILENAME_LEN];
   };
 
   void mtp_yield(void);
