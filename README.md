@@ -22,13 +22,12 @@ needs USB2 https://github.com/WMXZ-EU/USB2 for T4.x. (uses here usb1.h and usb1.
  - recursive deletion of directories
  - creation of directories
  - moving files and directories within a MTP-disk
- - moving files cross different MTP-disks
+ - moving files and directories cross different MTP-disks
 
 ## Limitations
  - Maximal filename length is 256 but can be changed in Storage.h by changing the MAX_FILENAME_LEN definition
- - within-MTP copy not implemented 
- - creation of files is not supported
- - moving directories cross mtp-disks is not supported
+ - within-MTP copy not yet implemented (i.e no within-disk and cross-disk copy)
+ - creation of files is not supported only directories
  
 ## Reset of Session
 Modification of disk content (directories and Files) by Teensy is only be visible on PC when done before mounting the MTP device. To refresh disk content it is necessary to unmount and remount Teensy MTP device. AFAIK: On Windows this can be done by using device manager and disable and reanable Teensy (found under portable Device). On Linux this is done with standard muount/unmount commands.

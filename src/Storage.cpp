@@ -32,6 +32,34 @@
 
 #define DEBUG 0
 
+#if DEBUG>0
+  #define USE_DBG_MACROS 1
+#else
+  #define USE_DBG_MACROS 0
+#endif
+
+#define DBG_FILE "Storage.cpp"
+
+#if USE_DBG_MACROS==1
+  static void dbgPrint(uint16_t line) {
+    Serial.print(F("DBG_FAIL: "));
+    Serial.print(F(DBG_FILE));
+    Serial.write('.');
+    Serial.println(line);
+  }
+
+  #define DBG_PRINT_IF(b) if (b) {Serial.print(F(__FILE__));\
+                          Serial.println(__LINE__);}
+  #define DBG_HALT_IF(b) if (b) { Serial.print(F("DBG_HALT "));\
+                        Serial.print(F(__FILE__)); Serial.println(__LINE__);\
+                        while (true) {}}
+  #define DBG_FAIL_MACRO dbgPrint(__LINE__);
+#else  // USE_DBG_MACROS
+  #define DBG_FAIL_MACRO
+  #define DBG_PRINT_IF(b)
+  #define DBG_HALT_IF(b)
+#endif  // USE_DBG_MACROS
+
   #define sd_isOpen(x)  (x)
   #define sd_getName(x,y,n) strlcpy(y,x.name(),n)
 
@@ -399,8 +427,7 @@ void mtp_lock_storage(bool lock) {}
     if (parent == 0xFFFFFFFFUL) parent = storage-1;
     Record p = ReadIndexRecord(parent);
     Record r;
-    if (strlen(filename) > 62) return 0;
-    strcpy(r.name, filename);
+    strlcpy(r.name, filename,MAX_FILENAME_LEN);
     r.store = p.store;
     r.parent = parent;
     r.child = 0;
@@ -471,8 +498,7 @@ void mtp_lock_storage(bool lock) {}
   }
 
   void MTPStorage_SD::dumpIndexList(void)
-  {
-    for(uint32_t ii=0; ii<index_entries_; ii++)
+  { for(uint32_t ii=0; ii<index_entries_; ii++)
     { Record p = ReadIndexRecord(ii);
       Serial.printf("%d: %d %d %d %d %d %s\n",ii, p.store, p.isdir,p.parent,p.sibling,p.child,p.name);
     }
@@ -504,140 +530,207 @@ void mtp_lock_storage(bool lock) {}
  * save p1
  * save p2
  * 
- */
+*/
 
-  bool MTPStorage_SD::move(uint32_t handle,uint32_t storage, uint32_t newParent ) 
+  bool MTPStorage_SD::move(uint32_t handle, uint32_t newStorage, uint32_t newParent ) 
   { 
     #if DEBUG==1
-      Serial.printf("%d -> %d %d\n",handle,storage,newParent);
+      Serial.printf("%d -> %d %d\n",handle,newStorage,newParent);
     #endif
-    Record p1 = ReadIndexRecord(handle); 
+    if(newParent<=0) newParent=(newStorage-1); //storage runs from 1, while record.store runs from 0
 
-    uint32_t oldParent = p1.parent;
-    if(newParent<=0) newParent=(storage-1); //storage runs from 1, while record.store runs from 0
-    //Serial.printf("%d -> %d %d\n",handle,storage,newParent);
-
+    Record p1 = ReadIndexRecord(handle);
     Record p2 = ReadIndexRecord(newParent);
-    Record p3 = ReadIndexRecord(oldParent); 
-    // keep original storages
+    Record p3 = ReadIndexRecord(p1.parent); 
+
+    if(p1.isdir) 
+    { if(!p1.scanned) 
+      { ScanDir(p1.store, handle) ; // in case scan directory
+        WriteIndexRecord(handle, p1);
+      }
+    }
+
     Record p1o = p1;
     Record p2o = p2;
     Record p3o = p3;
+//    Serial.printf("%d %d %d\n",p1o.store,p1o.parent,p1o.child);
 
     char oldName[MAX_FILENAME_LEN];
-    uint16_t store0 = ConstructFilename(handle, oldName, MAX_FILENAME_LEN);
-    #if DEBUG==1
-      Serial.print(store0); Serial.print(": ");Serial.println(oldName);
+    ConstructFilename(handle, oldName, MAX_FILENAME_LEN);
+
+    #if DEBUG>1
+      Serial.print(p1.store); Serial.print(": "); Serial.println(oldName);
       dumpIndexList();
     #endif
 
-    // remove from old direcory
+//    Serial.printf("%d -> %d\n",p1.store,p2.store);
     uint32_t jx=-1;
-    Record px;
     Record pxo;
-    if(p3.child==handle)
-    {
-      p3.child = p1.sibling;
-      WriteIndexRecord(oldParent, p3);    
-    }
-    else
-    { jx = p3.child;
-      px = ReadIndexRecord(jx); 
-      pxo = px;
-      while(handle != px.sibling)
+
+      // remove index from old parent
+      Record px;
+      if(p3.child==handle)
       {
-        jx = px.sibling;
+        p3.child = p1.sibling;
+        WriteIndexRecord(p1.parent, p3);    
+      }
+      else
+      { jx = p3.child;
         px = ReadIndexRecord(jx); 
         pxo = px;
+        while(handle != px.sibling)
+        {
+          jx = px.sibling;
+          px = ReadIndexRecord(jx); 
+          pxo = px;
+        }
+        px.sibling = p1.sibling;
+        WriteIndexRecord(jx, px);
       }
-      px.sibling = p1.sibling;
-      WriteIndexRecord(jx, px);
+    
+      // add to new parent
+      p1.parent = newParent;
+      p1.store = p2.store;
+      p1.sibling = p2.child;
+      p2.child = handle;
+      WriteIndexRecord(handle, p1);
+      WriteIndexRecord(newParent,p2);
+
+      // now working on disk storage
+      char newName[MAX_FILENAME_LEN];
+      ConstructFilename(handle, newName, MAX_FILENAME_LEN);
+
+      #if DEBUG>1
+        Serial.print(p1.store); Serial.print(": ");Serial.println(newName);
+        dumpIndexList();
+      #endif
+
+
+    if(p1o.store == p2o.store)
+    { // do a simple rename (works for files and directories)
+      if(sd_rename(p1o.store,oldName,newName)) return true; else {DBG_FAIL_MACRO; goto fail;}
     }
-  
-    // add to new directory
-    p1.parent = newParent;
-    p1.store = p2.store;
-    p1.sibling = p2.child;
-    p2.child = handle;
-    WriteIndexRecord(handle, p1);
-    WriteIndexRecord(newParent,p2);
-
-    char newName[MAX_FILENAME_LEN];
-    uint32_t store1 = ConstructFilename(handle, newName, MAX_FILENAME_LEN);
-    #if DEBUG==1
-      Serial.print(store1); Serial.print(": ");Serial.println(newName);
-      dumpIndexList();
-    #endif
-
-    if(p2.store == p3.store)
-    {
-      if(sd_rename(store0,oldName,newName)) 
-        return true; 
-      else 
-      {
-        // undo changes in index list
-        if(jx<0) WriteIndexRecord(oldParent, p3o); else WriteIndexRecord(jx, pxo);
-        WriteIndexRecord(handle, p1o);
-        WriteIndexRecord(newParent,p2o);      
-        return false;
-      }
+    else if(!p1o.isdir)
+    { if(sd_copy(p1o.store,oldName, p2o.store, newName)) 
+      { sd_remove(p2o.store,oldName); return true; } else { DBG_FAIL_MACRO; goto fail;}
     }
-    //
-    // copy from one store to another (not completely tested yet)
-    // store0:oldName -> store1:newName
-    // do not move directories cross storages
-    if(p1.isdir) 
-    {
-      // undo changes in index list
-      if(jx<0) WriteIndexRecord(oldParent, p3o); else WriteIndexRecord(jx, pxo);
-      WriteIndexRecord(handle, p1o);
-      WriteIndexRecord(newParent,p2o);      
-      return false;
+    else
+    { // move directory cross mtp-disks
+      if(sd_moveDir(p1o.store,oldName,p2o.store,newName)) return true; else {DBG_FAIL_MACRO; goto fail;}
     }
-    // move needs to be done by physically copying file from one store to another one and deleting in old store
-    #if DEBUG==1
-      Serial.print(store0); Serial.print(": ");Serial.println(oldName);
-      Serial.print(store1); Serial.print(": ");Serial.println(newName);
-    #endif
 
-    const int nbuf = 2048;
-    char buffer[nbuf];
-    File f2 = sd_open(store1,newName,FILE_WRITE_BEGIN);
-    if(sd_isOpen(f2))
-    { File f1 = sd_open(store0,oldName,FILE_READ);
-      int nd;
-      while(1)
-      { nd=f1.read(buffer,nbuf);
-        if(nd<0) break;     // read error
-        f2.write(buffer,nd);
-        if(nd<nbuf) break;  // end of file
-      }
-      // check error
-      if(nd<0) { Serial.print("File Read Error :"); Serial.println(f1.getReadError());}
-
-      // close all files
-      f1.close();
-      f2.close();
-      //
-      if(nd<0) //  something went wrong
-      { sd_remove(store1,newName); 
-        // undo changes in index list
-        if(jx<0) WriteIndexRecord(oldParent, p3o); else WriteIndexRecord(jx, pxo);
-        WriteIndexRecord(handle, p1o);
-        WriteIndexRecord(newParent,p2o);      
-        return false;
-      }
-
-      // remove old files
-      if(sd_remove(store0,oldName)) 
-        return true; 
-      else 
-      { // undo changes in index list
-        if(jx<0) WriteIndexRecord(oldParent, p3o); else WriteIndexRecord(jx, pxo);
-        WriteIndexRecord(handle, p1o);
-        WriteIndexRecord(newParent,p2o);      
-        return false;
-      }
-    }
+  fail:
+    // undo changes in index list
+    if(jx<0) WriteIndexRecord(p1.parent, p3o); else WriteIndexRecord(jx, pxo);
+    WriteIndexRecord(handle, p1o);
+    WriteIndexRecord(newParent,p2o);      
     return false;
   }
+
+
+bool mSD_Base::sd_copy(uint32_t store0, char *oldfilename, uint32_t store1, char *newfilename)
+{
+  const int nbuf = 2048;
+  char buffer[nbuf];
+  int nd=-1;
+
+  #if DEBUG==1
+    Serial.print("From "); Serial.print(store0); Serial.print(": ");Serial.println(oldfilename);
+    Serial.print("To   "); Serial.print(store1); Serial.print(": ");Serial.println(newfilename);
+  #endif
+
+  File f1 = sd_open(store0,oldfilename,FILE_READ); if(!f1) {DBG_FAIL_MACRO; return false;}
+  File f2 = sd_open(store1,newfilename,FILE_WRITE_BEGIN);
+  if(!f2) { f1.close(); {DBG_FAIL_MACRO; return false;}}
+
+  while(f1.available()>0)
+  {
+    nd=f1.read(buffer,nbuf);
+//    Serial.print(nd); Serial.print(" ");
+    if(nd<0) break;     // read error
+    f2.write(buffer,nd);
+    if(nd<nbuf) break;  // end of file
+  }
+//  Serial.println();
+  // close all files
+  f1.close();
+  f2.close();
+  if(nd<0) {DBG_FAIL_MACRO; return false;}
+  return true;
+}
+
+bool mSD_Base::sd_moveDir(uint32_t store0, char *oldfilename, uint32_t store1, char *newfilename)
+{ // old and new are directory paths
+
+  char tmp0Name[MAX_FILENAME_LEN];
+  char tmp1Name[MAX_FILENAME_LEN];
+
+  if(!sd_mkdir(store1,newfilename))  {DBG_FAIL_MACRO; return false;}
+
+  File f1=sd_open(store0,oldfilename,FILE_READ);
+  if(!f1) {DBG_FAIL_MACRO; return false;}
+  { while(1)
+    {
+      strlcpy(tmp0Name,oldfilename,MAX_FILENAME_LEN);
+      if(tmp0Name[strlen(tmp0Name)-1]!='/') strlcat(tmp0Name,"/",MAX_FILENAME_LEN);
+
+      strlcpy(tmp1Name,newfilename,MAX_FILENAME_LEN);
+      if(tmp1Name[strlen(tmp1Name)-1]!='/') strlcat(tmp1Name,"/",MAX_FILENAME_LEN);
+
+      File f2=f1.openNextFile();
+      if(!f2) break;
+      { // generate filenames
+        strlcat(tmp0Name,f2.name(),MAX_FILENAME_LEN);
+        strlcat(tmp1Name,f2.name(),MAX_FILENAME_LEN);
+
+        if(f2.isDirectory())
+        { 
+          if(!sd_moveDir(store0, tmp0Name, store1, tmp1Name)) {DBG_FAIL_MACRO; return false;}
+        }
+        else
+        { 
+          if(!sd_copy(store0, tmp0Name, store1, tmp1Name)) {DBG_FAIL_MACRO; return false;}
+          if(!sd_remove(store0,tmp0Name)) {DBG_FAIL_MACRO; return false;}
+        }
+      }
+    }
+  }
+  return sd_rmdir(store0,oldfilename);
+}
+
+bool mSD_Base::sd_copyDir(uint32_t store0, char *oldfilename, uint32_t store1, char *newfilename)
+{ // old and new are directory paths
+
+  char tmp0Name[MAX_FILENAME_LEN];
+  char tmp1Name[MAX_FILENAME_LEN];
+
+  if(!sd_mkdir(store1,newfilename))  {DBG_FAIL_MACRO; return false;}
+
+  File f1=sd_open(store0,oldfilename,FILE_READ);
+  if(f1) 
+  {
+    strlcpy(tmp0Name,oldfilename,MAX_FILENAME_LEN);
+    if(tmp0Name[strlen(tmp0Name)-1]!='/') strlcat(tmp0Name,"/",MAX_FILENAME_LEN);
+
+    strlcpy(tmp1Name,newfilename,MAX_FILENAME_LEN);
+    if(tmp1Name[strlen(tmp1Name)-1]!='/') strlcat(tmp1Name,"/",MAX_FILENAME_LEN);
+
+    File f2=f1.openNextFile();
+    if(f2)
+    { // generate
+      strlcat(tmp0Name,f2.name(),MAX_FILENAME_LEN);
+
+      if(f2.isDirectory())
+      { 
+        strlcat(tmp1Name,f2.name(),MAX_FILENAME_LEN);
+        sd_copyDir(store0, tmp0Name, store1, tmp1Name);
+      }
+      else
+      { 
+        strlcat(tmp1Name,f2.name(),MAX_FILENAME_LEN);
+        sd_copy(store0, tmp0Name, store1, tmp1Name);
+      }
+    }
+  }
+  return true;
+}

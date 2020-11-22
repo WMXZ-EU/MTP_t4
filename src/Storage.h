@@ -63,14 +63,18 @@ class mSD_Base
     bool sd_rename(uint32_t store, char *oldfilename, char *newfilename) { return sdx[store]->rename(oldfilename,newfilename);  }
     bool sd_remove(uint32_t store, const char *filename) { return sdx[store]->remove(filename);  }
     bool sd_rmdir(uint32_t store, char *filename) { return sdx[store]->rmdir(filename);  }
+
     uint64_t sd_totalSize(uint32_t store) { return sdx[store]->totalSize();  }
     uint64_t sd_usedSize(uint32_t store)  { return sdx[store]->usedSize();  }
+
+    bool sd_copy(uint32_t store0, char *oldfilename, uint32_t store1, char *newfilename);
+    bool sd_copyDir(uint32_t store0, char *oldfilename, uint32_t store1, char *newfilename);
+    bool sd_moveDir(uint32_t store0, char *oldfilename, uint32_t store1, char *newfilename);
 
   private:
     int fsCount;
     const char *sd_name[MTPD_MAX_FILESYSEMS];
     FS *sdx[MTPD_MAX_FILESYSEMS];
-
 };
 
 // This interface lets the MTP responder interface any storage.
@@ -105,7 +109,7 @@ public:
 
   virtual void ResetIndex() = 0;
   virtual bool rename(uint32_t handle, const char* name) = 0 ;
-  virtual bool move(uint32_t handle, uint32_t newStore, uint32_t newParent ) = 0 ;
+  virtual bool move(uint32_t handle, uint32_t newStorage, uint32_t newParent ) = 0 ;
 };
 
   struct Record 
@@ -180,7 +184,7 @@ private:
   void close() override ;
 
   bool rename(uint32_t handle, const char* name) override ;
-  bool move(uint32_t handle, uint32_t newStore, uint32_t newParent ) override ;
+  bool move(uint32_t handle, uint32_t newStorage, uint32_t newParent ) override ;
   
   void ResetIndex() override ;
 };

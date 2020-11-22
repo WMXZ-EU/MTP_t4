@@ -4,10 +4,11 @@
 #include "MTP.h"
 #include "usb1_mtp.h"
 
-#define HAVE_LITTLEFS 1 // set to zero if no LtttleFS is existing or to be used
+#define USE_SD  1
+#define USE_LITTLEFS 1 // set to zero if no LtttleFS is existing or to be used
 
 /****  Start device specific change area  ****/
-
+#if USE_SD==1
   // edit SPI to reflect your configuration (following is for T4.1)
   #define SD_MOSI 11
   #define SD_MISO 12
@@ -21,9 +22,10 @@
   const int nsd = sizeof(cs)/sizeof(int);
 
 SDClass sdx[nsd];
+#endif
 
 //LittleFS classes
-#if HAVE_LITTLEFS==1
+#if USE_LITTLEFS==1
   #include "LittleFS.h"
   const char *lfs_str[]={"RAM1","RAM2"};     // edit to reflect your configuration
   const int lfs_size[] = {2'000'000,4'000'000};
@@ -38,6 +40,7 @@ MTPD       mtpd(&storage);
 
 void storage_configure()
 {
+  #if USE_SD==1
     #if defined SD_SCK
       SPI.setMOSI(SD_MOSI);
       SPI.setMISO(SD_MISO);
@@ -60,7 +63,9 @@ void storage_configure()
         uint64_t usedSize  = sdx[ii].usedSize();
         Serial.printf("Storage %d %d %s ",ii,cs[ii],sd_str[ii]); Serial.print(totalSize); Serial.print(" "); Serial.println(usedSize);
     }
-    #if HAVE_LITTLEFS==1
+    #endif
+
+    #if USE_LITTLEFS==1
     for(int ii=0; ii<nfs;ii++)
     {
       { if(!ramfs[ii].begin(lfs_size[ii])) { Serial.println("No storage"); while(1);}
@@ -97,26 +102,13 @@ void setup()
   while(!Serial); 
   Serial.println("MTP_test");
   
-  // Set Time callback // needed for SDFat-beta
-  FsDateTime::callback = dateTime;
-
   usb_mtp_configure();
   storage_configure();
 
-  #if HAVE_LITTLEFS==1
-  // store some files into disks (but only once)
-  for(int ii=0; ii<10;ii++)
-  { char filename[80];
-    sprintf(filename,"test_%d.txt",ii);
-    if(!ramfs[0].exists(filename))
-    {
-      File file=ramfs[0].open(filename,FILE_WRITE_BEGIN);
-        file.println("This is a test line");
-      file.close();
-    }
-  }
-  #endif
-  
+  #if USD_SD==1
+  // Set Time callback // needed for SDFat-beta
+  FsDateTime::callback = dateTime;
+
   const char *str = "test1.txt";
   if(sdx[0].exists(str)) sdx[0].remove(str);
   File file=sdx[0].open(str,FILE_WRITE_BEGIN);
@@ -125,10 +117,24 @@ void setup()
 
   Serial.println("\n**** dir of sd[0] ****");
   sdx[0].sdfs.ls();
-  Serial.println();
 
-  Serial.println("Setup done");
-  Serial.flush();
+  #endif
+  #if USE_LITTLEFS==1
+  // store some files into disks (but only once)
+  if(!ramfs[0].exists("Dir0")) ramfs[0].mkdir("Dir0");
+  for(int ii=0; ii<10;ii++)
+  { char filename[80];
+    sprintf(filename,"/Dir0/test_%d.txt",ii);
+    if(!ramfs[0].exists(filename))
+    {
+      File file=ramfs[0].open(filename,FILE_WRITE_BEGIN);
+        file.println("This is a test line");
+      file.close();
+    }
+  }
+  #endif
+
+  Serial.println("\nSetup done");
 }
 
 void loop()

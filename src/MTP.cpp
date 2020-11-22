@@ -122,8 +122,8 @@ extern struct usb_string_descriptor_struct usb_string_serial_number;
     //MTP_OPERATION_RESET_DEVICE_PROP_VALUE                ,//0x1017
     MTP_OPERATION_MOVE_OBJECT                           ,//0x1019
     //MTP_OPERATION_COPY_OBJECT                           ,//0x101A
-
     //MTP_OPERATION_GET_PARTIAL_OBJECT                     ,//0x101B
+
     MTP_OPERATION_GET_OBJECT_PROPS_SUPPORTED             ,//0x9801
     MTP_OPERATION_GET_OBJECT_PROP_DESC                   ,//0x9802
     MTP_OPERATION_GET_OBJECT_PROP_VALUE                  ,//0x9803
@@ -131,6 +131,7 @@ extern struct usb_string_descriptor_struct usb_string_serial_number;
     //MTP_OPERATION_GET_OBJECT_PROP_LIST                   ,//0x9805
     //MTP_OPERATION_GET_OBJECT_REFERENCES                  ,//0x9810
     //MTP_OPERATION_SET_OBJECT_REFERENCES                  ,//0x9811
+
     //MTP_OPERATION_GET_PARTIAL_OBJECT_64                  ,//0x95C1
     //MTP_OPERATION_SEND_PARTIAL_OBJECT                    ,//0x95C2
     //MTP_OPERATION_TRUNCATE_OBJECT                        ,//0x95C3
