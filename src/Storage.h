@@ -68,7 +68,6 @@ class mSD_Base
     uint64_t sd_usedSize(uint32_t store)  { return sdx[store]->usedSize();  }
 
     bool sd_copy(uint32_t store0, char *oldfilename, uint32_t store1, char *newfilename);
-    bool sd_copyDir(uint32_t store0, char *oldfilename, uint32_t store1, char *newfilename);
     bool sd_moveDir(uint32_t store0, char *oldfilename, uint32_t store1, char *newfilename);
 
   private:
@@ -109,7 +108,10 @@ public:
 
   virtual void ResetIndex() = 0;
   virtual bool rename(uint32_t handle, const char* name) = 0 ;
-  virtual bool move(uint32_t handle, uint32_t newStorage, uint32_t newParent ) = 0 ;
+  virtual bool move(uint32_t handle, uint32_t newStorage, uint32_t newParent) = 0 ;
+  virtual uint32_t copy(uint32_t handle, uint32_t newStorage, uint32_t newParent) = 0 ;
+
+  virtual bool CopyFiles(uint32_t storage, uint32_t handle, uint32_t newHandle) = 0;
 };
 
   struct Record 
@@ -120,6 +122,8 @@ public:
     uint8_t scanned;
     uint16_t store;  // index int physical storage (0 ... num_storages-1)
     char name[MAX_FILENAME_LEN];
+
+    
   };
 
   void mtp_yield(void);
@@ -178,14 +182,17 @@ private:
   uint32_t GetSize(uint32_t handle) override;
   void read(uint32_t handle, uint32_t pos, char* out, uint32_t bytes) override ;
   bool DeleteObject(uint32_t object) override ;
+
   uint32_t Create(uint32_t storage, uint32_t parent,  bool folder, const char* filename) override ;
 
   void write(const char* data, uint32_t bytes) override ;
   void close() override ;
 
   bool rename(uint32_t handle, const char* name) override ;
-  bool move(uint32_t handle, uint32_t newStorage, uint32_t newParent ) override ;
-  
+  bool move(uint32_t handle, uint32_t newStorage, uint32_t newParent) override ;
+  uint32_t copy(uint32_t handle, uint32_t newStorage, uint32_t newParent) override ;
+
+  bool CopyFiles(uint32_t storage, uint32_t handle, uint32_t newHandle) override ;
   void ResetIndex() override ;
 };
 

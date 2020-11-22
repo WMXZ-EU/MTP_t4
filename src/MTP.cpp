@@ -121,7 +121,7 @@ extern struct usb_string_descriptor_struct usb_string_serial_number;
     //MTP_OPERATION_SET_DEVICE_PROP_VALUE                  ,//0x1016
     //MTP_OPERATION_RESET_DEVICE_PROP_VALUE                ,//0x1017
     MTP_OPERATION_MOVE_OBJECT                           ,//0x1019
-    //MTP_OPERATION_COPY_OBJECT                           ,//0x101A
+    MTP_OPERATION_COPY_OBJECT                           ,//0x101A
     //MTP_OPERATION_GET_PARTIAL_OBJECT                     ,//0x101B
 
     MTP_OPERATION_GET_OBJECT_PROPS_SUPPORTED             ,//0x9801
@@ -532,6 +532,14 @@ extern struct usb_string_descriptor_struct usb_string_serial_number;
       if(storage_->move(p1,p2,p3)) return 0x2001; else return  0x2005;
     }
     
+    uint32_t MTPD::copyObject(uint32_t p1, uint32_t p2, uint32_t p3)
+    { // p1 object
+      // p2 new storage
+      // p3 new directory
+      // returns new object handle
+      return storage_->copy(p1,p2,p3);
+    }
+    
     void MTPD::openSession(void)
     {
       storage_->ResetIndex();
@@ -793,7 +801,9 @@ extern struct usb_string_descriptor_struct usb_string_serial_number;
               break;
 
           case 0x101A:  // CopyObject
-              return_code = 0x2005;
+              return_code = copyObject(CONTAINER->params[0],CONTAINER->params[1],CONTAINER->params[2]);
+              if(! return_code) { CONTAINER->len  = receive_buffer->len = 12; return_code = 0x2005; }
+              else {p1 = return_code; return_code=0x2001;}
               break;
 
           case 0x9801:  // getObjectPropsSupported
@@ -1202,7 +1212,11 @@ extern struct usb_string_descriptor_struct usb_string_serial_number;
               break;
 
           case 0x101A:  // CopyObject
-              return_code = 0x2005;
+              return_code = copyObject(p1,p2,p3);
+              if(!return_code) 
+              { return_code=0x2005; CONTAINER->len  = len = 12; }
+              else
+              { p1 = return_code; return_code=0x2001; }
               break;
 
           case 0x9801:  // getObjectPropsSupported

@@ -120,18 +120,29 @@ void setup()
 
   #endif
   #if USE_LITTLEFS==1
-  // store some files into disks (but only once)
-  if(!ramfs[0].exists("Dir0")) ramfs[0].mkdir("Dir0");
-  for(int ii=0; ii<10;ii++)
-  { char filename[80];
-    sprintf(filename,"/Dir0/test_%d.txt",ii);
-    if(!ramfs[0].exists(filename))
-    {
+    for(int ii=0; ii<10;ii++)
+    { char filename[80];
+      sprintf(filename,"/test_%d.txt",ii);
       File file=ramfs[0].open(filename,FILE_WRITE_BEGIN);
         file.println("This is a test line");
       file.close();
     }
-  }
+    ramfs[0].mkdir("Dir0");
+    for(int ii=0; ii<10;ii++)
+    { char filename[80];
+      sprintf(filename,"/Dir0/test_%d.txt",ii);
+      File file=ramfs[0].open(filename,FILE_WRITE_BEGIN);
+        file.println("This is a test line");
+      file.close();
+    }
+    ramfs[0].mkdir("Dir0/dir1");
+    for(int ii=0; ii<10;ii++)
+    { char filename[80];
+      sprintf(filename,"/Dir0/dir1/test_%d.txt",ii);
+      File file=ramfs[0].open(filename,FILE_WRITE_BEGIN);
+        file.println("This is a test line");
+      file.close();
+    }
   #endif
 
   Serial.println("\nSetup done");

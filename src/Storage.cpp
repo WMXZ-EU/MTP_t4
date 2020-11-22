@@ -30,7 +30,7 @@
 
 #include "Storage.h"
 
-#define DEBUG 0
+#define DEBUG 1
 
 #if DEBUG>0
   #define USE_DBG_MACROS 1
@@ -233,18 +233,6 @@ void mtp_lock_storage(bool lock) {}
     for (uint32_t i = 0; i < index_entries_; i++)  ScanDir(storage,i);
   }
 
-//  void  MTPStorage_SD::setStorageNumbers(const char **str, const int *csx, int num) 
-//  { sd_str = str; 
-//    num_storage=num;
-//    setCs(csx);
-//  }
-//  uint32_t MTPStorage_SD::getNumStorage() 
-//  { if(num_storage) return num_storage; else return 1;
-//  }
-//  const char * MTPStorage_SD::getStorageName(uint32_t storage) 
-//  { if(sd_str) return sd_str[storage-1]; else return "SD_DISK";
-//  }
-
   void MTPStorage_SD::StartGetObjectHandles(uint32_t storage, uint32_t parent) 
   { 
     GenerateIndex(storage);
@@ -308,7 +296,6 @@ void mtp_lock_storage(bool lock) {}
   bool MTPStorage_SD::DeleteObject(uint32_t object)
   {
     char filename[MAX_FILENAME_LEN];
-//    Serial.printf("delete %x\n",object);
 
     if(object==0xFFFFFFFFUL) return true; // don't do anything if trying to delete a root directory see below
 
@@ -322,14 +309,12 @@ void mtp_lock_storage(bool lock) {}
     Record x;
     Record xo;
     uint32_t is=-1;
-    Serial.printf("%d %d %d %s\n",r.isdir,r.child,r.scanned,r.name);
     if(!r.isdir || (!r.child && r.scanned)) // if file or empty directory
     { //
       { if(t.child==object)
         { // we are the jungest, simply relink parent to older sibling
           t.child = r.sibling;
           WriteIndexRecord(r.parent, t);
-//          Serial.printf("A: %x %x %s\n",object,is,t.name);
         }
         else
         { // link junger to older sibling
@@ -340,12 +325,10 @@ void mtp_lock_storage(bool lock) {}
           // is points now to junder sibling
           xo=x;
           x.sibling = r.sibling;
-//          Serial.printf("B: %x %x %s\n",object,is,x.name);
           WriteIndexRecord(is, x);
         }
         // delete now file
         mtp_lock_storage(true);
-        Serial.println(filename);
         bool success = r.isdir ? sd_rmdir(r.store,filename): sd_remove(r.store,filename);
         mtp_lock_storage(false);
         if(success)
@@ -359,66 +342,18 @@ void mtp_lock_storage(bool lock) {}
            WriteIndexRecord(ro.parent, to);
            if(is>0)WriteIndexRecord(is, xo);
         }
-//        Serial.print("Success :"); Serial.println(success);
         return success;
       }
     }
     if(!r.scanned) ScanDir(r.store, object) ; // have no info on directory, so scan it
-    Serial.printf("delete %d %d %d %s\n",object,r.child,r.scanned,r.name);
     uint32_t ix = r.child;
     while(ix)
     { Record x= ReadIndexRecord(ix);
-      Serial.printf("%d %s\n",ix,x.name);
       DeleteObject(ix);
       ix=x.sibling;
     }
     DeleteObject(object);
     return true;
-
-    /* // was old code
-    while (true) {
-      r = ReadIndexRecord(object == 0xFFFFFFFFUL ? 0 : object); //
-      if (!r.isdir) break;
-      if (!r.child) break;
-      if (!DeleteObject(r.child))  return false;
-    }
-
-    // We can't actually delete the root folder,
-    // but if we deleted everything else, return true.
-    if (object == 0xFFFFFFFFUL) return true;
-
-    ConstructFilename(object, filename, 256);
-    bool success;
-    mtp_lock_storage(true);
-    if (r.isdir) success = sd_rmdir(r.store,filename); else  success = sd_remove(r.store,filename);
-    mtp_lock_storage(false);
-    if (!success) return false;
-    
-    r.name[0] = 0;
-    int p = r.parent;
-    WriteIndexRecord(object, r);
-    Record tmp = ReadIndexRecord(p);
-    if (tmp.child == object) 
-    { tmp.child = r.sibling;
-      WriteIndexRecord(p, tmp);
-    } 
-    else 
-    { int c = tmp.child;
-      while (c) 
-      { tmp = ReadIndexRecord(c);
-        if (tmp.sibling == object) 
-        { tmp.sibling = r.sibling;
-          WriteIndexRecord(c, tmp);
-          break;
-        } 
-        else 
-        { c = tmp.sibling;
-        }
-      }
-    }
-    return true;
-    */
-
   }
 
   uint32_t MTPStorage_SD::Create(uint32_t storage, uint32_t parent,  bool folder, const char* filename)
@@ -449,6 +384,12 @@ void mtp_lock_storage(bool lock) {}
     {
       OpenFileByIndex(ret, FILE_WRITE_BEGIN);
     }
+    #if DEBUG>1
+    Serial.print("Create "); 
+      Serial.print(ret); Serial.print(" ");
+      Serial.print(parent); Serial.print(" "); 
+      Serial.println(filename);
+    #endif
     return ret;
   }
 
@@ -553,7 +494,6 @@ void mtp_lock_storage(bool lock) {}
     Record p1o = p1;
     Record p2o = p2;
     Record p3o = p3;
-//    Serial.printf("%d %d %d\n",p1o.store,p1o.parent,p1o.child);
 
     char oldName[MAX_FILENAME_LEN];
     ConstructFilename(handle, oldName, MAX_FILENAME_LEN);
@@ -563,7 +503,6 @@ void mtp_lock_storage(bool lock) {}
       dumpIndexList();
     #endif
 
-//    Serial.printf("%d -> %d\n",p1.store,p2.store);
     uint32_t jx=-1;
     Record pxo;
 
@@ -627,6 +566,82 @@ void mtp_lock_storage(bool lock) {}
     return false;
   }
 
+  uint32_t MTPStorage_SD::copy(uint32_t handle, uint32_t newStorage, uint32_t newParent ) 
+  { 
+    if(newParent<=0) newParent=(newStorage-1); //storage runs from 1, while record.store runs from 0
+
+    Record p1 = ReadIndexRecord(handle);
+    Record p2 = ReadIndexRecord(newParent);
+
+    uint32_t newHandle;
+    if(p1.isdir)
+    {
+      ScanDir(p1.store+1,handle);
+      newHandle = Create(p1.store,newParent,p1.isdir,p1.name);
+      CopyFiles(handle, p2.store+1, newHandle);
+    }
+    else
+    {  
+      Record r;
+      strlcpy(r.name, p1.name,MAX_FILENAME_LEN);
+      r.store = p2.store;
+      r.parent = newParent;
+      r.child = 0;
+      r.sibling = p2.child;
+      r.isdir = 0;
+      r.scanned = 0;
+      newHandle = p2.child = AppendIndexRecord(r);
+      WriteIndexRecord(newParent, p2);
+
+      char oldfilename[MAX_FILENAME_LEN];
+      char newfilename[MAX_FILENAME_LEN];
+      uint32_t store0 = ConstructFilename(handle,oldfilename,MAX_FILENAME_LEN);
+      uint32_t store1 = ConstructFilename(newHandle,newfilename,MAX_FILENAME_LEN);
+
+      sd_copy(store0,oldfilename,store1,newfilename);
+    }
+
+    return newHandle;
+  }
+
+bool MTPStorage_SD::CopyFiles(uint32_t handle, uint32_t storage, uint32_t newHandle)
+{ // assume handle and newHandle point to existing directories
+  if(newHandle==0xFFFFFFFFUL) newHandle=storage-1;
+  Record p1=ReadIndexRecord(handle);
+  Record p2=ReadIndexRecord(newHandle);
+
+  uint32_t ix= p1.child;
+  uint32_t iy= 0;
+  while(ix)
+  { // get child
+    Record px = ReadIndexRecord(ix) ;
+    Record py = px;
+    py.store = p2.store;
+    py.parent = newHandle;
+    py.sibling = iy;
+    iy = AppendIndexRecord(py);
+
+    char oldfilename[MAX_FILENAME_LEN];
+    char newfilename[MAX_FILENAME_LEN];
+    ConstructFilename(ix,oldfilename,MAX_FILENAME_LEN);
+    ConstructFilename(iy,newfilename,MAX_FILENAME_LEN);
+
+    if(py.isdir) 
+    { 
+      sd_mkdir(py.store,newfilename);
+
+      ScanDir(p1.store+1,ix); 
+      CopyFiles(ix,p2.store,iy); 
+    }
+    else
+    { sd_copy(p1.store,oldfilename,py.store,newfilename);
+    }
+    ix = px.sibling;
+  }
+  p2.child=iy;
+  WriteIndexRecord(newHandle,p2);
+  return true;
+}
 
 bool mSD_Base::sd_copy(uint32_t store0, char *oldfilename, uint32_t store1, char *newfilename)
 {
@@ -646,12 +661,10 @@ bool mSD_Base::sd_copy(uint32_t store0, char *oldfilename, uint32_t store1, char
   while(f1.available()>0)
   {
     nd=f1.read(buffer,nbuf);
-//    Serial.print(nd); Serial.print(" ");
     if(nd<0) break;     // read error
     f2.write(buffer,nd);
     if(nd<nbuf) break;  // end of file
   }
-//  Serial.println();
   // close all files
   f1.close();
   f2.close();
@@ -696,41 +709,4 @@ bool mSD_Base::sd_moveDir(uint32_t store0, char *oldfilename, uint32_t store1, c
     }
   }
   return sd_rmdir(store0,oldfilename);
-}
-
-bool mSD_Base::sd_copyDir(uint32_t store0, char *oldfilename, uint32_t store1, char *newfilename)
-{ // old and new are directory paths
-
-  char tmp0Name[MAX_FILENAME_LEN];
-  char tmp1Name[MAX_FILENAME_LEN];
-
-  if(!sd_mkdir(store1,newfilename))  {DBG_FAIL_MACRO; return false;}
-
-  File f1=sd_open(store0,oldfilename,FILE_READ);
-  if(f1) 
-  {
-    strlcpy(tmp0Name,oldfilename,MAX_FILENAME_LEN);
-    if(tmp0Name[strlen(tmp0Name)-1]!='/') strlcat(tmp0Name,"/",MAX_FILENAME_LEN);
-
-    strlcpy(tmp1Name,newfilename,MAX_FILENAME_LEN);
-    if(tmp1Name[strlen(tmp1Name)-1]!='/') strlcat(tmp1Name,"/",MAX_FILENAME_LEN);
-
-    File f2=f1.openNextFile();
-    if(f2)
-    { // generate
-      strlcat(tmp0Name,f2.name(),MAX_FILENAME_LEN);
-
-      if(f2.isDirectory())
-      { 
-        strlcat(tmp1Name,f2.name(),MAX_FILENAME_LEN);
-        sd_copyDir(store0, tmp0Name, store1, tmp1Name);
-      }
-      else
-      { 
-        strlcat(tmp1Name,f2.name(),MAX_FILENAME_LEN);
-        sd_copy(store0, tmp0Name, store1, tmp1Name);
-      }
-    }
-  }
-  return true;
 }
