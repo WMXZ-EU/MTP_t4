@@ -21,8 +21,8 @@ needs USB2 https://github.com/WMXZ-EU/USB2 for T4.x. (uses here usb1.h and usb1.
  - deletion of files
  - recursive deletion of directories
  - creation of directories
- - moving files and directories within a MTP-disk
- - moving files and directories cross different MTP-disks
+ - moving files and directories within and cross MTP-disk disks
+ - copying files and directories within and cross MTP-disk disks
 
 ## Limitations
  - Maximal filename length is 256 but can be changed in Storage.h by changing the MAX_FILENAME_LEN definition
@@ -46,9 +46,8 @@ Modification of disk content (directories and Files) by Teensy is only be visibl
  - install LittleFS from https://github.com/PaulStoffregen/LittleFS for use of LittleFS basd filesystems
 
  ## Known Issues
-  - no major issues beyond limititions
+   - copying of files and directories work but are not displayed in file explorer, manual unmount/mount sequence required
    
  ## ToBeDone
- - copying files 
  - show creation and modification timestamps
 
