@@ -226,7 +226,15 @@
     writestring(MTP_MANUF);     // Manufacturer
     writestring(MTP_MODEL);     // Model
     writestring(MTP_VERS);      // version
-    writestring(MTP_SERNR);     // serial
+    char buf[16];
+    #if defined(__IMXRT1062__)
+      uint32_t num = (HW_OCOTP_MAC0 & 0xFFFFFF);
+      ultoa(num, buf, 10);
+    #else
+      uint32_t num=1234567;
+      ultoa(num, buf, 10);
+    #endif
+    writestring(buf); 
   }
 
   void MTPD::WriteStorageIDs() {
