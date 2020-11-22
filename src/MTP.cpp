@@ -33,6 +33,8 @@
   #include "usb1_mtp.h"
 #endif
 
+#include "usb_names.h"
+extern struct usb_string_descriptor_struct usb_string_serial_number; 
 
 #define DEBUG 0
 #if DEBUG>0
@@ -225,16 +227,17 @@
 
     writestring(MTP_MANUF);     // Manufacturer
     writestring(MTP_MODEL);     // Model
-    writestring(MTP_VERS);      // version
-    char buf[16];
-    #if defined(__IMXRT1062__)
-      uint32_t num = (HW_OCOTP_MAC0 & 0xFFFFFF);
-      ultoa(num, buf, 10);
-    #else
-      uint32_t num=1234567;
-      ultoa(num, buf, 10);
-    #endif
-    writestring(buf); 
+    //writestring(MTP_VERS);      // version
+    //writestring(MTP_SERNR);     // serial
+    
+    char buf[20];    
+    
+    dtostrf( (float)(TEENSYDUINO / 100.0f), 3, 2, buf);
+    strlcat(buf, " / MTP " MTP_VERS, sizeof(buf) );
+    writestring( buf );    
+    
+    for (size_t i=0; i<10; i++) buf[i] = usb_string_serial_number.wString[i];
+    writestring(buf);    
   }
 
   void MTPD::WriteStorageIDs() {
