@@ -27,7 +27,8 @@ needs USB2 https://github.com/WMXZ-EU/USB2 for T4.x. (uses here usb1.h and usb1.
 ## Limitations
  - Maximal filename length is 256 but can be changed in Storage.h by changing the MAX_FILENAME_LEN definition
  - within-MTP copy not yet implemented (i.e no within-disk and cross-disk copy)
- - creation of files is not supported only directories
+ - creation of files using file explorer is not supported, but directories can be created
+ - No creation and modification timestamps are shown
  
 ## Reset of Session
 Modification of disk content (directories and Files) by Teensy is only be visible on PC when done before mounting the MTP device. To refresh disk content it is necessary to unmount and remount Teensy MTP device. AFAIK: On Windows this can be done by using device manager and disable and reanable Teensy (found under portable Device). On Linux this is done with standard muount/unmount commands.
@@ -45,8 +46,9 @@ Modification of disk content (directories and Files) by Teensy is only be visibl
  - install LittleFS from https://github.com/PaulStoffregen/LittleFS for use of LittleFS basd filesystems
 
  ## Known Issues
-  - only SD and LittlteFS_RAM implemented in examples and tested
+  - no major issues beyond limititions
    
  ## ToBeDone
  - copying files 
+ - show creation and modification timestamps
 
