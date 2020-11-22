@@ -241,7 +241,6 @@ extern struct usb_string_descriptor_struct usb_string_serial_number;
   }
 
   void MTPD::WriteStorageIDs() {
-//    uint32_t num=storage_->getNumStorage();
     uint32_t num=storage_->get_FSCount();
     write32(num); // 1 entry
     for(uint32_t ii=1;ii<=num;ii++)  write32(ii); // storage id
@@ -258,7 +257,6 @@ extern struct usb_string_descriptor_struct usb_string_serial_number;
     write64((ntotal-nused));  // free space (100M)
     //
     write32(0xFFFFFFFFUL);  // free space (objects)
-//    const char *name = storage_->getStorageName(storage);
     const char *name = storage_->get_FSName(storage);
     writestring(name);  // storage descriptor
     writestring("");  // volume identifier
