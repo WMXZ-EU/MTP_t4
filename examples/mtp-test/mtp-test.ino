@@ -4,7 +4,7 @@
 #include "MTP.h"
 #include "usb1_mtp.h"
 
-#define USE_SD  1
+#define USE_SD  0
 #define USE_LITTLEFS 1 // set to zero if no LtttleFS is existing or to be used
 
 /****  Start device specific change area  ****/
@@ -105,7 +105,7 @@ void setup()
   usb_mtp_configure();
   storage_configure();
 
-  #if USD_SD==1
+  #if USE_SD==1
   // Set Time callback // needed for SDFat-beta
   FsDateTime::callback = dateTime;
 
@@ -155,3 +155,4 @@ void loop()
   //logg(1000,"loop");
   //asm("wfi"); // may wait forever on T4.x
 }
+

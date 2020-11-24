@@ -142,6 +142,10 @@ private:
 public:
   void loop(void) ;
   void test(void) ;
+  #if WMXZ_TEST
+  int send_addObjectEvent(uint32_t p1);
+  int send_removeObjectEvent(uint32_t p1);
+  #endif
 };
 
 #endif

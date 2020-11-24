@@ -29,8 +29,14 @@
 
 #undef USB_DESC_LIST_DEFINE
 #include "usb_desc.h"
+
 #if defined(__IMXRT1062__)
-  #include "usb1_mtp.h"
+  // following only until usb_mtp is not included in cores
+  #if __has_include("usb_mtp.h")
+    #include "usb_mtp.h"
+  #else
+    #include "usb1_mtp.h"
+  #endif
 #endif
 
 #include "usb_names.h"
@@ -170,6 +176,51 @@ extern struct usb_string_descriptor_struct usb_string_serial_number;
   
   uint32_t propertyListNum = sizeof(propertyList)/sizeof(propertyList[0]);
   
+
+    #define MTP_EVENT_UNDEFINED                         0x4000
+    #define MTP_EVENT_CANCEL_TRANSACTION                0x4001
+    #define MTP_EVENT_OBJECT_ADDED                      0x4002
+    #define MTP_EVENT_OBJECT_REMOVED                    0x4003
+    #define MTP_EVENT_STORE_ADDED                       0x4004
+    #define MTP_EVENT_STORE_REMOVED                     0x4005
+    #define MTP_EVENT_DEVICE_PROP_CHANGED               0x4006
+    #define MTP_EVENT_OBJECT_INFO_CHANGED               0x4007
+    #define MTP_EVENT_DEVICE_INFO_CHANGED               0x4008
+    #define MTP_EVENT_REQUEST_OBJECT_TRANSFER           0x4009
+    #define MTP_EVENT_STORE_FULL                        0x400A
+    #define MTP_EVENT_DEVICE_RESET                      0x400B
+    #define MTP_EVENT_STORAGE_INFO_CHANGED              0x400C
+    #define MTP_EVENT_CAPTURE_COMPLETE                  0x400D
+    #define MTP_EVENT_UNREPORTED_STATUS                 0x400E
+    #define MTP_EVENT_OBJECT_PROP_CHANGED               0xC801
+    #define MTP_EVENT_OBJECT_PROP_DESC_CHANGED          0xC802  
+    #define MTP_EVENT_OBJECT_REFERENCES_CHANGED         0xC803
+
+const uint16_t supported_events[] =
+  {
+//    MTP_EVENT_UNDEFINED                         ,//0x4000
+//    MTP_EVENT_CANCEL_TRANSACTION                ,//0x4001
+//    MTP_EVENT_OBJECT_ADDED                      ,//0x4002
+//    MTP_EVENT_OBJECT_REMOVED                    ,//0x4003
+//    MTP_EVENT_STORE_ADDED                       ,//0x4004
+//    MTP_EVENT_STORE_REMOVED                     ,//0x4005
+//    MTP_EVENT_DEVICE_PROP_CHANGED               ,//0x4006
+//    MTP_EVENT_OBJECT_INFO_CHANGED               ,//0x4007
+//    MTP_EVENT_DEVICE_INFO_CHANGED               ,//0x4008
+//    MTP_EVENT_REQUEST_OBJECT_TRANSFER           ,//0x4009
+//    MTP_EVENT_STORE_FULL                        ,//0x400A
+//    MTP_EVENT_DEVICE_RESET                      ,//0x400B
+//    MTP_EVENT_STORAGE_INFO_CHANGED              ,//0x400C
+//    MTP_EVENT_CAPTURE_COMPLETE                  ,//0x400D
+//    MTP_EVENT_UNREPORTED_STATUS                 ,//0x400E
+//    MTP_EVENT_OBJECT_PROP_CHANGED               ,//0xC801
+//    MTP_EVENT_OBJECT_PROP_DESC_CHANGED          ,//0xC802  
+//    MTP_EVENT_OBJECT_REFERENCES_CHANGED          //0xC803
+  };
+  
+  const int supported_event_num = sizeof(supported_events)/sizeof(supported_events[0]);
+
+
 // MTP Responder.
 /*
   struct MTPHeader {
@@ -211,10 +262,12 @@ extern struct usb_string_descriptor_struct usb_string_serial_number;
     write16(0);    // functional mode
 
     // Supported operations (array of uint16)
-      write32(supported_op_num);
-      for(int ii=0; ii<supported_op_num;ii++) write16(supported_op[ii]);
+    write32(supported_op_num);
+    for(int ii=0; ii<supported_op_num;ii++) write16(supported_op[ii]);
     
-    write32(0);       // Events (array of uint16)
+    // Events (array of uint16)
+    write32(supported_event_num);      
+    for(int ii=0; ii<supported_event_num;ii++) write16(supported_events[ii]);
 
     write32(1);       // Device properties (array of uint16)
     write16(0xd402);  // Device friendly name
@@ -231,7 +284,6 @@ extern struct usb_string_descriptor_struct usb_string_serial_number;
     //writestring(MTP_SERNR);     // serial
     
     char buf[20];    
-    
     dtostrf( (float)(TEENSYDUINO / 100.0f), 3, 2, buf);
     strlcat(buf, " / MTP " MTP_VERS, sizeof(buf) );
     writestring( buf );    
@@ -242,7 +294,7 @@ extern struct usb_string_descriptor_struct usb_string_serial_number;
 
   void MTPD::WriteStorageIDs() {
     uint32_t num=storage_->get_FSCount();
-    write32(num); // 1 entry
+    write32(num); // number of storages (disks)
     for(uint32_t ii=1;ii<=num;ii++)  write32(ii); // storage id
   }
 
@@ -1256,5 +1308,33 @@ extern struct usb_string_descriptor_struct usb_string_serial_number;
       }
     }
 
+#endif
+
+#if WMXZ_TEST
+const uint32_t EVENT_TIMEOUT=30000;
+
+int MTPD::send_addObjectEvent(uint32_t p1)
+{	MTPContainer event;
+	event.len = 16;
+	event.op =MTP_EVENT_STORE_ADDED ;
+	event.type = MTP_CONTAINER_TYPE_EVENT; 
+	event.transaction_id=0;
+	event.params[0]=p1;
+	event.params[1]=0;
+	event.params[2]=0;
+	return usb_mtp_sendEevent((const void *) &event, event.len, EVENT_TIMEOUT);
+}
+int MTPD::send_removeObjectEvent(uint32_t p1)
+{		
+	MTPContainer event;
+	event.len = 16;
+	event.op = MTP_EVENT_STORE_REMOVED;
+	event.type = MTP_CONTAINER_TYPE_EVENT; 
+	event.transaction_id=0;
+	event.params[0]=p1;
+	event.params[1]=0;
+	event.params[2]=0;
+  return usb_mtp_sendEevent((const void *) &event, event.len, EVENT_TIMEOUT);
+}
 #endif
 #endif
