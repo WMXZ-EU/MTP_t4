@@ -110,6 +110,7 @@ private:
   
   void GetObjectInfo(uint32_t handle) ;
   void GetObject(uint32_t object_id) ;
+  uint32_t GetPartialObject(uint32_t object_id, uint32_t offset, uint32_t NumBytes) ;
 
   void read(char* data, uint32_t size) ;
 

@@ -31,7 +31,7 @@
 #include "usb_desc.h"
 
 #if defined(__IMXRT1062__)
-  // following only until usb_mtp is not included in cores
+  // following only while usb_mtp is not included in cores
   #if __has_include("usb_mtp.h")
     #include "usb_mtp.h"
   #else
@@ -1006,6 +1006,51 @@ const uint16_t supported_events[] =
         }
       }
     }
+    uint32_t MTPD::GetPartialObject(uint32_t object_id, uint32_t offset, uint32_t NumBytes) 
+    {
+      uint32_t size = storage_->GetSize(object_id);
+
+      size -= offset;
+      if(NumBytes == 0xffffffff) NumBytes=size;
+      if (NumBytes<size) size=NumBytes;
+
+      if (write_get_length_) {
+        write_length_ += size;
+      } else 
+      { 
+        uint32_t pos = offset; // into data
+        uint32_t len = sizeof(MTPHeader);
+
+        disk_pos=DISK_BUFFER_SIZE;
+        while(pos<size)
+        {
+          if(disk_pos==DISK_BUFFER_SIZE)
+          {
+            uint32_t nread=min(size-pos,(uint32_t)DISK_BUFFER_SIZE);
+            storage_->read(object_id,pos,(char *)disk_buffer,nread);
+            disk_pos=0;
+          }
+
+          uint32_t to_copy = min(size-pos,MTP_TX_SIZE-len);
+          to_copy = min (to_copy, DISK_BUFFER_SIZE-disk_pos);
+
+          memcpy(tx_data_buffer+len,disk_buffer+disk_pos,to_copy);
+          disk_pos += to_copy;
+          pos += to_copy;
+          len += to_copy;
+
+          if(len==MTP_TX_SIZE)
+          { push_packet(tx_data_buffer,MTP_TX_SIZE);
+            len=0;
+          }
+        }
+        if(len>0)
+        { push_packet(tx_data_buffer,MTP_TX_SIZE);
+          len=0;
+        }
+      }
+      return size;
+    }
 
     #define CONTAINER ((struct MTPContainer*)(rx_data_buffer))
 
@@ -1019,6 +1064,30 @@ const uint16_t supported_events[] =
       header.type = 2;                                    \
       header.op = CONTAINER->op;                          \
       header.transaction_id = CONTAINER->transaction_id;  \
+      write_length_ = 0;                                  \
+      write_get_length_ = false;                          \
+      write((char *)&header, sizeof(header));             \
+      FUN;                                                \
+      \
+      uint32_t rest;                                      \
+      rest = (header.len % MTP_TX_SIZE);                  \
+      if(rest>0)                                          \
+      {                                                   \
+        push_packet(tx_data_buffer,rest);                 \
+      }                                                   \
+    } while(0)
+
+    #define TRANSMIT1(FUN) do {                           \
+      write_length_ = 0;                                  \
+      write_get_length_ = true;                           \
+      uint32_t dlen = FUN;                                \
+      \
+      MTPContainer header;                                   \
+      header.len = write_length_ + sizeof(MTPHeader)+4;      \
+      header.type = 2;                                    \
+      header.op = CONTAINER->op;                          \
+      header.transaction_id = CONTAINER->transaction_id;  \
+      header.params[0]=dlen;                              \
       write_length_ = 0;                                  \
       write_get_length_ = false;                          \
       write((char *)&header, sizeof(header));             \
@@ -1269,6 +1338,10 @@ const uint16_t supported_events[] =
               { return_code=0x2005; CONTAINER->len  = len = 12; }
               else
               { p1 = return_code; return_code=0x2001; }
+              break;
+
+          case 0x101B:  // GetPartialObject
+              TRANSMIT1(GetPartialObject(p1,p2,p3));
               break;
 
           case 0x9801:  // getObjectPropsSupported
