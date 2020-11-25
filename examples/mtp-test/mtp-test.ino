@@ -2,7 +2,15 @@
 
 #include "SD.h"
 #include "MTP.h"
-#include "usb1_mtp.h"
+
+#if defined(__IMXRT1062__)
+  // following only while usb_mtp is not included in cores
+  #if __has_include("usb_mtp.h")
+    #include "usb_mtp.h"
+  #else
+    #include "usb1_mtp.h"
+  #endif
+#endif
 
 #define USE_SD  0
 #define USE_LITTLEFS 1 // set to zero if no LtttleFS is existing or to be used
