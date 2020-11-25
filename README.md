@@ -47,7 +47,12 @@ Modification of disk content (directories and Files) by Teensy is only be visibl
 
  ## Known Issues
    - copying of files and directories work but are not displayed in file explorer, manual unmount/mount sequence required
-   
+ 
+ ## scripts
+ There are some useful scripts for Windows PoeerShell in scrips directory. open them with right-click "Run with PowerShell"
+  - MTPdir list the files in Teensy 
+  - MTPreset to reset MTP (disable/enable)
+ 
  ## ToBeDone
  - show creation and modification timestamps
 
