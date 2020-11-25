@@ -16,50 +16,54 @@
 //PIN  38 RXD1
 
 #include "SD.h"
-
 #include "MTP.h"
-#include "usb1_mtp.h"
 
-#define HAVE_LITTLEFS 1 // set to zero if no LtttleFS is existing or to be used
-
-#if HAVE_LITTLEFS==1        // is defined in storage.h
-  #define DO_LITTLEFS 1     // set to zero if not wanted // needs LittleFS installed as library
-  #define RAM_DISK_STORAGE (8'000'000)
-
-  #include "LittleFS.h"
-#else
-  #define DO_LITTLEFS 0
+#if defined(__IMXRT1062__)
+  // following only while usb_mtp is not included in cores
+  #if __has_include("usb_mtp.h")
+    #include "usb_mtp.h"
+  #else
+    #include "usb1_mtp.h"
+  #endif
 #endif
 
-/****  Start device specific change area  ****/
+#define USE_SD  1
+#define USE_LITTLEFS 1 // set to zero if no LtttleFS is existing or to be used
 
-  // edit SPI to reflect your configuration
+/****  Start device specific change area  ****/
+#if USE_SD==1
+  // edit SPI to reflect your configuration (following is for T4.1)
   #define SD_MOSI 11
   #define SD_MISO 12
   #define SD_SCK  13
 
   #define SPI_SPEED SD_SCK_MHZ(16)  // adjust to sd card 
 
-//  const char *sd_str[]={"sdio","sd1","sd2","sd3","sd4","sd5","sd6"}; // WMXZ example
-//  const int cs[] = {BUILTIN_SDCARD,34,33,35,36,37,38}; // WMXZ example
-
-//  const char *sd_str[]={"sdio","sd6"}; // WMXZ testing
-//  const int cs[] = {BUILTIN_SDCARD,38}; // WMXZ testing
-  const char *sd_str[]={"sdio"};      // edit to reflect your configuration
-  const int cs[] = {BUILTIN_SDCARD};  // edit to reflect your configuration
+// SDClasses
+  const char *sd_str[]={"sdio","sd6"}; // edit to reflect your configuration
+  const int cs[] = {BUILTIN_SDCARD,38}; // edit to reflect your configuration
   const int nsd = sizeof(cs)/sizeof(int);
 
-// classes need to be declared here (in storage.h there are declared external)
 SDClass sdx[nsd];
-#if HAVE_LITTLEFS==1
-  LittleFS_RAM ramfs; // needs to be declared if LittleFS is used in storage.h
+#endif
+
+//LittleFS classes
+#if USE_LITTLEFS==1
+  #include "LittleFS.h"
+  const char *lfs_str[]={"RAM1","RAM2"};     // edit to reflect your configuration
+  const int lfs_size[] = {2'000'000,4'000'000};
+  const int nfs = sizeof(lfs_size)/sizeof(int);
+
+  LittleFS_RAM ramfs[nfs]; // needs to be declared if LittleFS is used in storage.h
 #endif
 
 MTPStorage_SD storage;
 MTPD       mtpd(&storage);
 
+
 void storage_configure()
 {
+  #if USE_SD==1
     #if defined SD_SCK
       SPI.setMOSI(SD_MOSI);
       SPI.setMISO(SD_MISO);
@@ -70,35 +74,32 @@ void storage_configure()
     { if(cs[ii] == BUILTIN_SDCARD)
       {
         if(!sdx[ii].sdfs.begin(SdioConfig(FIFO_SDIO))) {Serial.println("No storage"); while(1);};
-        storage.addFilesystem(sdx[ii],cs[ii],sd_str[ii]);
+        storage.addFilesystem(sdx[ii], sd_str[ii]);
       }
       else if(cs[ii]<BUILTIN_SDCARD)
       {
         pinMode(cs[ii],OUTPUT); digitalWriteFast(cs[ii],HIGH);
         if(!sdx[ii].sdfs.begin(SdSpiConfig(cs[ii], SHARED_SPI, SPI_SPEED))) {Serial.println("No storage"); while(1);}
-        storage.addFilesystem(sdx[ii],cs[ii],sd_str[ii]);
+        storage.addFilesystem(sdx[ii], sd_str[ii]);
       }
-      #if DO_LITTLEFS==1
-        else if(cs[ii]==256) // LittleFS_RAM
-        { if(!ramfs.begin(RAM_DISK_STORAGE)) { Serial.println("No storage"); while(1);}
-          storage.addFilesystem(ramfs,cs[ii],sd_str[ii]);
-        }
-      #endif
-      if(cs[ii]<256)
-      {
         uint64_t totalSize = sdx[ii].totalSize();
         uint64_t usedSize  = sdx[ii].usedSize();
         Serial.printf("Storage %d %d %s ",ii,cs[ii],sd_str[ii]); Serial.print(totalSize); Serial.print(" "); Serial.println(usedSize);
-      }
-      #if DO_LITTLEFS==1
-        else if(cs[ii]==256) // LittleFS_RAM
-        {
-        uint64_t totalSize = ramfs.totalSize();
-        uint64_t usedSize  = ramfs.usedSize();
-        Serial.printf("Storage %d %d %s ",ii,cs[ii],sd_str[ii]); Serial.print(totalSize); Serial.print(" "); Serial.println(usedSize);
-        }
-      #endif
     }
+    #endif
+
+    #if USE_LITTLEFS==1
+    for(int ii=0; ii<nfs;ii++)
+    {
+      { if(!ramfs[ii].begin(lfs_size[ii])) { Serial.println("No storage"); while(1);}
+        storage.addFilesystem(ramfs[ii], lfs_str[ii]);
+      }
+      uint64_t totalSize = ramfs[ii].totalSize();
+      uint64_t usedSize  = ramfs[ii].usedSize();
+      Serial.printf("Storage %d %s ",ii,lfs_str[ii]); Serial.print(totalSize); Serial.print(" "); Serial.println(usedSize);
+
+    }
+    #endif
 }
 /****  End of device specific change area  ****/
 
