@@ -32,9 +32,8 @@
 
 #if defined(__IMXRT1062__)
   // following only while usb_mtp is not included in cores
-  #if __has_include("usb_mtp.h")
-//    #include "usb_mtp.h"
-    #include "usb1_mtp.h"
+  #if __has_include("usb_mtp.h")  && WMXZ_TEST
+    #include "usb_mtp.h"
   #else
     #include "usb1_mtp.h"
   #endif
