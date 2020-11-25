@@ -213,7 +213,7 @@ void mtp_lock_storage(bool lock) {}
         r.parent = i;
         r.sibling = sibling;
         r.isdir = child_.isDirectory();
-        r.child = r.isdir ? 0 : child_.size();
+        r.child = r.isdir ? 0 : (uint32_t) child_.size();
         r.scanned = false;
         sd_getName(child_,r.name, MAX_FILENAME_LEN);
         sibling = AppendIndexRecord(r);
@@ -393,11 +393,12 @@ void mtp_lock_storage(bool lock) {}
     return ret;
   }
 
-  void MTPStorage_SD::write(const char* data, uint32_t bytes)
+  size_t MTPStorage_SD::write(const char* data, uint32_t bytes)
   {
       mtp_lock_storage(true);
-      file_.write(data,bytes);
+      size_t ret = file_.write(data,bytes);
       mtp_lock_storage(false);
+      return ret;
   }
 
   void MTPStorage_SD::close() 

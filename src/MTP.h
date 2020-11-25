@@ -124,7 +124,7 @@ private:
 //  void read_until_short_packet() ;
 
   uint32_t SendObjectInfo(uint32_t storage, uint32_t parent) ;
-  void SendObject() ;
+  bool SendObject() ;
 
   void GetDevicePropValue(uint32_t prop) ;
   void GetDevicePropDesc(uint32_t prop) ;

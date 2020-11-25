@@ -128,7 +128,7 @@ extern struct usb_string_descriptor_struct usb_string_serial_number;
     //MTP_OPERATION_RESET_DEVICE_PROP_VALUE                ,//0x1017
     MTP_OPERATION_MOVE_OBJECT                           ,//0x1019
     MTP_OPERATION_COPY_OBJECT                           ,//0x101A
-    //MTP_OPERATION_GET_PARTIAL_OBJECT                     ,//0x101B
+    MTP_OPERATION_GET_PARTIAL_OBJECT                     ,//0x101B
 
     MTP_OPERATION_GET_OBJECT_PROPS_SUPPORTED             ,//0x9801
     MTP_OPERATION_GET_OBJECT_PROP_DESC                   ,//0x9802
@@ -520,7 +520,7 @@ const uint16_t supported_events[] =
     }
 
     void MTPD::getObjectPropValue(uint32_t p1, uint32_t p2)
-    { char name[128];
+    { char name[MAX_FILENAME_LEN];
       uint32_t dir;
       uint32_t size;
       uint32_t parent;
@@ -706,7 +706,7 @@ const uint16_t supported_events[] =
 
   uint32_t MTPD::SendObjectInfo(uint32_t storage, uint32_t parent) {
     uint32_t len = ReadMTPHeader();
-    char filename[256];
+    char filename[MAX_FILENAME_LEN];
 
     uint32_t store = read32(); len-=4; // storage
     bool dir = read16() == 0x3001; len-=2; // format
@@ -1162,7 +1162,7 @@ const uint16_t supported_events[] =
       return storage_->Create(storage, parent, dir, filename);
     }
 
-    void MTPD::SendObject() 
+    bool MTPD::SendObject() 
     { 
       pull_packet(rx_data_buffer);
 //      printContainer(); 
@@ -1184,7 +1184,7 @@ const uint16_t supported_events[] =
         //
         if(disk_pos==DISK_BUFFER_SIZE)
         {
-          storage_->write((const char *)disk_buffer, DISK_BUFFER_SIZE);
+          if(storage_->write((const char *)disk_buffer, DISK_BUFFER_SIZE)<DISK_BUFFER_SIZE) return false;
           disk_pos =0;
 
           if(bytes) // we have still data in transfer buffer, copy to initial disk_buffer
@@ -1203,9 +1203,10 @@ const uint16_t supported_events[] =
       //printf("len %d\n",disk_pos);
       if(disk_pos)
       {
-        storage_->write((const char *)disk_buffer, disk_pos);
+        if(storage_->write((const char *)disk_buffer, disk_pos)<disk_pos) return false;
       }
       storage_->close();
+      return true;
     }
 
     uint32_t MTPD::setObjectPropValue(uint32_t p1, uint32_t p2)
@@ -1227,7 +1228,7 @@ const uint16_t supported_events[] =
     void MTPD::loop(void)
     { if(!usb_mtp_available()) return;
       if(fetch_packet(rx_data_buffer))
-      { printContainer(); // to switch on set debug to 1 at beginning of file
+      { if(CONTAINER->op <0x9000) printContainer(); // to switch on set debug to 1 at beginning of file
 
         int op = CONTAINER->op;
         int p1 = CONTAINER->params[0];
@@ -1311,7 +1312,7 @@ const uint16_t supported_events[] =
               break;
 
           case 0x100D:  // SendObject
-              SendObject();
+              if(!SendObject()) return_code = 0x2005;
               CONTAINER->len  = len = 12;
               break;
 

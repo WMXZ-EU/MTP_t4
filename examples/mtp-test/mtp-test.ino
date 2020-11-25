@@ -12,7 +12,7 @@
   #endif
 #endif
 
-#define USE_SD  0
+#define USE_SD  1
 #define USE_LITTLEFS 1 // set to zero if no LtttleFS is existing or to be used
 
 /****  Start device specific change area  ****/
@@ -117,14 +117,16 @@ void setup()
   // Set Time callback // needed for SDFat-beta
   FsDateTime::callback = dateTime;
 
-  const char *str = "test1.txt";
-  if(sdx[0].exists(str)) sdx[0].remove(str);
-  File file=sdx[0].open(str,FILE_WRITE_BEGIN);
-      file.println("This is a test line");
-  file.close();
+  {
+    const char *str = "test1.txt";
+    if(sdx[0].exists(str)) sdx[0].remove(str);
+    File file=sdx[0].open(str,FILE_WRITE_BEGIN);
+        file.println("This is a test line");
+    file.close();
 
-  Serial.println("\n**** dir of sd[0] ****");
-  sdx[0].sdfs.ls();
+    Serial.println("\n**** dir of sd[0] ****");
+    sdx[0].sdfs.ls();
+  }
 
   #endif
   #if USE_LITTLEFS==1
@@ -151,6 +153,14 @@ void setup()
         file.println("This is a test line");
       file.close();
     }
+    uint32_t buffer[256];
+    File file = ramfs[1].open("LargFile.bin",FILE_WRITE_BEGIN);
+    for(int ii=0;ii<3000;ii++)
+    { memset(buffer,ii%256,1024);
+      file.write(buffer,1024);
+    }
+    file.close();
+
   #endif
 
   Serial.println("\nSetup done");

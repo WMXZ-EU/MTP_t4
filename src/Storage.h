@@ -101,7 +101,7 @@ public:
 
   virtual uint32_t Create(uint32_t storage, uint32_t parent, bool folder, const char* filename) = 0;
   virtual void read(uint32_t handle, uint32_t pos, char* buffer, uint32_t bytes) = 0;
-  virtual void write(const char* data, uint32_t size);
+  virtual size_t write(const char* data, uint32_t size);
   virtual void close() = 0;
   virtual bool DeleteObject(uint32_t object) = 0;
   virtual void CloseIndex() = 0;
@@ -185,7 +185,7 @@ private:
 
   uint32_t Create(uint32_t storage, uint32_t parent,  bool folder, const char* filename) override ;
 
-  void write(const char* data, uint32_t bytes) override ;
+  size_t write(const char* data, uint32_t bytes) override ;
   void close() override ;
 
   bool rename(uint32_t handle, const char* name) override ;
