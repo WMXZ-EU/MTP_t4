@@ -6,6 +6,12 @@
 #
 param([string]$Path)
 
+if ([string]::IsNullOrEmpty($Path)) {
+	powershell -noexit -file $MyInvocation.MyCommand.Path -Path "Teensy"
+	return
+}
+echo "Command is ./MTPdiir -Path $Path"
+
 $pathParts = @( $Path.Split('/'))
 
 $shell = new-object -com Shell.Application
