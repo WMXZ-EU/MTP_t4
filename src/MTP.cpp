@@ -42,7 +42,7 @@
 #include "usb_names.h"
 extern struct usb_string_descriptor_struct usb_string_serial_number; 
 
-#define DEBUG 0
+#define DEBUG 1
 #if DEBUG>0
   #define printf(...) Serial.printf(__VA_ARGS__)
 #else
@@ -1230,7 +1230,7 @@ const uint16_t supported_events[] =
     void MTPD::loop(void)
     { if(!usb_mtp_available()) return;
       if(fetch_packet(rx_data_buffer))
-      { if(CONTAINER->op <0x9000) printContainer(); // to switch on set debug to 1 at beginning of file
+      { printContainer(); // to switch on set debug to 1 at beginning of file
 
         int op = CONTAINER->op;
         int p1 = CONTAINER->params[0];

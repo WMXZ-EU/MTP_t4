@@ -167,10 +167,13 @@ void setup()
   Serial.println("\nSetup done");
 }
 
+void test_events(void);
+
 void loop()
 { 
   mtpd.loop();
 
+  test_events();
   static uint32_t to=3000;
   if(millis()-to>500)
   { static int ist=1;
@@ -183,3 +186,24 @@ void loop()
   //asm("wfi"); // may wait forever on T4.x
 }
 
+void test_events(void)
+{
+  if(!Serial.available()) return;
+  char ch=Serial.read();
+  int val;
+  switch(ch)
+  { case 'a':
+      val=Serial.parseInt();
+      mtpd.send_addObjectEvent(val);
+      break;
+    case 'r':
+      val=Serial.parseInt();
+      mtpd.send_removeObjectEvent(val);
+      break;
+    case 'i':
+      val=Serial.parseInt();
+      mtpd.send_StorageInfoChangedEvent(val);
+      break;
+  }
+  while(Serial.available()) Serial.read();
+}
