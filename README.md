@@ -10,7 +10,7 @@ see also https://forum.pjrc.com/threads/43050-MTP-Responder-Contribution for dis
 
 files in different copy-to directories contain modifications of cores and need to be copied to cores/teensy4, cores/teensy3 and hardware/avr, respectively. These files are only necessary until Teensyduino has integrated full MTP into cores functionality
 
-needs USB2 https://github.com/WMXZ-EU/USB2 for T4.x. (uses here usb1.h and usb1.c)
+(before TD 1.54 final) needs USB2 https://github.com/WMXZ-EU/USB2 for T4.x. (uses here usb1.h and usb1.c)
 
 
 ## Features
