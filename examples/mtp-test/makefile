@@ -61,7 +61,7 @@ ROOT0		:= C:\Users\zimme\Documents
 ARDUINO		:= $(ROOT0)\arduino-1.8.12\hardware
 
 LIBS_SHARED_BASE := $(ROOT0)\Arduino\libraries
-LIBS_SHARED      := MTP_t4
+LIBS_SHARED      := MTP_t4 usb2
 
 LIBS_LOCAL_BASE  := $(ARDUINO)\teensy\avr\libraries
 LIBS_LOCAL       := SD SdFat SPI Time LittleFS

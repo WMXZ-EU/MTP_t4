@@ -6,7 +6,8 @@
 #if defined(__IMXRT1062__)
   // following only while usb_mtp is not included in cores
   #if __has_include("usb_mtp.h")
-    #include "usb_mtp.h"
+//    #include "usb_mtp.h"
+    #include "usb1_mtp.h"
   #else
     #include "usb1_mtp.h"
   #endif
@@ -169,6 +170,14 @@ void setup()
 void loop()
 { 
   mtpd.loop();
+
+  static uint32_t to=3000;
+  if(millis()-to>500)
+  { static int ist=1;
+//    mtpd.send_StorageInfoChangedEvent(ist);
+    if(++ist>4) ist=1;
+    to=millis();
+  }
 
   //logg(1000,"loop");
   //asm("wfi"); // may wait forever on T4.x

@@ -138,15 +138,16 @@ private:
   uint32_t deleteObject(uint32_t p1) ;
   uint32_t copyObject(uint32_t p1,uint32_t p2, uint32_t p3) ;
   uint32_t moveObject(uint32_t p1,uint32_t p2, uint32_t p3) ;
-  void openSession(void) ;
+  void openSession(uint32_t id) ;
   
 public:
   void loop(void) ;
   void test(void) ;
-  #if WMXZ_TEST
+
   int send_addObjectEvent(uint32_t p1);
   int send_removeObjectEvent(uint32_t p1);
-  #endif
+  int send_StorageInfoChangedEvent(uint32_t p1);
+
 };
 
 #endif
