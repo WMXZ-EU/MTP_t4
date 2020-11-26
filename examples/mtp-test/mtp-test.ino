@@ -174,18 +174,14 @@ void loop()
   mtpd.loop();
 
   test_events();
-  static uint32_t to=3000;
-  if(millis()-to>500)
-  { static int ist=1;
-//    mtpd.send_StorageInfoChangedEvent(ist);
-    if(++ist>4) ist=1;
-    to=millis();
-  }
 
   //logg(1000,"loop");
   //asm("wfi"); // may wait forever on T4.x
 }
 
+#if WMXZ_TEST
+void test_events(void) {}
+#else
 void test_events(void)
 {
   if(!Serial.available()) return;
@@ -207,3 +203,4 @@ void test_events(void)
   }
   while(Serial.available()) Serial.read();
 }
+#endif
