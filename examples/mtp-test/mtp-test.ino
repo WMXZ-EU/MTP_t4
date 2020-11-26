@@ -6,7 +6,7 @@
 
 #if defined(__IMXRT1062__)
   // following only while usb_mtp is not included in cores
-  #if __has_include("usb_mtp.h") && WMXZ_TEST
+  #if __has_include("usb_mtp.h")
     #include "usb_mtp.h"
   #else
     #include "usb1_mtp.h"
@@ -97,15 +97,6 @@ void storage_configure()
     *ms10 = second() & 1 ? 100 : 0;
   }
 
-void logg(uint32_t del, const char *txt)
-{ static uint32_t to;
-  if(millis()-to > del)
-  {
-    Serial.println(txt); 
-    to=millis();
-  }
-}
-
 void setup()
 { 
   while(!Serial); 
@@ -172,40 +163,4 @@ void test_events(void);
 void loop()
 { 
   mtpd.loop();
-
-  test_events();
-
-  //logg(1000,"loop");
-  //asm("wfi"); // may wait forever on T4.x
 }
-
-#if WMXZ_TEST
-void test_events(void) {}
-#else
-void test_events(void)
-{ char buffer[MTP_EVENT_SIZE]; memset(buffer,0,MTP_EVENT_SIZE);
-	if(0)
-  if(usb_mtp_recvEvent((void*)buffer, MTP_EVENT_SIZE, 60)>0)
-  {
-    for(int ii=0;ii<MTP_EVENT_SIZE;ii++) Serial.print(buffer[ii],HEX); Serial.println();
-  }  
-  if(!Serial.available()) return;
-  char ch=Serial.read();
-  int val;
-  switch(ch)
-  { case 'a':
-      val=Serial.parseInt();
-      mtpd.send_addObjectEvent(val);
-      break;
-    case 'r':
-      val=Serial.parseInt();
-      mtpd.send_removeObjectEvent(val);
-      break;
-    case 'i':
-      val=Serial.parseInt();
-      mtpd.send_StorageInfoChangedEvent(val);
-      break;
-  }
-  while(Serial.available()) Serial.read();
-}
-#endif

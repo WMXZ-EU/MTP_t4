@@ -32,7 +32,7 @@
 
 #if defined(__IMXRT1062__)
   // following only while usb_mtp is not included in cores
-  #if __has_include("usb_mtp.h")  && WMXZ_TEST
+  #if __has_include("usb_mtp.h")
     #include "usb_mtp.h"
   #else
     #include "usb1_mtp.h"
@@ -200,8 +200,8 @@ const uint16_t supported_events[] =
   {
 //    MTP_EVENT_UNDEFINED                         ,//0x4000
 //    MTP_EVENT_CANCEL_TRANSACTION                ,//0x4001
-    MTP_EVENT_OBJECT_ADDED                      ,//0x4002
-    MTP_EVENT_OBJECT_REMOVED                    ,//0x4003
+//    MTP_EVENT_OBJECT_ADDED                      ,//0x4002
+//    MTP_EVENT_OBJECT_REMOVED                    ,//0x4003
 //    MTP_EVENT_STORE_ADDED                       ,//0x4004
 //    MTP_EVENT_STORE_REMOVED                     ,//0x4005
 //    MTP_EVENT_DEVICE_PROP_CHANGED               ,//0x4006
@@ -210,7 +210,7 @@ const uint16_t supported_events[] =
 //    MTP_EVENT_REQUEST_OBJECT_TRANSFER           ,//0x4009
 //    MTP_EVENT_STORE_FULL                        ,//0x400A
 //    MTP_EVENT_DEVICE_RESET                      ,//0x400B
-    MTP_EVENT_STORAGE_INFO_CHANGED              ,//0x400C
+//    MTP_EVENT_STORAGE_INFO_CHANGED              ,//0x400C
 //    MTP_EVENT_CAPTURE_COMPLETE                  ,//0x400D
 //    MTP_EVENT_UNREPORTED_STATUS                 ,//0x400E
 //    MTP_EVENT_OBJECT_PROP_CHANGED               ,//0xC801
@@ -1252,6 +1252,7 @@ const uint16_t supported_events[] =
         int id = CONTAINER->transaction_id;
         int len= CONTAINER->len;
         int typ= CONTAINER->type;
+        TID=id;
 
         int return_code =0x2001; //OK use as default value
 
@@ -1402,42 +1403,45 @@ const uint16_t supported_events[] =
 
 const uint32_t EVENT_TIMEOUT=60;
 
-int MTPD::send_addObjectEvent(uint32_t p1)
-{	MTPContainer event;
-	event.len = 16;
-	event.op =MTP_EVENT_OBJECT_ADDED ;
+int MTPD::send_Event(uint16_t eventCode)
+{
+  MTPContainer event;
+	event.len = 12;
+	event.op =eventCode ;
 	event.type = MTP_CONTAINER_TYPE_EVENT; 
-	event.transaction_id=0;
+	event.transaction_id=TID;
+	event.params[0]=0;
+	event.params[1]=0;
+	event.params[2]=0;
+	return 0;//usb_mtp_sendEvent((const void *) &event, event.len, EVENT_TIMEOUT);
+}
+int MTPD::send_Event(uint16_t eventCode, uint32_t p1)
+{
+  MTPContainer event;
+	event.len = 16;
+	event.op =eventCode ;
+	event.type = MTP_CONTAINER_TYPE_EVENT; 
+	event.transaction_id=TID;
 	event.params[0]=p1;
 	event.params[1]=0;
 	event.params[2]=0;
-	return usb_mtp_sendEvent((const void *) &event, event.len, EVENT_TIMEOUT);
+	return 0;//usb_mtp_sendEvent((const void *) &event, event.len, EVENT_TIMEOUT);
+}
+int MTPD::send_Event(uint16_t eventCode, uint32_t p1, uint32_t p2)
+{
+  MTPContainer event;
+	event.len = 20;
+	event.op =eventCode ;
+	event.type = MTP_CONTAINER_TYPE_EVENT; 
+	event.transaction_id=TID;
+	event.params[0]=p1;
+	event.params[1]=p2;
+	event.params[2]=0;
+	return 0;//usb_mtp_sendEvent((const void *) &event, event.len, EVENT_TIMEOUT);
 }
 
-int MTPD::send_removeObjectEvent(uint32_t p1)
-{		
-	MTPContainer event;
-	event.len = 16;
-	event.op = MTP_EVENT_OBJECT_REMOVED;
-	event.type = MTP_CONTAINER_TYPE_EVENT; 
-	event.transaction_id=0;
-	event.params[0]=p1;
-	event.params[1]=0;
-	event.params[2]=0;
-  return usb_mtp_sendEvent((const void *) &event, event.len, EVENT_TIMEOUT);
-}
-
-int MTPD::send_StorageInfoChangedEvent(uint32_t p1)
-{		
-	MTPContainer event;
-	event.len = 16;
-	event.op = MTP_EVENT_STORAGE_INFO_CHANGED;
-	event.type = MTP_CONTAINER_TYPE_EVENT; 
-	event.transaction_id=sessionID_;
-	event.params[0]=p1;
-	event.params[1]=0;
-	event.params[2]=0;
-  return usb_mtp_sendEvent((const void *) &event, event.len, EVENT_TIMEOUT);
-}
+int MTPD::send_addObjectEvent(uint32_t p1) {return send_Event(MTP_EVENT_OBJECT_ADDED, p1); }
+int MTPD::send_removeObjectEvent(uint32_t p1) {return send_Event(MTP_EVENT_OBJECT_REMOVED, p1); }
+int MTPD::send_StorageInfoChangedEvent(uint32_t p1) {return send_Event(MTP_EVENT_STORAGE_INFO_CHANGED, p1);}
 
 #endif
