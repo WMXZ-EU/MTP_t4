@@ -140,8 +140,8 @@ private:
   uint32_t moveObject(uint32_t p1,uint32_t p2, uint32_t p3) ;
   void openSession(uint32_t id) ;
 
-#if 0
   uint32_t TID;  
+#if 0
   int send_Event(uint16_t eventCode);
   int send_Event(uint16_t eventCode, uint32_t p1);
   int send_Event(uint16_t eventCode, uint32_t p1, uint32_t p2);
