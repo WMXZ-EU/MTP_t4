@@ -183,7 +183,12 @@ void loop()
 void test_events(void) {}
 #else
 void test_events(void)
-{
+{ char buffer[MTP_EVENT_SIZE]; memset(buffer,0,MTP_EVENT_SIZE);
+	if(0)
+  if(usb_mtp_recvEvent((void*)buffer, MTP_EVENT_SIZE, 60)>0)
+  {
+    for(int ii=0;ii<MTP_EVENT_SIZE;ii++) Serial.print(buffer[ii],HEX); Serial.println();
+  }  
   if(!Serial.available()) return;
   char ch=Serial.read();
   int val;

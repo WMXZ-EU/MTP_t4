@@ -304,9 +304,10 @@ const uint16_t supported_events[] =
 
   void MTPD::GetStorageInfo(uint32_t storage) {
     uint32_t store = Storage2Store(storage);
-    write16(storage_->readonly( store) ? 0x0001 : 0x0004);   // storage type (removable RAM)
-    write16(storage_->has_directories( store) ? 0x0002: 0x0001);   // filesystem type (generic hierarchical)
+    write16(storage_->readonly(store) ? 0x0001 : 0x0004);   // storage type (removable RAM)
+    write16(storage_->has_directories(store) ? 0x0002: 0x0001);   // filesystem type (generic hierarchical)
     write16(0x0000);   // access capability (read-write)
+
     uint64_t ntotal = storage_->totalSize(store) ; 
     uint64_t nused = storage_->usedSize(store) ; 
 
@@ -346,7 +347,7 @@ const uint16_t supported_events[] =
   
   void MTPD::GetObjectInfo(uint32_t handle) 
   {
-    char filename[256];
+    char filename[MAX_FILENAME_LEN];
     uint32_t size, parent;
     uint16_t store;
     storage_->GetObjectInfo(handle, filename, &size, &parent, &store);
@@ -588,19 +589,12 @@ const uint16_t supported_events[] =
     }
 
     uint32_t MTPD::moveObject(uint32_t handle, uint32_t newStorage, uint32_t newHandle)
-    { // p1 object
-      // p2 new storage
-      // p3 new directory
-      uint32_t store1=Storage2Store(newStorage);
+    { uint32_t store1=Storage2Store(newStorage);
       if(storage_->move(handle,store1,newHandle)) return 0x2001; else return  0x2005;
     }
     
     uint32_t MTPD::copyObject(uint32_t handle, uint32_t newStorage, uint32_t newHandle)
-    { // p1 object
-      // p2 new storage
-      // p3 new directory
-      // returns new object handle
-      uint32_t store1=Storage2Store(newStorage);
+    { uint32_t store1=Storage2Store(newStorage);
       return storage_->copy(handle,store1,newHandle);
     }
     
@@ -721,7 +715,9 @@ const uint16_t supported_events[] =
     uint32_t len = ReadMTPHeader();
     char filename[MAX_FILENAME_LEN];
 
-    uint32_t store = read32(); len-=4; // storage
+    uint32_t store = Storage2Store(storage);
+
+    read32(); len-=4; // storage
     bool dir = read16() == 0x3001; len-=2; // format
     read16();  len-=2; // protection
     read32(); len-=4; // size
@@ -769,7 +765,7 @@ const uint16_t supported_events[] =
       receive_buffer();
       if(p2==0xDC07)
       {
-        char filename[128];
+        char filename[MAX_FILENAME_LEN];
         ReadMTPHeader();
         readstring(filename);
 
@@ -1415,7 +1411,7 @@ int MTPD::send_addObjectEvent(uint32_t p1)
 	event.params[0]=p1;
 	event.params[1]=0;
 	event.params[2]=0;
-	return usb_mtp_sendEevent((const void *) &event, event.len, EVENT_TIMEOUT);
+	return usb_mtp_sendEvent((const void *) &event, event.len, EVENT_TIMEOUT);
 }
 
 int MTPD::send_removeObjectEvent(uint32_t p1)
@@ -1428,7 +1424,7 @@ int MTPD::send_removeObjectEvent(uint32_t p1)
 	event.params[0]=p1;
 	event.params[1]=0;
 	event.params[2]=0;
-  return usb_mtp_sendEevent((const void *) &event, event.len, EVENT_TIMEOUT);
+  return usb_mtp_sendEvent((const void *) &event, event.len, EVENT_TIMEOUT);
 }
 
 int MTPD::send_StorageInfoChangedEvent(uint32_t p1)
@@ -1441,7 +1437,7 @@ int MTPD::send_StorageInfoChangedEvent(uint32_t p1)
 	event.params[0]=p1;
 	event.params[1]=0;
 	event.params[2]=0;
-  return usb_mtp_sendEevent((const void *) &event, event.len, EVENT_TIMEOUT);
+  return usb_mtp_sendEvent((const void *) &event, event.len, EVENT_TIMEOUT);
 }
 
 #endif
