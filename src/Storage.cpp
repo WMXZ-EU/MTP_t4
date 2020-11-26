@@ -30,7 +30,7 @@
 
 #include "Storage.h"
 
-#define DEBUG 1
+#define DEBUG 0
 
 #if DEBUG>0
   #define USE_DBG_MACROS 1
@@ -73,11 +73,11 @@
 void mtp_yield() {}
 void mtp_lock_storage(bool lock) {}
 
-  bool MTPStorage_SD::readonly(uint32_t storage) { return false; }
-  bool MTPStorage_SD::has_directories(uint32_t storage) { return true; }
+  bool MTPStorage_SD::readonly(uint32_t store) { return false; }
+  bool MTPStorage_SD::has_directories(uint32_t store) { return true; }
 
-  uint64_t MTPStorage_SD::totalSize(uint32_t storage) { return sd_totalSize(storage-1); }
-  uint64_t MTPStorage_SD::usedSize(uint32_t storage) { return sd_usedSize(storage-1); }
+  uint64_t MTPStorage_SD::totalSize(uint32_t store) { return sd_totalSize(store); }
+  uint64_t MTPStorage_SD::usedSize(uint32_t store) { return sd_usedSize(store); }
 
   void MTPStorage_SD::CloseIndex()
   {
@@ -170,7 +170,7 @@ void mtp_lock_storage(bool lock) {}
   // MTP object handles should not change or be re-used during a session.
   // This would be easy if we could just have a list of all files in memory.
   // Since our RAM is limited, we'll keep the index in a file instead.
-  void MTPStorage_SD::GenerateIndex(uint32_t storage)
+  void MTPStorage_SD::GenerateIndex(uint32_t store)
   { if (index_generated) return; 
     index_generated = true;
     // first remove old index file
@@ -184,7 +184,7 @@ void mtp_lock_storage(bool lock) {}
     Record r;
     for(int ii=0; ii<num_storage; ii++)
     {
-      r.store = ii; // store is typically (storage-1) //store 0...6; storage 1...7
+      r.store = ii; // 
       r.parent = ii;
       r.sibling = 0;
       r.child = 0;
@@ -195,8 +195,10 @@ void mtp_lock_storage(bool lock) {}
     }
   }
 
-  void MTPStorage_SD::ScanDir(uint32_t storage, uint32_t i) 
-  { Record record = ReadIndexRecord(i);
+  void MTPStorage_SD::ScanDir(uint32_t store, uint32_t i) 
+  { if (i == 0xFFFFFFFFUL) i = store;
+    
+    Record record = ReadIndexRecord(i);
     if (record.isdir && !record.scanned) {
       OpenFileByIndex(i);
       if (!sd_isOpen(file_)) return;
@@ -225,34 +227,34 @@ void mtp_lock_storage(bool lock) {}
     }
   }
 
-  void MTPStorage_SD::ScanAll(uint32_t storage) 
+  void MTPStorage_SD::ScanAll(uint32_t store) 
   { if (all_scanned_) return;
     all_scanned_ = true;
 
-    GenerateIndex(storage);
-    for (uint32_t i = 0; i < index_entries_; i++)  ScanDir(storage,i);
+    GenerateIndex(store);
+    for (uint32_t i = 0; i < index_entries_; i++)  ScanDir(store,i);
   }
 
-  void MTPStorage_SD::StartGetObjectHandles(uint32_t storage, uint32_t parent) 
+  void MTPStorage_SD::StartGetObjectHandles(uint32_t store, uint32_t parent) 
   { 
-    GenerateIndex(storage);
+    GenerateIndex(store);
     if (parent) 
-    { if (parent == 0xFFFFFFFF) parent = storage-1; // As per initizalization
+    { if (parent == 0xFFFFFFFF) parent = store; // As per initizalization
 
-      ScanDir(storage, parent);
+      ScanDir(store, parent);
       follow_sibling_ = true;
       // Root folder?
       next_ = ReadIndexRecord(parent).child;
     } 
     else 
     { 
-      ScanAll(storage);
+      ScanAll(store);
       follow_sibling_ = false;
       next_ = 1;
     }
   }
 
-  uint32_t MTPStorage_SD::GetNextObjectHandle(uint32_t  storage)
+  uint32_t MTPStorage_SD::GetNextObjectHandle(uint32_t  storee)
   {
     while (true) 
     { if (next_ == 0) return 0;
@@ -356,10 +358,10 @@ void mtp_lock_storage(bool lock) {}
     return true;
   }
 
-  uint32_t MTPStorage_SD::Create(uint32_t storage, uint32_t parent,  bool folder, const char* filename)
+  uint32_t MTPStorage_SD::Create(uint32_t store, uint32_t parent,  bool folder, const char* filename)
   {
     uint32_t ret;
-    if (parent == 0xFFFFFFFFUL) parent = storage-1;
+    if (parent == 0xFFFFFFFFUL) parent = store;
     Record p = ReadIndexRecord(parent);
     Record r;
     strlcpy(r.name, filename,MAX_FILENAME_LEN);
@@ -375,7 +377,7 @@ void mtp_lock_storage(bool lock) {}
     if (folder) 
     {
       char filename[MAX_FILENAME_LEN];
-      uint16_t store =ConstructFilename(ret, filename, MAX_FILENAME_LEN);
+      ConstructFilename(ret, filename, MAX_FILENAME_LEN);
       mtp_lock_storage(true);
       sd_mkdir(store,filename);
       mtp_lock_storage(false);
@@ -387,6 +389,7 @@ void mtp_lock_storage(bool lock) {}
     #if DEBUG>1
     Serial.print("Create "); 
       Serial.print(ret); Serial.print(" ");
+      Serial.print(store); Serial.print(" "); 
       Serial.print(parent); Serial.print(" "); 
       Serial.println(filename);
     #endif
@@ -474,12 +477,12 @@ void mtp_lock_storage(bool lock) {}
  * 
 */
 
-  bool MTPStorage_SD::move(uint32_t handle, uint32_t newStorage, uint32_t newParent ) 
+  bool MTPStorage_SD::move(uint32_t handle, uint32_t newStore, uint32_t newParent ) 
   { 
-    #if DEBUG==1
+    #if DEBUG>1
       Serial.printf("%d -> %d %d\n",handle,newStorage,newParent);
     #endif
-    if(newParent<=0) newParent=(newStorage-1); //storage runs from 1, while record.store runs from 0
+    if(newParent==0xFFFFFFFFUL) newParent=newStore; //storage runs from 1, while record.store runs from 0
 
     Record p1 = ReadIndexRecord(handle);
     Record p2 = ReadIndexRecord(newParent);
@@ -567,9 +570,9 @@ void mtp_lock_storage(bool lock) {}
     return false;
   }
 
-  uint32_t MTPStorage_SD::copy(uint32_t handle, uint32_t newStorage, uint32_t newParent ) 
+  uint32_t MTPStorage_SD::copy(uint32_t handle, uint32_t newStore, uint32_t newParent ) 
   { 
-    if(newParent<=0) newParent=(newStorage-1); //storage runs from 1, while record.store runs from 0
+    if(newParent==0xFFFFFFFFUL) newParent=newStore;
 
     Record p1 = ReadIndexRecord(handle);
     Record p2 = ReadIndexRecord(newParent);
@@ -578,8 +581,8 @@ void mtp_lock_storage(bool lock) {}
     if(p1.isdir)
     {
       ScanDir(p1.store+1,handle);
-      newHandle = Create(p1.store,newParent,p1.isdir,p1.name);
-      CopyFiles(handle, p2.store+1, newHandle);
+      newHandle = Create(p2.store,newParent,p1.isdir,p1.name);
+      CopyFiles(handle, p2.store, newHandle);
     }
     else
     {  
@@ -605,12 +608,15 @@ void mtp_lock_storage(bool lock) {}
     return newHandle;
   }
 
-bool MTPStorage_SD::CopyFiles(uint32_t handle, uint32_t storage, uint32_t newHandle)
+bool MTPStorage_SD::CopyFiles(uint32_t handle, uint32_t store, uint32_t newHandle)
 { // assume handle and newHandle point to existing directories
-  if(newHandle==0xFFFFFFFFUL) newHandle=storage-1;
+  if(newHandle==0xFFFFFFFFUL) newHandle=store;
+  #if DEBUG>1
+    Serial.printf("%d -> %d\n",handle,newHandle);
+  #endif
+
   Record p1=ReadIndexRecord(handle);
   Record p2=ReadIndexRecord(newHandle);
-
   uint32_t ix= p1.child;
   uint32_t iy= 0;
   while(ix)
@@ -631,7 +637,7 @@ bool MTPStorage_SD::CopyFiles(uint32_t handle, uint32_t storage, uint32_t newHan
     { 
       sd_mkdir(py.store,newfilename);
 
-      ScanDir(p1.store+1,ix); 
+      ScanDir(p1.store,ix); 
       CopyFiles(ix,p2.store,iy); 
     }
     else
@@ -643,14 +649,14 @@ bool MTPStorage_SD::CopyFiles(uint32_t handle, uint32_t storage, uint32_t newHan
   WriteIndexRecord(newHandle,p2);
   return true;
 }
-
+/************************************** mSD_Base *******************************/
 bool mSD_Base::sd_copy(uint32_t store0, char *oldfilename, uint32_t store1, char *newfilename)
 {
   const int nbuf = 2048;
   char buffer[nbuf];
   int nd=-1;
 
-  #if DEBUG==1
+  #if DEBUG>1
     Serial.print("From "); Serial.print(store0); Serial.print(": ");Serial.println(oldfilename);
     Serial.print("To   "); Serial.print(store1); Serial.print(": ");Serial.println(newfilename);
   #endif

@@ -42,7 +42,7 @@
 #include "usb_names.h"
 extern struct usb_string_descriptor_struct usb_string_serial_number; 
 
-#define DEBUG 1
+#define DEBUG 0
 #if DEBUG>0
   #define printf(...) Serial.printf(__VA_ARGS__)
 #else
@@ -200,8 +200,8 @@ const uint16_t supported_events[] =
   {
 //    MTP_EVENT_UNDEFINED                         ,//0x4000
 //    MTP_EVENT_CANCEL_TRANSACTION                ,//0x4001
-//    MTP_EVENT_OBJECT_ADDED                      ,//0x4002
-//    MTP_EVENT_OBJECT_REMOVED                    ,//0x4003
+    MTP_EVENT_OBJECT_ADDED                      ,//0x4002
+    MTP_EVENT_OBJECT_REMOVED                    ,//0x4003
 //    MTP_EVENT_STORE_ADDED                       ,//0x4004
 //    MTP_EVENT_STORE_REMOVED                     ,//0x4005
 //    MTP_EVENT_DEVICE_PROP_CHANGED               ,//0x4006
@@ -244,6 +244,9 @@ const uint16_t supported_events[] =
   void MTPD::write16(uint16_t x) { write((char*)&x, sizeof(x)); }
   void MTPD::write32(uint32_t x) { write((char*)&x, sizeof(x)); }
   void MTPD::write64(uint64_t x) { write((char*)&x, sizeof(x)); }
+
+#define Store2Storage(x) (x+1)
+#define Storage2Store(x) (x-1)
 
   void MTPD::writestring(const char* str) {
     if (*str) 
@@ -296,34 +299,38 @@ const uint16_t supported_events[] =
   void MTPD::WriteStorageIDs() {
     uint32_t num=storage_->get_FSCount();
     write32(num); // number of storages (disks)
-    for(uint32_t ii=1;ii<=num;ii++)  write32(ii); // storage id
+    for(uint32_t ii=0;ii<num;ii++)  write32(Store2Storage(ii)); // storage id
   }
 
   void MTPD::GetStorageInfo(uint32_t storage) {
-    write16(storage_->readonly( storage) ? 0x0001 : 0x0004);   // storage type (removable RAM)
-    write16(storage_->has_directories( storage) ? 0x0002: 0x0001);   // filesystem type (generic hierarchical)
+    uint32_t store = Storage2Store(storage);
+    write16(storage_->readonly( store) ? 0x0001 : 0x0004);   // storage type (removable RAM)
+    write16(storage_->has_directories( store) ? 0x0002: 0x0001);   // filesystem type (generic hierarchical)
     write16(0x0000);   // access capability (read-write)
-    
-    uint64_t ntotal = storage_->totalSize(storage) ; 
-    uint64_t nused = storage_->usedSize(storage) ; 
+    uint64_t ntotal = storage_->totalSize(store) ; 
+    uint64_t nused = storage_->usedSize(store) ; 
+
     write64(ntotal);  // max capacity
     write64((ntotal-nused));  // free space (100M)
     //
     write32(0xFFFFFFFFUL);  // free space (objects)
-    const char *name = storage_->get_FSName(storage);
+    const char *name = storage_->get_FSName(store);
     writestring(name);  // storage descriptor
     writestring("");  // volume identifier
+
+    //printf("%d %d ",storage,store); Serial.println(name); Serial.flush();
   }
 
   uint32_t MTPD::GetNumObjects(uint32_t storage, uint32_t parent) 
-  { storage_->StartGetObjectHandles(storage, parent);
+  { uint32_t store = Storage2Store(storage);
+    storage_->StartGetObjectHandles(store, parent);
     int num = 0;
-    while (storage_->GetNextObjectHandle(storage)) num++;
+    while (storage_->GetNextObjectHandle(store)) num++;
     return num;
   }
 
   void MTPD::GetObjectHandles(uint32_t storage, uint32_t parent) 
-  {
+  { uint32_t store = Storage2Store(storage);
     if (write_get_length_) {
       write_length_ = GetNumObjects(storage, parent);
       write_length_++;
@@ -332,8 +339,8 @@ const uint16_t supported_events[] =
     else{
       write32(GetNumObjects(storage, parent));
       int handle;
-      storage_->StartGetObjectHandles(storage, parent);
-      while ((handle = storage_->GetNextObjectHandle(storage))) write32(handle);
+      storage_->StartGetObjectHandles(store, parent);
+      while ((handle = storage_->GetNextObjectHandle(store))) write32(handle);
     }
   }
   
@@ -344,7 +351,8 @@ const uint16_t supported_events[] =
     uint16_t store;
     storage_->GetObjectInfo(handle, filename, &size, &parent, &store);
 
-    write32(store); // storage
+    uint32_t storage = Store2Storage(store);
+    write32(storage); // storage
     write16(size == 0xFFFFFFFFUL ? 0x3001 : 0x0000); // format
     write16(0);  // protection
     write32(size); // size
@@ -528,10 +536,11 @@ const uint16_t supported_events[] =
       uint16_t store;
       storage_->GetObjectInfo(p1,name,&size,&parent, &store);
       dir = size == 0xFFFFFFFFUL;
+      uint32_t storage = Store2Storage(store);
       switch(p2)
       {
         case MTP_PROPERTY_STORAGE_ID:         //0xDC01:
-          write32(store+1);
+          write32(storage);
           break;
         case MTP_PROPERTY_OBJECT_FORMAT:      //0xDC02:
           write16(dir?0x3001:0x3000);
@@ -558,7 +567,7 @@ const uint16_t supported_events[] =
         case MTP_PROPERTY_PERSISTENT_UID:     //0xDC41:
           write32(p1);
           write32(parent);
-          write32(store);
+          write32(storage);
           write32(0);
           break;
         case MTP_PROPERTY_NAME:               //0xDC44:
@@ -569,28 +578,30 @@ const uint16_t supported_events[] =
       }
     }
     
-    uint32_t MTPD::deleteObject(uint32_t p1)
+    uint32_t MTPD::deleteObject(uint32_t handle)
     {
-        if (!storage_->DeleteObject(p1))
+        if (!storage_->DeleteObject(handle))
         {
           return 0x2012; // partial deletion
         }
         return 0x2001;
     }
 
-    uint32_t MTPD::moveObject(uint32_t p1, uint32_t p2, uint32_t p3)
+    uint32_t MTPD::moveObject(uint32_t handle, uint32_t newStorage, uint32_t newHandle)
     { // p1 object
       // p2 new storage
       // p3 new directory
-      if(storage_->move(p1,p2,p3)) return 0x2001; else return  0x2005;
+      uint32_t store1=Storage2Store(newStorage);
+      if(storage_->move(handle,store1,newHandle)) return 0x2001; else return  0x2005;
     }
     
-    uint32_t MTPD::copyObject(uint32_t p1, uint32_t p2, uint32_t p3)
+    uint32_t MTPD::copyObject(uint32_t handle, uint32_t newStorage, uint32_t newHandle)
     { // p1 object
       // p2 new storage
       // p3 new directory
       // returns new object handle
-      return storage_->copy(p1,p2,p3);
+      uint32_t store1=Storage2Store(newStorage);
+      return storage_->copy(handle,store1,newHandle);
     }
     
     void MTPD::openSession(uint32_t id)
@@ -1104,9 +1115,13 @@ const uint16_t supported_events[] =
     } while(0)
 
 
-    #define printContainer() { printf("%x %d %d %d: %x %x %x\n", \
-                CONTAINER->op, CONTAINER->len, CONTAINER->type, CONTAINER->transaction_id, \
-                CONTAINER->params[0], CONTAINER->params[1], CONTAINER->params[2]);  }
+    #define printContainer() \
+    { printf("%x %d %d %d: ", CONTAINER->op, CONTAINER->len, CONTAINER->type, CONTAINER->transaction_id); \
+      if(CONTAINER->len>12) printf(" %x", CONTAINER->params[0]); \
+      if(CONTAINER->len>16) printf(" %x", CONTAINER->params[1]); \
+      if(CONTAINER->len>20) printf(" %x", CONTAINER->params[2]); \
+      printf("\n"); \
+    }
 
 
     void MTPD::read(char* data, uint32_t size) 
@@ -1137,9 +1152,11 @@ const uint16_t supported_events[] =
     uint32_t MTPD::SendObjectInfo(uint32_t storage, uint32_t parent) {
       pull_packet(rx_data_buffer);
 //      printContainer(); 
+      uint32_t store = Storage2Store(storage);
+
       read(0,0); // resync read
       int len=ReadMTPHeader();
-      char filename[256];
+      char filename[MAX_FILENAME_LEN];
 
       read32(); len -=4; // storage
       bool dir = (read16() == 0x3001); len -=2; // format
@@ -1161,7 +1178,7 @@ const uint16_t supported_events[] =
       while(len>=4) { read32(); len-=4;}
       while(len) {read8(); len--;}
 
-      return storage_->Create(storage, parent, dir, filename);
+      return storage_->Create(store, parent, dir, filename);
     }
 
     bool MTPD::SendObject() 
@@ -1211,17 +1228,17 @@ const uint16_t supported_events[] =
       return true;
     }
 
-    uint32_t MTPD::setObjectPropValue(uint32_t p1, uint32_t p2)
+    uint32_t MTPD::setObjectPropValue(uint32_t handle, uint32_t p2)
     { pull_packet(rx_data_buffer);
       //printContainer(); 
       read(0,0);
          
       if(p2==0xDC07)
       { 
-        char filename[128]; 
+        char filename[MAX_FILENAME_LEN]; 
         ReadMTPHeader();
         readstring(filename);
-        if(storage_->rename(p1,filename)) return 0x2001; else return 0x2005;
+        if(storage_->rename(handle,filename)) return 0x2001; else return 0x2005;
       }
       else
         return 0x2005;
@@ -1340,7 +1357,7 @@ const uint16_t supported_events[] =
               if(!return_code) 
               { return_code=0x2005; CONTAINER->len  = len = 12; }
               else
-              { p1 = return_code; return_code=0x2001; }
+              { p1 = return_code; return_code=0x2001; CONTAINER->len  = len = 16;  }
               break;
 
           case 0x101B:  // GetPartialObject

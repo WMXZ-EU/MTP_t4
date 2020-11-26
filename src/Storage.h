@@ -56,7 +56,7 @@ class mSD_Base
     }
 
     uint32_t sd_getFSCount(void) {return fsCount;}
-    const char *sd_getFSName(uint32_t storage) { return sd_name[storage-1];}
+    const char *sd_getFSName(uint32_t store) { return sd_name[store];}
 
     File sd_open(uint32_t store, const char *filename, uint32_t mode) { return sdx[store]->open(filename,mode);  }
     bool sd_mkdir(uint32_t store, char *filename) {  return sdx[store]->mkdir(filename);  }
