@@ -140,18 +140,22 @@ private:
   uint32_t moveObject(uint32_t p1,uint32_t p2, uint32_t p3) ;
   void openSession(uint32_t id) ;
 
+#if 0
   uint32_t TID;  
   int send_Event(uint16_t eventCode);
   int send_Event(uint16_t eventCode, uint32_t p1);
   int send_Event(uint16_t eventCode, uint32_t p1, uint32_t p2);
+#endif
 
 public:
   void loop(void) ;
   void test(void) ;
 
+#if 0
   int send_addObjectEvent(uint32_t p1);
   int send_removeObjectEvent(uint32_t p1);
   int send_StorageInfoChangedEvent(uint32_t p1);
+#endif
 };
 
 #endif
