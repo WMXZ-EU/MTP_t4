@@ -1400,7 +1400,7 @@ const uint16_t supported_events[] =
 
 #endif
 
-
+#if 0
 const uint32_t EVENT_TIMEOUT=60;
 
 int MTPD::send_Event(uint16_t eventCode)
@@ -1443,5 +1443,5 @@ int MTPD::send_Event(uint16_t eventCode, uint32_t p1, uint32_t p2)
 int MTPD::send_addObjectEvent(uint32_t p1) {return send_Event(MTP_EVENT_OBJECT_ADDED, p1); }
 int MTPD::send_removeObjectEvent(uint32_t p1) {return send_Event(MTP_EVENT_OBJECT_REMOVED, p1); }
 int MTPD::send_StorageInfoChangedEvent(uint32_t p1) {return send_Event(MTP_EVENT_STORAGE_INFO_CHANGED, p1);}
-
+#endif
 #endif
