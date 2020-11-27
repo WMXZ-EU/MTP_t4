@@ -741,14 +741,14 @@ const uint16_t supported_events[] =
     return storage_->Create(store, parent, dir, filename);
   }
 
-  void MTPD::SendObject() {
+  bool MTPD::SendObject() {
     uint32_t len = ReadMTPHeader();
     while (len) 
     { 
       receive_buffer();
       uint32_t to_copy = data_buffer_->len - data_buffer_->index;
       to_copy = min(to_copy, len);
-      storage_->write((char*)(data_buffer_->buf + data_buffer_->index), to_copy);
+      if(!storage_->write((char*)(data_buffer_->buf + data_buffer_->index), to_copy)) return false;
       data_buffer_->index += to_copy;
       len -= to_copy;
       if (data_buffer_->index == data_buffer_->len) 
@@ -758,6 +758,7 @@ const uint16_t supported_events[] =
       }
     }
     storage_->close();
+    return true;
   }
   
     uint32_t MTPD::setObjectPropValue(uint32_t p1, uint32_t p2)
@@ -783,19 +784,27 @@ const uint16_t supported_events[] =
     if ((receive_buffer = usb_rx(MTP_RX_ENDPOINT))) {
       printContainer();
       
+        int op = CONTAINER->op;
+        int p1 = CONTAINER->params[0];
+        int p2 = CONTAINER->params[1];
+        int p3 = CONTAINER->params[2];
+        int id = CONTAINER->transaction_id;
+        int len= CONTAINER->len;
+        int typ= CONTAINER->type;
+        TID=id;
+
       uint32_t return_code = 0;
-      uint32_t p1 = 0, p2 = 0;
       if (receive_buffer->len >= 12) {
         return_code = 0x2001;  // Ok
         receive_buffer->len = 12;
         
-        if (CONTAINER->type == 1) { // command
-          switch (CONTAINER->op) {
+        if (typ == 1) { // command
+          switch (op) {
             case 0x1001: // GetDescription
               TRANSMIT(WriteDescriptor());
               break;
             case 0x1002:  // OpenSession
-              openSession();
+              openSession(p1);
               break;
             case 0x1003:  // CloseSession
               break;
@@ -803,53 +812,51 @@ const uint16_t supported_events[] =
               TRANSMIT(WriteStorageIDs());
               break;
             case 0x1005:  // GetStorageInfo
-              TRANSMIT(GetStorageInfo(CONTAINER->params[0]));
+              TRANSMIT(GetStorageInfo(p1));
               break;
             case 0x1006:  // GetNumObjects
-              if (CONTAINER->params[1]) {
+              if (p2) {
                 return_code = 0x2014; // spec by format unsupported
               } else {
-                p1 = GetNumObjects(CONTAINER->params[0], CONTAINER->params[2]);
+                p1 = GetNumObjects(p1, p3);
               }
               break;
             case 0x1007:  // GetObjectHandles
-              if (CONTAINER->params[1]) {
+              if (p2) {
                 return_code = 0x2014; // spec by format unsupported
               } else {
-                TRANSMIT(GetObjectHandles(CONTAINER->params[0], CONTAINER->params[2]));
+                TRANSMIT(GetObjectHandles(p1, p3));
               }
               break;
             case 0x1008:  // GetObjectInfo
-              TRANSMIT(GetObjectInfo(CONTAINER->params[0]));
+              TRANSMIT(GetObjectInfo(p1));
               break;
             case 0x1009:  // GetObject
-              TRANSMIT(GetObject(CONTAINER->params[0]));
+              TRANSMIT(GetObject(p1));
               break;
             case 0x100B:  // DeleteObject
-              if (CONTAINER->params[1]) {
+              if (p2) {
                 return_code = 0x2014; // spec by format unsupported
               } else {
-                if (!storage_->DeleteObject(CONTAINER->params[0])) {
+                if (!storage_->DeleteObject(p1)) {
                   return_code = 0x2012; // partial deletion
                 }
               }
               break;
-            case 0x100C:  // SendObjectInfo
-              CONTAINER->params[2] =
-                  SendObjectInfo(CONTAINER->params[0], // storage
-                                 CONTAINER->params[1]); // parent
-                  p1 = CONTAINER->params[0];
-              if (!p1) p1 = 1;
-              CONTAINER->len = receive_buffer->len = 12 + 3 * 4;
+              p3 =  SendObjectInfo(p1, // storage
+                                   p2); // parent
+              CONTAINER->params[1]=p2;
+              CONTAINER->params[2]=p3;
+              len = receive_buffer->len = 12 + 3 * 4;
               break;
             case 0x100D:  // SendObject
               SendObject();
               break;
             case 0x1014:  // GetDevicePropDesc
-              TRANSMIT(GetDevicePropDesc(CONTAINER->params[0]));
+              TRANSMIT(GetDevicePropDesc(p1));
               break;
             case 0x1015:  // GetDevicePropvalue
-              TRANSMIT(GetDevicePropValue(CONTAINER->params[0]));
+              TRANSMIT(GetDevicePropValue(p1));
               break;
               
           case 0x1010:  // Reset
@@ -857,40 +864,29 @@ const uint16_t supported_events[] =
               break;
 
           case 0x1019:  // MoveObject
-              return_code = moveObject(CONTAINER->params[0],CONTAINER->params[1],CONTAINER->params[2]);
-              CONTAINER->len  = receive_buffer->len = 12;
+              return_code = moveObject(p1,p2,p3);
+              len  = receive_buffer->len = 12;
               break;
 
           case 0x101A:  // CopyObject
-              return_code = copyObject(CONTAINER->params[0],CONTAINER->params[1],CONTAINER->params[2]);
-              if(! return_code) { CONTAINER->len  = receive_buffer->len = 12; return_code = 0x2005; }
+              return_code = copyObject(p1,p2,p3);
+              if(! return_code) { len  = receive_buffer->len = 12; return_code = 0x2005; }
               else {p1 = return_code; return_code=0x2001;}
               break;
 
           case 0x9801:  // getObjectPropsSupported
-            p1=CONTAINER->params[0];
-
               TRANSMIT(getObjectPropsSupported(p1));
               break;
 
           case 0x9802:  // getObjectPropDesc
-            p1=CONTAINER->params[0];
-            p2=CONTAINER->params[1];
-
             TRANSMIT(getObjectPropDesc(p1,p2));
               break;
 
           case 0x9803:  // getObjectPropertyValue
-            p1=CONTAINER->params[0];
-            p2=CONTAINER->params[1];
-
             TRANSMIT(getObjectPropValue(p1,p2));
               break;
 
           case 0x9804:  // setObjectPropertyValue
-
-            p1=CONTAINER->params[0];
-            p2=CONTAINER->params[1];
               return_code = setObjectPropValue(p1,p2);
               break;
               
@@ -903,9 +899,11 @@ const uint16_t supported_events[] =
         }
       }
       if (return_code) {
-        CONTAINER->type = 3;
-        CONTAINER->op = return_code;
-        CONTAINER->params[0] = p1;
+        CONTAINER->type=3;
+        CONTAINER->len=len;
+        CONTAINER->op=return_code;
+        CONTAINER->transaction_id=id;
+        CONTAINER->params[0]=p1;
         printContainer();
 
         usb_tx(MTP_TX_ENDPOINT, receive_buffer);
@@ -1261,7 +1259,7 @@ const uint16_t supported_events[] =
         switch (op)
         {
           case 0x1001:
-            p1=0;
+//            p1=0;
             TRANSMIT(WriteDescriptor());
             break;
 
@@ -1282,7 +1280,7 @@ const uint16_t supported_events[] =
             break;
 
           case 0x1006:  // GetNumObjects
-            if (CONTAINER->params[1]) 
+            if (p2) 
             {
                 return_code = 0x2014; // spec by format unsupported
             } else 
@@ -1309,27 +1307,27 @@ const uint16_t supported_events[] =
             break;
 
           case 0x100B:  // DeleteObject
-              if (CONTAINER->params[1]) {
+              if (p2) {
                 return_code = 0x2014; // spec by format unsupported
               } else {
-                if (!storage_->DeleteObject(CONTAINER->params[0])) {
+                if (!storage_->DeleteObject(p1)) {
                   return_code = 0x2012; // partial deletion
                 }
               }
               break;
 
           case 0x100C:  // SendObjectInfo
-              if (!p1) p1 = 1;
-              CONTAINER->params[2] = SendObjectInfo(p1, // storage
-                                                    p2); // parent
+              p3 = SendObjectInfo(p1, // storage
+                                  p2); // parent
 
               CONTAINER->params[1]=p2;
-              CONTAINER->len  = len = 12 + 3 * 4;
+              CONTAINER->params[2]=p3;
+              len = 12 + 3 * 4;
               break;
 
           case 0x100D:  // SendObject
               if(!SendObject()) return_code = 0x2005;
-              CONTAINER->len  = len = 12;
+              len = 12;
               break;
 
           case 0x1014:  // GetDevicePropDesc
@@ -1346,15 +1344,15 @@ const uint16_t supported_events[] =
 
           case 0x1019:  // MoveObject
               return_code = moveObject(p1,p2,p3);
-              CONTAINER->len  = len = 12;
+              len = 12;
               break;
 
           case 0x101A:  // CopyObject
               return_code = copyObject(p1,p2,p3);
               if(!return_code) 
-              { return_code=0x2005; CONTAINER->len  = len = 12; }
+              { return_code=0x2005; len = 12; }
               else
-              { p1 = return_code; return_code=0x2001; CONTAINER->len  = len = 16;  }
+              { p1 = return_code; return_code=0x2001; len = 16;  }
               break;
 
           case 0x101B:  // GetPartialObject
