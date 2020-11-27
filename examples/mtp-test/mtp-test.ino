@@ -11,10 +11,12 @@
   #else
     #include "usb1_mtp.h"
   #endif
+#else
+  void  usb_mtp_configure(void) {}
 #endif
 
 #define USE_SD  1
-#define USE_LITTLEFS 1 // set to zero if no LtttleFS is existing or to be used
+#define USE_LITTLEFS 0 // set to zero if no LtttleFS is existing or to be used
 
 /****  Start device specific change area  ****/
 #if USE_SD==1
@@ -26,8 +28,10 @@
   #define SPI_SPEED SD_SCK_MHZ(16)  // adjust to sd card 
 
 // SDClasses
-  const char *sd_str[]={"sdio","sd6"}; // edit to reflect your configuration
-  const int cs[] = {BUILTIN_SDCARD,38}; // edit to reflect your configuration
+//  const char *sd_str[]={"sdio","sd6"}; // edit to reflect your configuration
+//  const int cs[] = {BUILTIN_SDCARD,38}; // edit to reflect your configuration
+  const char *sd_str[]={"sdio"}; // edit to reflect your configuration
+  const int cs[] = {BUILTIN_SDCARD}; // edit to reflect your configuration
   const int nsd = sizeof(cs)/sizeof(int);
 
 SDClass sdx[nsd];
