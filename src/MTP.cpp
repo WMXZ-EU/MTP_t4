@@ -604,6 +604,7 @@ const uint16_t supported_events[] =
       storage_->ResetIndex();
     }
 
+
 #if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MK64FX512__) || defined(__MK66FX1M0__)
 
 //  usb_packet_t *data_buffer_ = NULL;
@@ -666,10 +667,8 @@ const uint16_t supported_events[] =
     }
   }
 
-//  inline MTPContainer *contains (usb_packet_t *receive_buffer) { return (MTPContainer*)(receive_buffer->buf);  }
-  
-  #define CONTAINER contains(receive_buffer)
-  
+  #define CONTAINER ((struct MTPContainer*)(receive_buffer->buf))
+
   #define TRANSMIT(FUN) do {                              \
       write_length_ = 0;                                  \
       write_get_length_ = true;                           \
@@ -687,10 +686,13 @@ const uint16_t supported_events[] =
       data_buffer_ = NULL;                                \
     } while(0)
 
-    #define printContainer() {   printf("%x %d %d %d: %x %x %x\n", \
-                CONTAINER->op, CONTAINER->len, CONTAINER->type, CONTAINER->transaction_id, \
-                CONTAINER->params[0], CONTAINER->params[1], CONTAINER->params[2]);  }
-
+    #define printContainer() \
+    { printf("%x %d %d %d: ", CONTAINER->op, CONTAINER->len, CONTAINER->type, CONTAINER->transaction_id); \
+      if(CONTAINER->len>12) printf(" %x", CONTAINER->params[0]); \
+      if(CONTAINER->len>16) printf(" %x", CONTAINER->params[1]); \
+      if(CONTAINER->len>20) printf(" %x", CONTAINER->params[2]); \
+      printf("\n"); \
+    }
 
   void MTPD::read(char* data, uint32_t size) 
   {
@@ -904,7 +906,9 @@ const uint16_t supported_events[] =
         CONTAINER->op=return_code;
         CONTAINER->transaction_id=id;
         CONTAINER->params[0]=p1;
-        printContainer();
+        #if DEBUG>1
+          printContainer();
+        #endif
 
         usb_tx(MTP_TX_ENDPOINT, receive_buffer);
         receive_buffer = 0;
@@ -914,17 +918,12 @@ const uint16_t supported_events[] =
     }
     // Maybe put event handling inside mtp_yield()?
     if ((receive_buffer = usb_rx(MTP_EVENT_ENDPOINT))) {
+      printf("Event: "); printContainer();
       usb_free(receive_buffer);
     }
   }
 
 #elif defined(__IMXRT1062__)  
-
-//  extern "C"  uint32_t mtp_tx_counter;
-//  extern "C"  uint32_t mtp_rx_counter;
-//  extern "C"  uint32_t mtp_rx_event_counter;
-//  extern "C"  uint32_t mtp_tx_event_counter;
-
 
     int MTPD::push_packet(uint8_t *data_buffer,uint32_t len)
     {
@@ -960,7 +959,6 @@ const uint16_t supported_events[] =
         while(pos<len)
         { int avail = tx_data_buffer+MTP_TX_SIZE - dst;
           int to_copy = min(len - pos, avail);
-//          for(int ii=0; ii<len;ii++) printf("%x ",data[ii]); printf("\n");
           memcpy(dst,src,to_copy);
           pos += to_copy;
           src += to_copy;
@@ -1145,10 +1143,10 @@ const uint16_t supported_events[] =
 
     uint32_t MTPD::SendObjectInfo(uint32_t storage, uint32_t parent) {
       pull_packet(rx_data_buffer);
+      read(0,0); // resync read
 //      printContainer(); 
       uint32_t store = Storage2Store(storage);
 
-      read(0,0); // resync read
       int len=ReadMTPHeader();
       char filename[MAX_FILENAME_LEN];
 
@@ -1178,9 +1176,9 @@ const uint16_t supported_events[] =
     bool MTPD::SendObject() 
     { 
       pull_packet(rx_data_buffer);
+      read(0,0);
 //      printContainer(); 
 
-      read(0,0);
       uint32_t len = ReadMTPHeader();
       uint32_t index = sizeof(MTPHeader);
       disk_pos=0;
@@ -1224,8 +1222,8 @@ const uint16_t supported_events[] =
 
     uint32_t MTPD::setObjectPropValue(uint32_t handle, uint32_t p2)
     { pull_packet(rx_data_buffer);
-      //printContainer(); 
       read(0,0);
+      //printContainer(); 
          
       if(p2==0xDC07)
       { 
@@ -1259,7 +1257,6 @@ const uint16_t supported_events[] =
         switch (op)
         {
           case 0x1001:
-//            p1=0;
             TRANSMIT(WriteDescriptor());
             break;
 
@@ -1268,7 +1265,6 @@ const uint16_t supported_events[] =
             break;
 
           case 0x1003:  // CloseSession
-            //
             break;
 
           case 0x1004:  // GetStorageIDs

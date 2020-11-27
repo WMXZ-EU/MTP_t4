@@ -69,7 +69,7 @@ private:
   usb_packet_t *data_buffer_ = NULL;
   void get_buffer() ;
   void receive_buffer() ;
-  inline MTPContainer *contains (usb_packet_t *receive_buffer) { return (MTPContainer*)(receive_buffer->buf);  }
+//  inline MTPContainer *contains (usb_packet_t *receive_buffer) { return (MTPContainer*)(receive_buffer->buf);  }
   
 #elif defined(__IMXRT1062__)
   #define MTP_RX_SIZE MTP_RX_SIZE_480 
