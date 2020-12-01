@@ -28,11 +28,16 @@
 
   #define SPI_SPEED SD_SCK_MHZ(33)  // adjust to sd card 
 
-// SDClasses
+// SDClasses 
+// e.g. T3.6 and T4.1
 //  const char *sd_str[]={"sdio"}; // edit to reflect your configuration
 //  const int cs[] = {BUILTIN_SDCARD}; // edit to reflect your configuration
-  const char *sd_str[]={"sdio","sd1"}; // edit to reflect your configuration
-  const int cs[] = {BUILTIN_SDCARD,34}; // edit to reflect your configuration
+// e.g. custom SPI board on T3.6 or T4.1
+//  const char *sd_str[]={"sdio","sd1"}; // edit to reflect your configuration
+//  const int cs[] = {BUILTIN_SDCARD,34}; // edit to reflect your configuration
+// e.g. T3.2
+  const char *sd_str[]={"sd1"}; // edit to reflect your configuration
+  const int cs[] = {10}; // edit to reflect your configuration
   const int nsd = sizeof(cs)/sizeof(int);
 
 SDClass sdx[nsd];
