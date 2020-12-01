@@ -6,13 +6,14 @@
 
 #if defined(__IMXRT1062__)
   // following only while usb_mtp is not included in cores
-  #if __has_include("usb_mtp.h")
-    #include "usb_mtp.h"
-  #else
+  #if !__has_include("usb_mtp.h")
     #include "usb1_mtp.h"
   #endif
 #else
-  void  usb_mtp_configure(void) {}
+  #ifndef BUILTIN_SCCARD 
+    #define BUILTIN_SDCARD 255
+  #endif
+  void usb_mtp_configure(void) {}
 #endif
 
 #define USE_SD  1
@@ -25,13 +26,13 @@
   #define SD_MISO 12
   #define SD_SCK  13
 
-  #define SPI_SPEED SD_SCK_MHZ(16)  // adjust to sd card 
+  #define SPI_SPEED SD_SCK_MHZ(33)  // adjust to sd card 
 
 // SDClasses
-//  const char *sd_str[]={"sdio","sd6"}; // edit to reflect your configuration
-//  const int cs[] = {BUILTIN_SDCARD,38}; // edit to reflect your configuration
-  const char *sd_str[]={"sdio"}; // edit to reflect your configuration
-  const int cs[] = {BUILTIN_SDCARD}; // edit to reflect your configuration
+//  const char *sd_str[]={"sdio"}; // edit to reflect your configuration
+//  const int cs[] = {BUILTIN_SDCARD}; // edit to reflect your configuration
+  const char *sd_str[]={"sdio","sd1"}; // edit to reflect your configuration
+  const int cs[] = {BUILTIN_SDCARD,34}; // edit to reflect your configuration
   const int nsd = sizeof(cs)/sizeof(int);
 
 SDClass sdx[nsd];
@@ -106,7 +107,9 @@ void setup()
   while(!Serial); 
   Serial.println("MTP_test");
   
+#if !__has_include("usb_mtp.h")
   usb_mtp_configure();
+#endif
   storage_configure();
 
   #if USE_SD==1
@@ -161,8 +164,6 @@ void setup()
 
   Serial.println("\nSetup done");
 }
-
-void test_events(void);
 
 void loop()
 { 
