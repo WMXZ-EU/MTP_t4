@@ -17,7 +17,7 @@ export SHELL
 BOARD_ID         := T41
 TARGET_NAME      := mtp-test_$(BOARD_ID)
 
-USB_DEVICE		:= USB_MTPDISK
+USB_DEVICE		:= USB_MTPDISK_SERIAL
 
 ifeq ($(BOARD_ID),T36)
 	MCU			:= mk66fx1m0
