@@ -17,7 +17,7 @@
 #endif
 
 #define USE_SD  1
-#define USE_LITTLEFS 0 // set to zero if no LtttleFS is existing or to be used
+#define USE_LITTLEFS 1 // set to zero if no LtttleFS is existing or to be used
 
 /****  Start device specific change area  ****/
 #if USE_SD==1
@@ -33,11 +33,11 @@
 //  const char *sd_str[]={"sdio"}; // edit to reflect your configuration
 //  const int cs[] = {BUILTIN_SDCARD}; // edit to reflect your configuration
 // e.g. custom SPI board on T3.6 or T4.1
-//  const char *sd_str[]={"sdio","sd1"}; // edit to reflect your configuration
-//  const int cs[] = {BUILTIN_SDCARD,34}; // edit to reflect your configuration
+  const char *sd_str[]={"sdio","sd1"}; // edit to reflect your configuration
+  const int cs[] = {BUILTIN_SDCARD,34}; // edit to reflect your configuration
 // e.g. T3.2
-  const char *sd_str[]={"sd1"}; // edit to reflect your configuration
-  const int cs[] = {10}; // edit to reflect your configuration
+//  const char *sd_str[]={"sd1"}; // edit to reflect your configuration
+//  const int cs[] = {10}; // edit to reflect your configuration
   const int nsd = sizeof(cs)/sizeof(int);
 
 SDClass sdx[nsd];
@@ -109,7 +109,9 @@ void storage_configure()
 
 void setup()
 { 
-  while(!Serial); 
+  #if defined(USB_MTPDISK_SERIAL) // not sure why following line not working with Seremu
+    while(!Serial); 
+  #endif
   Serial.println("MTP_test");
   
 #if !__has_include("usb_mtp.h")
@@ -158,7 +160,7 @@ void setup()
       file.close();
     }
     uint32_t buffer[256];
-    File file = ramfs[1].open("LargFile.bin",FILE_WRITE_BEGIN);
+    File file = ramfs[1].open("LargeFile.bin",FILE_WRITE_BEGIN);
     for(int ii=0;ii<3000;ii++)
     { memset(buffer,ii%256,1024);
       file.write(buffer,1024);

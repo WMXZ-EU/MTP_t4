@@ -17,7 +17,7 @@ export SHELL
 BOARD_ID         := T41
 TARGET_NAME      := mtp-test_$(BOARD_ID)
 
-USB_DEVICE		:= USB_MTPDISK_SERIAL
+USB_DEVICE		:= USB_MTPDISK
 
 ifeq ($(BOARD_ID),T36)
 	MCU			:= mk66fx1m0
@@ -61,7 +61,7 @@ ROOT0		:= C:\Users\zimme\Documents
 ARDUINO		:= $(ROOT0)\arduino-1.8.13\hardware
 
 LIBS_SHARED_BASE := $(ROOT0)\Arduino\libraries
-LIBS_SHARED      := MTP_t4 usb2
+LIBS_SHARED      := MTP_t4
 
 LIBS_LOCAL_BASE  := $(ARDUINO)\teensy\avr\libraries
 LIBS_LOCAL       := SD SdFat SPI Time LittleFS
