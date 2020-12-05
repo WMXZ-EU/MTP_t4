@@ -4,54 +4,86 @@
 #include "MTP.h"
 
 
+#define USE_SD  1         // SDFAT based SDIO and SPI
+#define USE_LFS_RAM 1     // T4.1 PSRAM (or RAM)
+#define USE_LFS_QSPI 1    // T4.1 QSPI
+#define USE_LFS_PROGM 1   // T4.4 Progam Flash
+#define USE_LFS_SPI 1     // SPI Flash
+
+#if USE_LFS_RAM==1 ||  USE_LFS_PROGM==1 || USE_LFS_QSPI==1 || USE_LFS_SPI==1
+  #include "LittleFS.h"
+#endif
+
 #if defined(__IMXRT1062__)
-  // following only while usb_mtp is not included in cores
+  // following only as long usb_mtp is not included in cores
   #if !__has_include("usb_mtp.h")
     #include "usb1_mtp.h"
   #endif
 #else
   #ifndef BUILTIN_SCCARD 
-    #define BUILTIN_SDCARD 255
+    #define BUILTIN_SDCARD 254
   #endif
   void usb_mtp_configure(void) {}
 #endif
 
-#define USE_SD  1
-#define USE_LITTLEFS 1 // set to zero if no LtttleFS is existing or to be used
 
 /****  Start device specific change area  ****/
+// SDClasses 
 #if USE_SD==1
   // edit SPI to reflect your configuration (following is for T4.1)
   #define SD_MOSI 11
   #define SD_MISO 12
   #define SD_SCK  13
 
-  #define SPI_SPEED SD_SCK_MHZ(33)  // adjust to sd card 
+  #define SPI_SPEED SD_SCK_MHZ(16)  // adjust to sd card 
 
-// SDClasses 
 // e.g. T3.6 and T4.1
-//  const char *sd_str[]={"sdio"}; // edit to reflect your configuration
-//  const int cs[] = {BUILTIN_SDCARD}; // edit to reflect your configuration
+  const char *sd_str[]={"sdio"}; // edit to reflect your configuration
+  const int cs[] = {BUILTIN_SDCARD}; // edit to reflect your configuration
 // e.g. custom SPI board on T3.6 or T4.1
-  const char *sd_str[]={"sdio","sd1"}; // edit to reflect your configuration
-  const int cs[] = {BUILTIN_SDCARD,34}; // edit to reflect your configuration
-// e.g. T3.2
+//  const char *sd_str[]={"sdio","sd1"}; // edit to reflect your configuration
+//  const int cs[] = {BUILTIN_SDCARD,34}; // edit to reflect your configuration
+// e.g. T3.2 + AudioCard
 //  const char *sd_str[]={"sd1"}; // edit to reflect your configuration
 //  const int cs[] = {10}; // edit to reflect your configuration
-  const int nsd = sizeof(cs)/sizeof(int);
+//
+  const int nsd = sizeof(sd_str)/sizeof(const char *);
 
 SDClass sdx[nsd];
 #endif
 
 //LittleFS classes
-#if USE_LITTLEFS==1
-  #include "LittleFS.h"
-  const char *lfs_str[]={"RAM1","RAM2"};     // edit to reflect your configuration
-  const int lfs_size[] = {2'000'000,4'000'000};
-  const int nfs = sizeof(lfs_size)/sizeof(int);
+#if USE_LFS_RAM==1
+  const char *lfs_ram_str[]={"RAM1","RAM2"};     // edit to reflect your configuration
+  const int lfs_ram_size[] = {2'000'000,4'000'000}; // edit to reflect your configuration
+  const int nfs_ram = sizeof(lfs_ram_str)/sizeof(const char *);
 
-  LittleFS_RAM ramfs[nfs]; // needs to be declared if LittleFS is used in storage.h
+  LittleFS_RAM ramfs[nfs_ram]; 
 #endif
+
+#if USE_LFS_QSPI==1
+  const char *lfs_qspi_str[]={"QSPI"};     // edit to reflect your configuration
+  const int nfs_qspi = sizeof(lfs_qspi_str)/sizeof(const char *);
+
+  LittleFS_QSPIFlash qspifs[nfs_qspi]; 
+#endif
+
+#if USE_LFS_PROGM==1
+  const char *lfs_progm_str[]={"PROGM"};     // edit to reflect your configuration
+  const int lfs_progm_size[] = {1'000'000}; // edit to reflect your configuration
+  const int nfs_progm = sizeof(lfs_progm_str)/sizeof(const char *);
+
+  LittleFS_Program progmfs[nfs_progm]; 
+#endif
+
+#if USE_LFS_SPI==1
+  const char *lfs_spi_str[]={"nand2","nand3","nand4"}; // edit to reflect your configuration
+  const int lfs_cs[] = {4,5,6}; // edit to reflect your configuration
+  const int nfs_spi = sizeof(lfs_spi_str)/sizeof(const char *);
+
+LittleFS_SPIFlash spifs[nfs_spi];
+#endif
+
 
 MTPStorage_SD storage;
 MTPD       mtpd(&storage);
@@ -67,15 +99,18 @@ void storage_configure()
     #endif
 
     for(int ii=0; ii<nsd; ii++)
-    { if(cs[ii] == BUILTIN_SDCARD)
-      {
-        if(!sdx[ii].sdfs.begin(SdioConfig(FIFO_SDIO))) {Serial.println("No storage"); while(1);};
-        storage.addFilesystem(sdx[ii], sd_str[ii]);
-      }
-      else if(cs[ii]<BUILTIN_SDCARD)
+    { 
+      #if defined(BUILTIN_SDCARD)
+        if(cs[ii] == BUILTIN_SDCARD)
+        {
+          if(!sdx[ii].sdfs.begin(SdioConfig(FIFO_SDIO))) {Serial.println("No sdio storage"); while(1);};
+          storage.addFilesystem(sdx[ii], sd_str[ii]);
+        }
+        else if(cs[ii]<BUILTIN_SDCARD)
+      #endif
       {
         pinMode(cs[ii],OUTPUT); digitalWriteFast(cs[ii],HIGH);
-        if(!sdx[ii].sdfs.begin(SdSpiConfig(cs[ii], SHARED_SPI, SPI_SPEED))) {Serial.println("No storage"); while(1);}
+        if(!sdx[ii].sdfs.begin(SdSpiConfig(cs[ii], SHARED_SPI, SPI_SPEED))) {Serial.println("No sd storage"); while(1);}
         storage.addFilesystem(sdx[ii], sd_str[ii]);
       }
         uint64_t totalSize = sdx[ii].totalSize();
@@ -84,15 +119,54 @@ void storage_configure()
     }
     #endif
 
-    #if USE_LITTLEFS==1
-    for(int ii=0; ii<nfs;ii++)
+    #if USE_LFS_RAM==1
+    for(int ii=0; ii<nfs_ram;ii++)
     {
-      { if(!ramfs[ii].begin(lfs_size[ii])) { Serial.println("No storage"); while(1);}
-        storage.addFilesystem(ramfs[ii], lfs_str[ii]);
+      { if(!ramfs[ii].begin(lfs_ram_size[ii])) { Serial.println("No ram storage"); while(1);}
+        storage.addFilesystem(ramfs[ii], lfs_ram_str[ii]);
       }
       uint64_t totalSize = ramfs[ii].totalSize();
       uint64_t usedSize  = ramfs[ii].usedSize();
-      Serial.printf("Storage %d %s ",ii,lfs_str[ii]); Serial.print(totalSize); Serial.print(" "); Serial.println(usedSize);
+      Serial.printf("Storage %d %s ",ii,lfs_ram_str[ii]); Serial.print(totalSize); Serial.print(" "); Serial.println(usedSize);
+
+    }
+    #endif
+
+    #if USE_LFS_PROGM==1
+    for(int ii=0; ii<nfs_progm;ii++)
+    {
+      { if(!progmfs[ii].begin(lfs_progm_size[ii])) { Serial.println("No program storage"); while(1);}
+        storage.addFilesystem(progmfs[ii], lfs_progm_str[ii]);
+      }
+      uint64_t totalSize = progmfs[ii].totalSize();
+      uint64_t usedSize  = progmfs[ii].usedSize();
+      Serial.printf("Storage %d %s ",ii,lfs_progm_str[ii]); Serial.print(totalSize); Serial.print(" "); Serial.println(usedSize);
+
+    }
+    #endif
+
+    #if USE_LFS_QSPI==1
+    for(int ii=0; ii<nfs_qspi;ii++)
+    {
+      { if(!qspifs[ii].begin()) { Serial.println("No qspi storage"); while(1);}
+        storage.addFilesystem(qspifs[ii], lfs_qspi_str[ii]);
+      }
+      uint64_t totalSize = qspifs[ii].totalSize();
+      uint64_t usedSize  = qspifs[ii].usedSize();
+      Serial.printf("Storage %d %s ",ii,lfs_qspi_str[ii]); Serial.print(totalSize); Serial.print(" "); Serial.println(usedSize);
+
+    }
+    #endif
+
+    #if USE_LFS_SPI==1
+    for(int ii=0; ii<nfs_spi;ii++)
+    {
+      { if(!spifs[ii].begin(lfs_cs[ii])) { Serial.println("No SPIFlash storage"); while(1);}
+        storage.addFilesystem(spifs[ii], lfs_spi_str[ii]);
+      }
+      uint64_t totalSize = spifs[ii].totalSize();
+      uint64_t usedSize  = spifs[ii].usedSize();
+      Serial.printf("Storage %d %d %s ",ii,lfs_cs[ii],lfs_spi_str[ii]); Serial.print(totalSize); Serial.print(" "); Serial.println(usedSize);
 
     }
     #endif
@@ -135,7 +209,7 @@ void setup()
   }
 
   #endif
-  #if USE_LITTLEFS==1
+  #if USE_LFS_RAM==1
     for(int ii=0; ii<10;ii++)
     { char filename[80];
       sprintf(filename,"/test_%d.txt",ii);
