@@ -219,7 +219,7 @@ void setup()
   storage_configure();
 
   #if USE_SD==1
-  // Set Time callback // needed for SDFat-beta
+  // Set Time callback // needed for SDFat
   FsDateTime::callback = dateTime;
 
   {
