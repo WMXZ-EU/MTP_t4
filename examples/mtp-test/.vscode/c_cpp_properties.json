@@ -1,7 +1,7 @@
 {
   "env": {
     "ROOT": "C:/Users/zimme/Documents",
-    "ROOT0": "${ROOT}/arduino-1.8.12/hardware/teensy/avr",
+    "ROOT0": "${ROOT}/arduino-1.8.13/hardware/teensy/avr",
     "LOCAL_LIBRARIES": "${ROOT}/Arduino/libraries",
     "COMMON_LIBS": [  "**",
                       "${ROOT0}/libraries/SPI/**",
