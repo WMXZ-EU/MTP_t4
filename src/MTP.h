@@ -32,6 +32,7 @@
 
 #include "core_pins.h"
 #include "usb_dev.h"
+extern "C" 	int usb_mtp_sendEvent(const void *buffer, uint32_t len, uint32_t timeout);
 
 #include "Storage.h"
 // modify strings if needed (see MTP.cpp how they are used)
@@ -40,6 +41,8 @@
 #define MTP_VERS  "1.0"
 #define MTP_SERNR "1234"
 #define MTP_NAME  "Teensy"
+
+#define USE_EVENTS 1
 
 // MTP Responder.
 class MTPD {
@@ -141,7 +144,7 @@ private:
   void openSession(uint32_t id) ;
 
   uint32_t TID;  
-#if 0
+#if USE_EVENTS==1
   int send_Event(uint16_t eventCode);
   int send_Event(uint16_t eventCode, uint32_t p1);
   int send_Event(uint16_t eventCode, uint32_t p1, uint32_t p2);
@@ -151,10 +154,12 @@ public:
   void loop(void) ;
   void test(void) ;
 
-#if 0
+#if USE_EVENTS==1
   int send_addObjectEvent(uint32_t p1);
   int send_removeObjectEvent(uint32_t p1);
   int send_StorageInfoChangedEvent(uint32_t p1);
+  int send_StorageRemovedEvent(uint32_t p1);
+  int send_DeviceResetEvent(void);
 #endif
 };
 

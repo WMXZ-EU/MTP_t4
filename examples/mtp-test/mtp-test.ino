@@ -3,12 +3,17 @@
 #include "SD.h"
 #include "MTP.h"
 
-
 #define USE_SD  1         // SDFAT based SDIO and SPI
 #define USE_LFS_RAM 1     // T4.1 PSRAM (or RAM)
 #define USE_LFS_QSPI 1    // T4.1 QSPI
 #define USE_LFS_PROGM 1   // T4.4 Progam Flash
 #define USE_LFS_SPI 1     // SPI Flash
+
+#if USE_EVENTS==1
+  extern "C" int usb_int_events(void);
+#else
+  int usb_int_events(void) {}
+#endif
 
 #if USE_LFS_RAM==1 ||  USE_LFS_PROGM==1 || USE_LFS_QSPI==1 || USE_LFS_SPI==1
   #include "LittleFS.h"
@@ -35,7 +40,7 @@
   #define SD_MISO 12
   #define SD_SCK  13
 
-  #define SPI_SPEED SD_SCK_MHZ(16)  // adjust to sd card 
+  #define SPI_SPEED SD_SCK_MHZ(33)  // adjust to sd card 
 
   #if defined (BUILTIN_SDCARD)
     const char *sd_str[]={"sdio","sd1"}; // edit to reflect your configuration
@@ -213,6 +218,8 @@ void setup()
   #endif
   Serial.println("MTP_test");
 
+  usb_int_events();
+
 #if !__has_include("usb_mtp.h")
   usb_mtp_configure();
 #endif
@@ -274,4 +281,17 @@ void setup()
 void loop()
 { 
   mtpd.loop();
+
+#if USE_EVENTS==1
+  if(Serial.available())
+  {
+    char ch=Serial.read();
+    Serial.println(ch);
+    if(ch=='r') 
+    {
+      Serial.println("Reset");
+      mtpd.send_DeviceResetEvent();
+    }
+  }
+#endif
 }
