@@ -42,7 +42,7 @@
 #include "usb_names.h"
 extern struct usb_string_descriptor_struct usb_string_serial_number; 
 
-#define DEBUG 2
+#define DEBUG 1
 #if DEBUG>0
   #define printf(...) Serial.printf(__VA_ARGS__)
 #else
@@ -1392,7 +1392,44 @@ const uint16_t supported_events[] =
       }
     }
 
-  #if USE_EVENTS==1
+
+#endif
+#if USE_EVENTS==1
+
+ #if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MK64FX512__) || defined(__MK66FX1M0__)
+
+  #include "usb_mtp.h"
+  extern "C"
+  {
+    int usb_init_events(void)
+    {
+        return 1;
+    }
+
+
+    int usb_mtp_sendEvent(const void *buffer, uint32_t len, uint32_t timeout)
+    {
+      usb_packet_t *tx_packet;
+      uint32_t begin = millis();
+
+      while (1) 
+      {
+        if (!usb_configuration) return -1;
+        if (usb_tx_packet_count(MTP_EVENT_ENDPOINT) < len) {
+          tx_packet = usb_malloc();
+          if (tx_packet) break;
+        }
+        if (millis() - begin > timeout) return 0;
+        yield();
+      }
+      memcpy(tx_packet->buf, buffer, len);
+      tx_packet->len = len;
+      usb_tx(MTP_EVENT_ENDPOINT, tx_packet);
+      return len;
+    }
+  }
+
+  #elif defined(__IMXRT1062__)
   // keep this here until cores is upgraded 
 
   #include "usb_mtp.h"
@@ -1413,15 +1450,15 @@ const uint16_t supported_events[] =
     static void txEvent_event(transfer_t *t) { Serial.print("tx");Serial.println(mtp_txEventcount++);}
     static void rxEvent_event(transfer_t *t) { Serial.print("rx");Serial.println(mtp_rxEventcount++);}
 
-  int usb_init_events(void)
-  {
-      usb_config_tx(MTP_EVENT_ENDPOINT, MTP_EVENT_SIZE, 0, txEvent_event);
-      //	
-      usb_config_rx(MTP_EVENT_ENDPOINT, MTP_EVENT_SIZE, 0, rxEvent_event);
-      usb_prepare_transfer(rx_event_transfer + 0, rx_event_buffer, MTP_EVENT_SIZE, 0);
-      usb_receive(MTP_EVENT_ENDPOINT, rx_event_transfer + 0);
-      return 1;
-  }
+    int usb_init_events(void)
+    {
+        usb_config_tx(MTP_EVENT_ENDPOINT, MTP_EVENT_SIZE, 0, txEvent_event);
+        //	
+        usb_config_rx(MTP_EVENT_ENDPOINT, MTP_EVENT_SIZE, 0, rxEvent_event);
+        usb_prepare_transfer(rx_event_transfer + 0, rx_event_buffer, MTP_EVENT_SIZE, 0);
+        usb_receive(MTP_EVENT_ENDPOINT, rx_event_transfer + 0);
+        return 1;
+    }
 
     static int usb_mtp_wait(transfer_t *xfer, uint32_t timeout)
     {
@@ -1463,6 +1500,7 @@ const uint16_t supported_events[] =
     }
   }
 
+  #endif
   const uint32_t EVENT_TIMEOUT=60;
 
   int MTPD::send_Event(uint16_t eventCode)
@@ -1518,9 +1556,7 @@ const uint16_t supported_events[] =
   int MTPD::send_removeObjectEvent(uint32_t p1) {return send_Event(MTP_EVENT_OBJECT_REMOVED, p1); }
   int MTPD::send_StorageInfoChangedEvent(uint32_t p1) {return send_Event(MTP_EVENT_STORAGE_INFO_CHANGED, p1);}
   int MTPD::send_StorageRemovedEvent(uint32_t p1) {return send_Event(MTP_EVENT_STORE_REMOVED, p1);}
-  int MTPD::send_DeviceResetEvent(void) {return send_Event(MTP_EVENT_DEVICE_RESET);}
-  
-  #endif
-#endif
+  int MTPD::send_DeviceResetEvent(void) {return send_Event(MTP_EVENT_DEVICE_RESET); } 
 
+#endif
 #endif
