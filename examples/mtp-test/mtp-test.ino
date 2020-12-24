@@ -10,7 +10,7 @@
 #define USE_LFS_SPI 1     // SPI Flash
 
 #if USE_EVENTS==1
-  extern "C" int usb_int_events(void);
+  extern "C" int usb_init_events(void);
 #else
   int usb_init_events(void) {}
 #endif
