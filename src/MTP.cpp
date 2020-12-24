@@ -1393,6 +1393,7 @@ const uint16_t supported_events[] =
     }
 
   #if USE_EVENTS==1
+  // keep this here until cores is upgraded 
 
   #include "usb_mtp.h"
   extern "C"
@@ -1412,7 +1413,7 @@ const uint16_t supported_events[] =
     static void txEvent_event(transfer_t *t) { Serial.print("tx");Serial.println(mtp_txEventcount++);}
     static void rxEvent_event(transfer_t *t) { Serial.print("rx");Serial.println(mtp_rxEventcount++);}
 
-  int usb_int_events(void)
+  int usb_init_events(void)
   {
       usb_config_tx(MTP_EVENT_ENDPOINT, MTP_EVENT_SIZE, 0, txEvent_event);
       //	
@@ -1498,6 +1499,18 @@ const uint16_t supported_events[] =
     event.params[0]=p1;
     event.params[1]=p2;
     event.params[2]=0;
+    return usb_mtp_sendEvent((const void *) &event, event.len, EVENT_TIMEOUT);
+  }
+  int MTPD::send_Event(uint16_t eventCode, uint32_t p1, uint32_t p2, uint32_t p3)
+  {
+    MTPContainer event;
+    event.len = 24;
+    event.op =eventCode ;
+    event.type = MTP_CONTAINER_TYPE_EVENT; 
+    event.transaction_id=TID;
+    event.params[0]=p1;
+    event.params[1]=p2;
+    event.params[2]=p3;
     return usb_mtp_sendEvent((const void *) &event, event.len, EVENT_TIMEOUT);
   }
 

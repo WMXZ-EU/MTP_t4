@@ -73,7 +73,8 @@ private:
   void get_buffer() ;
   void receive_buffer() ;
 //  inline MTPContainer *contains (usb_packet_t *receive_buffer) { return (MTPContainer*)(receive_buffer->buf);  }
-  
+// possible events for T3.xx ?
+
 #elif defined(__IMXRT1062__)
   #define MTP_RX_SIZE MTP_RX_SIZE_480 
   #define MTP_TX_SIZE MTP_TX_SIZE_480 
@@ -148,6 +149,7 @@ private:
   int send_Event(uint16_t eventCode);
   int send_Event(uint16_t eventCode, uint32_t p1);
   int send_Event(uint16_t eventCode, uint32_t p1, uint32_t p2);
+  int send_Event(uint16_t eventCode, uint32_t p1, uint32_t p2, uint32_t p3);
 #endif
 
 public:

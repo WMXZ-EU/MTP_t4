@@ -12,7 +12,7 @@
 #if USE_EVENTS==1
   extern "C" int usb_int_events(void);
 #else
-  int usb_int_events(void) {}
+  int usb_init_events(void) {}
 #endif
 
 #if USE_LFS_RAM==1 ||  USE_LFS_PROGM==1 || USE_LFS_QSPI==1 || USE_LFS_SPI==1
@@ -218,7 +218,7 @@ void setup()
   #endif
   Serial.println("MTP_test");
 
-  usb_int_events();
+  usb_init_events();
 
 #if !__has_include("usb_mtp.h")
   usb_mtp_configure();
