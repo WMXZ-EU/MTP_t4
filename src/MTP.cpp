@@ -1401,30 +1401,21 @@ const uint16_t supported_events[] =
   #include "usb_mtp.h"
   extern "C"
   {
+    usb_packet_t *tx_event_packet=NULL;
+
     int usb_init_events(void)
     {
-        return 1;
+      tx_event_packet = usb_malloc();
+      if(tx_event_packet) return 1; else return 0; 
     }
 
 
     int usb_mtp_sendEvent(const void *buffer, uint32_t len, uint32_t timeout)
     {
-      usb_packet_t *tx_packet;
-      uint32_t begin = millis();
-
-      while (1) 
-      {
-        if (!usb_configuration) return -1;
-        if (usb_tx_packet_count(MTP_EVENT_ENDPOINT) < len) {
-          tx_packet = usb_malloc();
-          if (tx_packet) break;
-        }
-        if (millis() - begin > timeout) return 0;
-        yield();
-      }
-      memcpy(tx_packet->buf, buffer, len);
-      tx_packet->len = len;
-      usb_tx(MTP_EVENT_ENDPOINT, tx_packet);
+      if (!usb_configuration) return -1;
+      memcpy(tx_event_packet->buf, buffer, len);
+      tx_event_packet->len = len;
+      usb_tx(MTP_EVENT_ENDPOINT, tx_event_packet);
       return len;
     }
   }
@@ -1447,8 +1438,8 @@ const uint16_t supported_events[] =
     uint32_t get_mtp_txEventcount() {return mtp_txEventcount; }
     uint32_t get_mtp_rxEventcount() {return mtp_rxEventcount; }
     
-    static void txEvent_event(transfer_t *t) { Serial.print("tx");Serial.println(mtp_txEventcount++);}
-    static void rxEvent_event(transfer_t *t) { Serial.print("rx");Serial.println(mtp_rxEventcount++);}
+    static void txEvent_event(transfer_t *t) { mtp_txEventcount++;}
+    static void rxEvent_event(transfer_t *t) { mtp_rxEventcount++;}
 
     int usb_init_events(void)
     {
