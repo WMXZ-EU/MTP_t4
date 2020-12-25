@@ -33,6 +33,8 @@ files in different copy-to directories contain modifications of cores and need t
 ## Reset of Session
 Modification of disk content (directories and Files) by Teensy is only be visible on PC when done before mounting the MTP device. To refresh disk content it is necessary to unmount and remount Teensy MTP device. AFAIK: On Windows this can be done by using device manager and disable and reanable Teensy (found under portable Device). On Linux this is done with standard muount/unmount commands.
 
+Session may be reset from Teensy by sending a reset event. This is shown in mtp-test example where sending the character 'r' from PC to Teensy generates a reset event. See list of Known Issues for more information.
+
 ## Examples
  - mtp-test:   basic MTP test program
  - mtp-logger: basic data logger with MTP access
@@ -42,14 +44,15 @@ Modification of disk content (directories and Files) by Teensy is only be visibl
    - T4.x edit teensy/avr/cores/teensy4/usb_desc.h with content of 'modifications_for_cores_teensy4' (insert after MTP_DISK)
    - T3.x edit teensy/avr/cores/teensy3/usb_desc.h with content of 'modifications_for_cores_teensy3' (insert after MTP_DISK)
    - edit teensy/avr/boards.txt with content of 'modifications_for_teensy_avr' (copy to end of file)
- - install also USB2 from WMXZ github
+ - install also USB2 from WMXZ github if cores does not have "usb_mtp.h"
  - install LittleFS from https://github.com/PaulStoffregen/LittleFS for use of LittleFS basd filesystems
 
  ## Known Issues
    - copying of files and directories work but are not displayed in file explorer, manual unmount/mount sequence required
+   - PC may show empty disk after receiving reset event from Teensy. Work around: repeat 'reset' command and close and re-open file explorer.
  
  ## Scripts
- There are some useful scripts for Windows PoeerShell in scrips directory. open them with right-click "Run with PowerShell"
+ There are some useful scripts for Windows PowerShell in scrips directory. open them with right-click "Run with PowerShell"
   - MTPdir list the files in Teensy 
   - MTPreset to reset MTP (disable/enable)
  
