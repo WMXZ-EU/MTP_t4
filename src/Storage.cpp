@@ -92,14 +92,14 @@ void mtp_lock_storage(bool lock) {}
   { if(sd_isOpen(index_)) return; // only once
     mtp_lock_storage(true);
     index_=sd_open(0,indexFile, FILE_WRITE_BEGIN);
+    if(!index_) Serial.println("cannot open Index file"); 
     mtp_lock_storage(false);
   }
 
   void MTPStorage_SD::ResetIndex() {
     if(!sd_isOpen(index_)) return;
-    
     CloseIndex();
-    OpenIndex();
+//    OpenIndex();
 
     all_scanned_ = false;
     open_file_ = 0xFFFFFFFEUL;
