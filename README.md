@@ -33,7 +33,7 @@ files in different copy-to directories contain modifications of cores and need t
 ## Reset of Session
 Modification of disk content (directories and Files) by Teensy is only be visible on PC when done before mounting the MTP device. To refresh disk content it is necessary to unmount and remount Teensy MTP device. AFAIK: On Windows this can be done by using device manager and disable and reanable Teensy (found under portable Device). On Linux this is done with standard muount/unmount commands.
 
-Session may be reset from Teensy by sending a reset event. This is shown in mtp-test example where sending the character 'r' from PC to Teensy generates a reset event. See list of Known Issues for more information.
+Session may be reset from Teensy by sending a reset event. This is shown in mtp-test example where sending the character 'r' from PC to Teensy generates a reset event. It is suggested to close file explorer before reseting mtp
 
 ## Examples
  - mtp-test:   basic MTP test program
@@ -49,8 +49,7 @@ Session may be reset from Teensy by sending a reset event. This is shown in mtp-
 
  ## Known Issues
    - copying of files and directories work but are not displayed in file explorer, manual unmount/mount sequence required
-   - PC may show empty disk after receiving reset event from Teensy. Work around: repeat 'reset' command and close and re-open file explorer.
- 
+   
  ## Scripts
  There are some useful scripts for Windows PowerShell in scrips directory. open them with right-click "Run with PowerShell"
   - MTPdir list the files in Teensy 
