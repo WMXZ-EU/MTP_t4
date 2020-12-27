@@ -185,7 +185,7 @@ void mtp_lock_storage(bool lock) {}
     for(int ii=0; ii<num_storage; ii++)
     {
       r.store = ii; // 
-      r.parent = ii;
+      r.parent = 0;
       r.sibling = 0;
       r.child = 0;
       r.isdir = true;
