@@ -291,8 +291,10 @@ const uint16_t supported_events[] =
     dtostrf( (float)(TEENSYDUINO / 100.0f), 3, 2, buf);
     strlcat(buf, " / MTP " MTP_VERS, sizeof(buf) );
     writestring( buf );    
-    
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Warray-bounds"
     for (size_t i=0; i<10; i++) buf[i] = usb_string_serial_number.wString[i];
+    #pragma GCC diagnostic pop
     writestring(buf);    
   }
 
