@@ -49,6 +49,7 @@ Session may be reset from Teensy by sending a reset event. This is shown in mtp-
 
  ## Known Issues
    - copying of files and directories work but are not displayed in file explorer, manual unmount/mount sequence required
+   - deleting large nested directories may generate a time-out error and brick MTP. No work around known, only restart Teensy
    
  ## Scripts
  There are some useful scripts for Windows PowerShell in scrips directory. open them with right-click "Run with PowerShell"
