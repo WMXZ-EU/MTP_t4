@@ -141,7 +141,7 @@ void mtp_lock_storage(bool lock) {}
   {
     Record tmp = ReadIndexRecord(i);
       
-    if (tmp.parent==(unsigned)i) 
+    if (tmp.parent==0xFFFFFFFFUL) //flags the root object
     { strcpy(out, "/");
       return tmp.store;
     }
@@ -185,7 +185,7 @@ void mtp_lock_storage(bool lock) {}
     for(int ii=0; ii<num_storage; ii++)
     {
       r.store = ii; // 
-      r.parent = 0;
+      r.parent = 0xFFFFFFFFUL; // 
       r.sibling = 0;
       r.child = 0;
       r.isdir = true;
@@ -254,7 +254,7 @@ void mtp_lock_storage(bool lock) {}
     }
   }
 
-  uint32_t MTPStorage_SD::GetNextObjectHandle(uint32_t  storee)
+  uint32_t MTPStorage_SD::GetNextObjectHandle(uint32_t  store)
   {
     while (true) 
     { if (next_ == 0) return 0;
@@ -439,6 +439,7 @@ void MTPStorage_SD::removeFile(uint32_t store, char *file)
 
   void MTPStorage_SD::printRecord(int h, Record *p) 
   { Serial.printf("%d: %d %d %d %d %d\n",h, p->store,p->isdir,p->parent,p->sibling,p->child); }
+  
   
 /*
  * //index list management for moving object around

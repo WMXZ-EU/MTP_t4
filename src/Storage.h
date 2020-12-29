@@ -134,6 +134,7 @@ class MTPStorage_SD : public MTPStorageInterface, mSD_Base
 { 
 public:
   void addFilesystem(FS &fs, const char *name) { sd_addFilesystem(fs, name);}
+  void dumpIndexList(void);
 
 private:
   File index_;
@@ -172,7 +173,6 @@ private:
   Record ReadIndexRecord(uint32_t i) ;
   uint16_t ConstructFilename(int i, char* out, int len) ;
   void OpenFileByIndex(uint32_t i, uint32_t mode = FILE_READ) ;
-  void dumpIndexList(void);
   void printRecord(int h, Record *p);
 
   uint32_t get_FSCount(void) {return sd_getFSCount();}

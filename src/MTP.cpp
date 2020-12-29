@@ -565,6 +565,7 @@ const uint16_t supported_events[] =
           writestring("");
           break;
         case MTP_PROPERTY_PARENT_OBJECT:      //0xDC0B:
+//          write32((store==parent)? 0: parent);
           write32(parent);
           break;
         case MTP_PROPERTY_PERSISTENT_UID:     //0xDC41:
