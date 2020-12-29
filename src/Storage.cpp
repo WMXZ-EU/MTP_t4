@@ -344,6 +344,7 @@ void MTPStorage_SD::removeFile(uint32_t store, char *file)
       x.sibling = r.sibling;
       WriteIndexRecord(is, x);
     }
+    return 1;
   }
 
   uint32_t MTPStorage_SD::Create(uint32_t store, uint32_t parent,  bool folder, const char* filename)

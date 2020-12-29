@@ -36,7 +36,7 @@
 #endif
 
 
-#define MTPD_MAX_FILESYSEMS  20
+#define MTPD_MAX_FILESYSTEMS  20
 #ifndef MAX_FILENAME_LEN
   #define MAX_FILENAME_LEN 256
 #endif
@@ -49,7 +49,7 @@ class mSD_Base
     }
 
     void sd_addFilesystem(FS &fs, const char *name) {
-      if (fsCount < MTPD_MAX_FILESYSEMS) {
+      if (fsCount < MTPD_MAX_FILESYSTEMS) {
         sd_name[fsCount] = name;
         sdx[fsCount++] = &fs;
       }
@@ -72,8 +72,8 @@ class mSD_Base
 
   private:
     int fsCount;
-    const char *sd_name[MTPD_MAX_FILESYSEMS];
-    FS *sdx[MTPD_MAX_FILESYSEMS];
+    const char *sd_name[MTPD_MAX_FILESYSTEMS];
+    FS *sdx[MTPD_MAX_FILESYSTEMS];
 };
 
 // This interface lets the MTP responder interface any storage.
