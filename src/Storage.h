@@ -158,6 +158,8 @@ private:
   void ScanDir(uint32_t storage, uint32_t i) ;
   void ScanAll(uint32_t storage) ;
 
+  void removeFile(uint32_t store, char *filename);
+
   uint32_t index_entries_ = 0;
   bool index_generated = false;
 
