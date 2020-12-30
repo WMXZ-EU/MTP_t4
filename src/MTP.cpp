@@ -210,7 +210,7 @@ const uint16_t supported_events[] =
 //    MTP_EVENT_REQUEST_OBJECT_TRANSFER           ,//0x4009
 //    MTP_EVENT_STORE_FULL                        ,//0x400A
     MTP_EVENT_DEVICE_RESET                      ,//0x400B
-//    MTP_EVENT_STORAGE_INFO_CHANGED              ,//0x400C
+    MTP_EVENT_STORAGE_INFO_CHANGED              ,//0x400C
 //    MTP_EVENT_CAPTURE_COMPLETE                  ,//0x400D
 //    MTP_EVENT_UNREPORTED_STATUS                 ,//0x400E
 //    MTP_EVENT_OBJECT_PROP_CHANGED               ,//0xC801
@@ -1545,11 +1545,17 @@ const uint16_t supported_events[] =
     return usb_mtp_sendEvent((const void *) &event, event.len, EVENT_TIMEOUT);
   }
 
-  int MTPD::send_addObjectEvent(uint32_t p1) {return send_Event(MTP_EVENT_OBJECT_ADDED, p1); }
-  int MTPD::send_removeObjectEvent(uint32_t p1) {return send_Event(MTP_EVENT_OBJECT_REMOVED, p1); }
-  int MTPD::send_StorageInfoChangedEvent(uint32_t p1) {return send_Event(MTP_EVENT_STORAGE_INFO_CHANGED, p1);}
-  int MTPD::send_StorageRemovedEvent(uint32_t p1) {return send_Event(MTP_EVENT_STORE_REMOVED, p1);}
-  int MTPD::send_DeviceResetEvent(void) {return send_Event(MTP_EVENT_DEVICE_RESET); } 
+  int MTPD::send_DeviceResetEvent(void) 
+  { return send_Event(MTP_EVENT_DEVICE_RESET); } 
+  // following WIP
+  int MTPD::send_StorageInfoChangedEvent(uint32_t p1) 
+  { return send_Event(MTP_EVENT_STORAGE_INFO_CHANGED, Store2Storage(p1));}
+
+  // following not tested
+  int MTPD::send_addObjectEvent(uint32_t p1) 
+  { return send_Event(MTP_EVENT_OBJECT_ADDED, p1); }
+  int MTPD::send_removeObjectEvent(uint32_t p1) 
+  { return send_Event(MTP_EVENT_OBJECT_REMOVED, p1); }
 
 #endif
 #endif

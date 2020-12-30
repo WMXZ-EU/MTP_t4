@@ -55,6 +55,12 @@ class mSD_Base
       }
     }
 
+    uint32_t sd_getStoreID( const char *name)
+    {
+      for(int ii=0; ii<fsCount;ii++) if(!strcmp(name,sd_name[ii])) return ii;
+      return 0xFFFFFFFFUL;
+    }
+
     uint32_t sd_getFSCount(void) {return fsCount;}
     const char *sd_getFSName(uint32_t store) { return sd_name[store];}
 
@@ -135,6 +141,7 @@ class MTPStorage_SD : public MTPStorageInterface, mSD_Base
 public:
   void addFilesystem(FS &fs, const char *name) { sd_addFilesystem(fs, name);}
   void dumpIndexList(void);
+  uint32_t getStoreID(const char *name) {return sd_getStoreID(name);}
 
 private:
   File index_;
