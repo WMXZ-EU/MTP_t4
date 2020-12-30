@@ -201,13 +201,15 @@ void storage_configure()
 }
 /****  End of device specific change area  ****/
 
-  // Call back for file timestamps.  Only called for file create and sync(). needed by SDFat-beta
-   #include "TimeLib.h"
-  void dateTime(uint16_t* date, uint16_t* time, uint8_t* ms10) 
-  { *date = FS_DATE(year(), month(), day());
-    *time = FS_TIME(hour(), minute(), second());
-    *ms10 = second() & 1 ? 100 : 0;
-  }
+  #if USE_SD==1
+    // Call back for file timestamps.  Only called for file create and sync(). needed by SDFat-beta
+    #include "TimeLib.h"
+    void dateTime(uint16_t* date, uint16_t* time, uint8_t* ms10) 
+    { *date = FS_DATE(year(), month(), day());
+      *time = FS_TIME(hour(), minute(), second());
+      *ms10 = second() & 1 ? 100 : 0;
+    }
+  #endif
 
 void setup()
 { 
@@ -218,11 +220,13 @@ void setup()
   #endif
   Serial.println("MTP_test");
 
-  usb_init_events();
+  #if USE_EVENTS==1
+    usb_init_events();
+  #endif
 
-#if !__has_include("usb_mtp.h")
-  usb_mtp_configure();
-#endif
+  #if !__has_include("usb_mtp.h")
+    usb_mtp_configure();
+  #endif
   storage_configure();
 
   #if USE_SD==1
