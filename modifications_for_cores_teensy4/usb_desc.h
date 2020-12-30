@@ -39,7 +39,7 @@
   #define MTP_RX_SIZE_480       512
   #define MTP_TX_SIZE_12        64
   #define MTP_RX_SIZE_12        64
-  #define MTP_EVENT_SIZE        16
+  #define MTP_EVENT_SIZE        32
 
   #define MTP_EVENT_INTERVAL_12	10	// 10 = 10 ms
   #define MTP_EVENT_INTERVAL_480 7	// 7 = 8 ms

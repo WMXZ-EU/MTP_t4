@@ -34,7 +34,7 @@
   #define MTP_RX_ENDPOINT       5
   #define MTP_RX_SIZE           64
   #define MTP_EVENT_ENDPOINT    6
-  #define MTP_EVENT_SIZE        16
+  #define MTP_EVENT_SIZE        32
   #define MTP_EVENT_INTERVAL    10
   #define ENDPOINT1_CONFIG      ENDPOINT_TRANSMIT_ONLY
   #define ENDPOINT2_CONFIG      ENDPOINT_RECEIVE_ONLY
