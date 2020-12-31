@@ -239,7 +239,7 @@ void mtp_lock_storage(bool lock) {}
   { 
     GenerateIndex(store);
     if (parent) 
-    { if (parent == 0xFFFFFFFF) parent = store; // As per initizalization
+    { if (parent == 0xFFFFFFFFUL) parent = store; // As per initizalization
 
       ScanDir(store, parent);
       follow_sibling_ = true;

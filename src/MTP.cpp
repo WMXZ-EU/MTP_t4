@@ -402,17 +402,7 @@ const uint16_t supported_events[] =
       }
     }
   }
-/*
-  void MTPD::read_until_short_packet() {
-    bool done = false;
-    while (!done) {
-      receive_buffer();
-      done = data_buffer_->len != sizeof(data_buffer_->buf);
-      usb_free(data_buffer_);
-      data_buffer_ = NULL;
-    }
-  }
-*/
+
   void MTPD::GetDevicePropValue(uint32_t prop) {
     switch (prop) {
       case 0xd402: // friendly name
