@@ -41,8 +41,8 @@ Session may be reset from Teensy by sending a reset event. This is shown in mtp-
  
 ## Installation:
  - If you wanted to use USB_MTP_SERIAL  
-   - T4.x edit teensy/avr/cores/teensy4/usb_desc.h with content of 'modifications_for_cores_teensy4' (insert after MTP_DISK)
-   - T3.x edit teensy/avr/cores/teensy3/usb_desc.h with content of 'modifications_for_cores_teensy3' (insert after MTP_DISK)
+   - T4.x edit teensy/avr/cores/teensy4/usb_desc.h with content of 'modifications_for_cores_teensy4' (insert after USB_MTPDISK)
+   - T3.x edit teensy/avr/cores/teensy3/usb_desc.h with content of 'modifications_for_cores_teensy3' (insert after USB_MTPDISK)
    - edit teensy/avr/boards.txt with content of 'modifications_for_teensy_avr' (copy to end of file)
  - install also USB2 from WMXZ github if cores does not have "usb_mtp.h"
  - install LittleFS from https://github.com/PaulStoffregen/LittleFS for use of LittleFS basd filesystems
