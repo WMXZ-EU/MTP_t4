@@ -48,11 +48,13 @@ class mSD_Base
       fsCount = 0;
     }
 
-    void sd_addFilesystem(FS &fs, const char *name) {
+    uint32_t sd_addFilesystem(FS &fs, const char *name) {
       if (fsCount < MTPD_MAX_FILESYSTEMS) {
         sd_name[fsCount] = name;
-        sdx[fsCount++] = &fs;
+        sdx[fsCount] = &fs;
+        return fsCount++;
       }
+      return 0xFFFFFFFFUL;  // no room left
     }
 
     uint32_t sd_getStoreID( const char *name)
@@ -60,6 +62,18 @@ class mSD_Base
       for(int ii=0; ii<fsCount;ii++) if(!strcmp(name,sd_name[ii])) return ii;
       return 0xFFFFFFFFUL;
     }
+    
+    const char *sd_getStoreName(uint32_t store)
+    {
+      if (store < (uint32_t)fsCount) return sd_name[store];
+      return nullptr;
+    } 
+
+    FS*  sd_getStoreFS(uint32_t store)
+    {
+      if (store < (uint32_t)fsCount) return sdx[store];
+      return nullptr;
+    } 
 
     uint32_t sd_getFSCount(void) {return fsCount;}
     const char *sd_getFSName(uint32_t store) { return sd_name[store];}
@@ -86,7 +100,7 @@ class mSD_Base
 // We'll need to give the MTP responder a pointer to one of these.
 class MTPStorageInterface {
 public:
-  virtual void addFilesystem(FS &filesystem, const char *name)=0;
+  virtual uint32_t addFilesystem(FS &filesystem, const char *name)=0;
   virtual uint32_t get_FSCount(void) = 0;
   virtual const char *get_FSName(uint32_t storage) = 0;
 
@@ -139,9 +153,12 @@ public:
 class MTPStorage_SD : public MTPStorageInterface, mSD_Base
 { 
 public:
-  void addFilesystem(FS &fs, const char *name) { sd_addFilesystem(fs, name);}
+  uint32_t addFilesystem(FS &fs, const char *name) {return sd_addFilesystem(fs, name);}
   void dumpIndexList(void);
   uint32_t getStoreID(const char *name) {return sd_getStoreID(name);}
+  uint32_t getFSCount(void) {return sd_getFSCount();}
+  const char *getStoreName(uint32_t store) {return sd_getStoreName(store);} 
+  FS* getStoreFS(uint32_t store) {return sd_getStoreFS(store);}
 
 private:
   File index_;

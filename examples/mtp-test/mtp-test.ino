@@ -216,7 +216,8 @@ void setup()
   #if defined(USB_MTPDISK_SERIAL) 
     while(!Serial); // comment if you do not want to wait for terminal
   #else
-    while(!Serial.available()); // comment if you do not want to wait for terminal (otherwise press any key to continue)
+    //while(!Serial.available()); // comment if you do not want to wait for terminal (otherwise press any key to continue)
+    while(!Serial.available() && millis() < 5000); // or third option to wait up to 5 seconds and then continue
   #endif
   Serial.println("MTP_test");
 
@@ -295,6 +296,17 @@ void loop()
     {
       Serial.println("Reset");
       mtpd.send_DeviceResetEvent();
+    }
+    if (ch=='d')
+    {
+      // first dump list of storages:
+      uint32_t fsCount = storage.getFSCount();
+      Serial.printf("\nDump Storage list(%u)\n", fsCount);
+      for (uint32_t ii = 0; ii < fsCount; ii++) {
+        Serial.printf("store:%u name:%s fs:%x\n", ii, storage.getStoreName(ii), (uint32_t)storage.getStoreFS(ii));
+      }
+      Serial.println("\nDump Index List");
+      storage.dumpIndexList();
     }
     #if USE_LFS_RAM==1
       if(ch=='a') 
