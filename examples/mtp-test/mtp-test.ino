@@ -4,7 +4,7 @@
 #include "MTP.h"
 
 #define USE_SD  1         // SDFAT based SDIO and SPI
-#define USE_LFS_RAM 1     // T4.1 PSRAM (or RAM)
+#define USE_LFS_RAM 0     // T4.1 PSRAM (or RAM)
 #define USE_LFS_QSPI 1    // T4.1 QSPI
 #define USE_LFS_PROGM 1   // T4.4 Progam Flash
 #define USE_LFS_SPI 1     // SPI Flash
@@ -311,6 +311,24 @@ void loop()
         }
         // attempt to notify PC on added files (does not work yet)
         uint32_t store = storage.getStoreID("RAM1");
+        Serial.print("Store "); Serial.println(store);
+        mtpd.send_StorageInfoChangedEvent(store);
+      }
+    #elif USE_SD==1
+      if(ch=='a') 
+      {
+        Serial.println("Add Files");
+        static int count=100;
+        for(int ii=0; ii<10;ii++)
+        { char filename[80];
+          sprintf(filename,"/test_%d.txt",count++);
+          Serial.println(filename);
+          File file=sdx[0].open(filename,FILE_WRITE_BEGIN);
+            file.println("This is a test line");
+          file.close();
+        }
+        // attempt to notify PC on added files (does not work yet)
+        uint32_t store = storage.getStoreID("sdio");
         Serial.print("Store "); Serial.println(store);
         mtpd.send_StorageInfoChangedEvent(store);
       }
