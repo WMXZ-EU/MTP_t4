@@ -210,7 +210,7 @@ const uint16_t supported_events[] =
 //    MTP_EVENT_REQUEST_OBJECT_TRANSFER           ,//0x4009
 //    MTP_EVENT_STORE_FULL                        ,//0x400A
     MTP_EVENT_DEVICE_RESET                      ,//0x400B
-//    MTP_EVENT_STORAGE_INFO_CHANGED              ,//0x400C
+    MTP_EVENT_STORAGE_INFO_CHANGED              ,//0x400C
 //    MTP_EVENT_CAPTURE_COMPLETE                  ,//0x400D
 //    MTP_EVENT_UNREPORTED_STATUS                 ,//0x400E
 //    MTP_EVENT_OBJECT_PROP_CHANGED               ,//0xC801
@@ -1583,6 +1583,22 @@ const uint16_t supported_events[] =
   { return send_Event(MTP_EVENT_OBJECT_ADDED, p1); }
   int MTPD::send_removeObjectEvent(uint32_t p1) 
   { return send_Event(MTP_EVENT_OBJECT_REMOVED, p1); }
+
+
+  bool MTPD::send_addObjectEvent(uint32_t store, const char *pathname)
+  {
+    bool node_added = false;
+    uint32_t handle = storage_->MapFileNameToIndex(store, pathname, true, &node_added);
+    printf("notifyFileCreated: %x:%x maps to handle: %x\n", store, pathname, handle);
+    if (handle != 0xFFFFFFFFUL) {
+      send_addObjectEvent(handle);
+      return true;
+    }
+    return false;
+
+  }
+
+
 
 #endif
 #endif

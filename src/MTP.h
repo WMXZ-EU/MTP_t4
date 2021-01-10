@@ -162,6 +162,12 @@ public:
   int send_StorageInfoChangedEvent(uint32_t p1);
   int send_StorageRemovedEvent(uint32_t p1);
   int send_DeviceResetEvent(void);
+
+  // higer level version of sending events
+  // unclear if should pass in pfs or store? 
+  bool send_addObjectEvent(uint32_t store, const char *pathname);
+
+
 #endif
 };
 

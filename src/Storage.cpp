@@ -441,6 +441,8 @@ void MTPStorage_SD::removeFile(uint32_t store, char *file)
   void MTPStorage_SD::printRecord(int h, Record *p) 
   { Serial.printf("%d: %d %d %d %d %d\n",h, p->store,p->isdir,p->parent,p->sibling,p->child); }
   
+  void MTPStorage_SD::printRecordIncludeName(int h, Record *p) 
+  { Serial.printf("%d: %d %d %d %d %d %d %s\n",h, p->store,p->isdir,p->scanned,p->parent,p->sibling,p->child,p->name); }
   
 /*
  * //index list management for moving object around
@@ -706,4 +708,97 @@ bool mSD_Base::sd_moveDir(uint32_t store0, char *oldfilename, uint32_t store1, c
     }
   }
   return sd_rmdir(store0,oldfilename);
+}
+
+
+uint32_t MTPStorage_SD::MapFileNameToIndex(uint32_t storage, const char *pathname, bool addLastNode, bool *node_added) 
+{
+  const char *path_parser = pathname;
+  Serial.printf("MTPStorage_SD::MapFileNameToIndex %u %s add:%d\n", storage, pathname, addLastNode);
+  // We will only walk as far as we have enumerated 
+  if (node_added) *node_added = false;
+  if (!index_generated || (path_parser == nullptr) || (*path_parser == '\0')) return 0xFFFFFFFFUL;  // no index 
+  char filename[MAX_FILENAME_LEN];
+  Record record = ReadIndexRecord(storage);
+  uint32_t index; 
+
+  printRecordIncludeName(storage, &record);
+  for (;;) {
+    if (!record.isdir || !record.scanned) return 0xFFFFFFFFUL;  // This storage has not been scanned. 
+    // Copy the nex section of file name
+    if(*path_parser == '/') path_parser++; // advance from the previous /
+    char *psz = filename;
+    while (*path_parser && (*path_parser != '/')) {
+      *psz++ = *path_parser++;
+    }
+    *psz = '\0'; // terminate the string. 
+
+    // Now lets see if we can find this item in the record list. 
+    Serial.printf("Looking for: %s\n", filename);
+    index = record.child;
+    while(index) {
+      record = ReadIndexRecord(index);
+      printRecordIncludeName(index, &record);
+      if (strcmp(filename, record.name) == 0) break; // found a match
+      index = record.sibling;
+    }
+
+    if (index) {
+      // found a match. return it.
+      if (*path_parser == '\0')  {
+        Serial.printf("Found Node: %d\n", index);
+        return index;
+      }
+
+    } else {
+      // item not found
+      Serial.println("Node Not found");
+
+      if ( (*path_parser != '\0') || !addLastNode) return 0xFFFFFFFFUL;  // not found nor added
+
+      // need to add item
+      uint32_t parent = record.parent;
+      record = ReadIndexRecord(parent);
+      Record r; // could probably reuse the other one, but...
+      ///////////
+      // Question is should more data be passed in like is this a directory and size 
+      // or should we ask for it now, and/or should we mark it that we have not grabbed that
+      // info and wait for someone to ask for it?
+
+      strlcpy(r.name, filename,MAX_FILENAME_LEN);
+      r.store = storage;
+      r.parent = parent;
+      r.child = 0;
+      r.scanned = false;
+
+      mtp_lock_storage(true);
+      if(sd_isOpen(file_)) file_.close();
+      file_=sd_open(storage,pathname,FILE_READ);
+      mtp_lock_storage(false);
+
+      if (sd_isOpen(file_))
+      {
+        r.isdir = file_.isDirectory();
+        if (!r.isdir) r.child = (uint32_t) file_.size();
+        mtp_lock_storage(true);
+        file_.close();
+        mtp_lock_storage(false);
+      } else {
+        r.isdir = false;
+      }
+      r.sibling = record.child;
+      // New folder is empty, scanned = true.
+      index = record.child = AppendIndexRecord(r);
+      WriteIndexRecord(parent, record);
+
+      Serial.printf("New node created: %d\n", index);
+      record = ReadIndexRecord(index);
+      printRecordIncludeName(index, &record);
+      if (node_added) *node_added = true;
+      return index;
+    }
+
+  }
+  // 
+  return 0xFFFFFFFFUL;
 }

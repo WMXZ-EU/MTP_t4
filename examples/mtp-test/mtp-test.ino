@@ -4,7 +4,11 @@
 #include "MTP.h"
 
 #define USE_SD  1         // SDFAT based SDIO and SPI
+#ifdef ARDUINO_TEENSY41
+#define USE_LFS_RAM 1     // T4.1 PSRAM (or RAM)
+#else
 #define USE_LFS_RAM 0     // T4.1 PSRAM (or RAM)
+#endif
 #define USE_LFS_QSPI 1    // T4.1 QSPI
 #define USE_LFS_PROGM 1   // T4.4 Progam Flash
 #define USE_LFS_SPI 1     // SPI Flash
@@ -57,7 +61,7 @@ SDClass sdx[nsd];
 //LittleFS classes
 #if USE_LFS_RAM==1
   const char *lfs_ram_str[]={"RAM1","RAM2"};     // edit to reflect your configuration
-  const int lfs_ram_size[] = {2'000'000,4'000'000}; // edit to reflect your configuration
+  const int lfs_ram_size[] = {200'000,4'000'000}; // edit to reflect your configuration
   const int nfs_ram = sizeof(lfs_ram_str)/sizeof(const char *);
 
   LittleFS_RAM ramfs[nfs_ram]; 
@@ -313,16 +317,26 @@ void loop()
       {
         Serial.println("Add Files");
         static int count=100;
+        uint32_t store = storage.getStoreID("RAM1");
         for(int ii=0; ii<10;ii++)
         { char filename[80];
           sprintf(filename,"/test_%d.txt",count++);
           Serial.println(filename);
           File file=ramfs[0].open(filename,FILE_WRITE_BEGIN);
             file.println("This is a test line");
+            file.println("This is a test line");
+            file.println("This is a test line");
+            file.println("This is a test line");
+            file.println("This is a test line");
+            file.println("This is a test line");
+            file.println("This is a test line");
+            file.println("This is a test line");
+            file.println("This is a test line");
+            file.println("This is a test line");
           file.close();
+          mtpd.send_addObjectEvent(store, filename);
         }
         // attempt to notify PC on added files (does not work yet)
-        uint32_t store = storage.getStoreID("RAM1");
         Serial.print("Store "); Serial.println(store);
         mtpd.send_StorageInfoChangedEvent(store);
       }
@@ -331,6 +345,7 @@ void loop()
       {
         Serial.println("Add Files");
         static int count=100;
+        uint32_t store = storage.getStoreID("sdio");
         for(int ii=0; ii<10;ii++)
         { char filename[80];
           sprintf(filename,"/test_%d.txt",count++);
@@ -338,9 +353,9 @@ void loop()
           File file=sdx[0].open(filename,FILE_WRITE_BEGIN);
             file.println("This is a test line");
           file.close();
+          mtpd.send_addObjectEvent(store, filename);
         }
         // attempt to notify PC on added files (does not work yet)
-        uint32_t store = storage.getStoreID("sdio");
         Serial.print("Store "); Serial.println(store);
         mtpd.send_StorageInfoChangedEvent(store);
       }

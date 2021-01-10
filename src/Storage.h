@@ -132,6 +132,7 @@ public:
   virtual uint32_t copy(uint32_t handle, uint32_t newStorage, uint32_t newParent) = 0 ;
 
   virtual bool CopyFiles(uint32_t storage, uint32_t handle, uint32_t newHandle) = 0;
+  virtual uint32_t MapFileNameToIndex(uint32_t storage, const char *pathname,  bool addLastNode=false, bool *node_added=nullptr) = 0;
 };
 
   struct Record 
@@ -198,6 +199,7 @@ private:
   uint16_t ConstructFilename(int i, char* out, int len) ;
   void OpenFileByIndex(uint32_t i, uint32_t mode = FILE_READ) ;
   void printRecord(int h, Record *p);
+  void printRecordIncludeName(int h, Record *p);
 
   uint32_t get_FSCount(void) {return sd_getFSCount();}
   const char *get_FSName(uint32_t storage) { return sd_getFSName(storage);}
@@ -220,6 +222,7 @@ private:
 
   bool CopyFiles(uint32_t storage, uint32_t handle, uint32_t newHandle) override ;
   void ResetIndex() override ;
+  uint32_t MapFileNameToIndex(uint32_t storage, const char *pathname, bool addLastNode=false, bool *node_added=nullptr) override; 
 };
 
 #endif
