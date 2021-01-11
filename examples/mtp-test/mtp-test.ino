@@ -316,11 +316,11 @@ void loop()
       if(ch=='a') 
       {
         Serial.println("Add Files");
-        static int count=100;
+      static int next_file_index_to_add=100;
         uint32_t store = storage.getStoreID("RAM1");
         for(int ii=0; ii<10;ii++)
         { char filename[80];
-          sprintf(filename,"/test_%d.txt",count++);
+          sprintf(filename,"/test_%d.txt",next_file_index_to_add++);
           Serial.println(filename);
           File file=ramfs[0].open(filename,FILE_WRITE_BEGIN);
             file.println("This is a test line");
@@ -340,20 +340,56 @@ void loop()
         Serial.print("Store "); Serial.println(store);
         mtpd.send_StorageInfoChangedEvent(store);
       }
+      if(ch=='x') 
+      {
+        Serial.println("Delete Files");
+        static int next_file_index_to_delete=100;
+        uint32_t store = storage.getStoreID("RAM1");
+        for(int ii=0; ii<10;ii++)
+        { char filename[80];
+          sprintf(filename,"/test_%d.txt",next_file_index_to_delete++);
+          Serial.println(filename);
+          if (ramfs[0].remove(filename))
+          {
+            mtpd.send_removeObjectEvent(store, filename);
+          }
+        }
+        // attempt to notify PC on added files (does not work yet)
+        Serial.print("Store "); Serial.println(store);
+        mtpd.send_StorageInfoChangedEvent(store);
+      }
     #elif USE_SD==1
       if(ch=='a') 
       {
         Serial.println("Add Files");
-        static int count=100;
+        static int next_file_index_to_add=100;
         uint32_t store = storage.getStoreID("sdio");
         for(int ii=0; ii<10;ii++)
         { char filename[80];
-          sprintf(filename,"/test_%d.txt",count++);
+          sprintf(filename,"/test_%d.txt",next_file_index_to_add++);
           Serial.println(filename);
           File file=sdx[0].open(filename,FILE_WRITE_BEGIN);
             file.println("This is a test line");
           file.close();
           mtpd.send_addObjectEvent(store, filename);
+        }
+        // attempt to notify PC on added files (does not work yet)
+        Serial.print("Store "); Serial.println(store);
+        mtpd.send_StorageInfoChangedEvent(store);
+      }
+      if(ch=='x') 
+      {
+        Serial.println("Delete Files");
+        static int next_file_index_to_delete=100;
+        uint32_t store = storage.getStoreID("sdio");
+        for(int ii=0; ii<10;ii++)
+        { char filename[80];
+          sprintf(filename,"/test_%d.txt",next_file_index_to_delete++);
+          Serial.println(filename);
+          if (sdx[0].remove(filename))
+          {
+            mtpd.send_removeObjectEvent(store, filename);
+          }
         }
         // attempt to notify PC on added files (does not work yet)
         Serial.print("Store "); Serial.println(store);

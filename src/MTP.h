@@ -166,6 +166,7 @@ public:
   // higer level version of sending events
   // unclear if should pass in pfs or store? 
   bool send_addObjectEvent(uint32_t store, const char *pathname);
+  bool send_removeObjectEvent(uint32_t store, const char *pathname);
 
 
 #endif

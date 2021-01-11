@@ -1595,8 +1595,19 @@ const uint16_t supported_events[] =
       return true;
     }
     return false;
-
   }
+
+  bool MTPD::send_removeObjectEvent(uint32_t store, const char *pathname)
+  {
+    uint32_t handle = storage_->MapFileNameToIndex(store, pathname, false, nullptr);
+    printf("notifyFileRemoved: %x:%x maps to handle: %x\n", store, pathname, handle);
+    if (handle != 0xFFFFFFFFUL) {
+      send_removeObjectEvent(handle);
+      return true;
+    }
+    return false;
+  }
+
 
 
 
