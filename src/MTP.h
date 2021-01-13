@@ -44,6 +44,14 @@ extern "C" 	int usb_mtp_sendEvent(const void *buffer, uint32_t len, uint32_t tim
 
 #define USE_EVENTS 1
 
+#define MTP_SEND_OBJECT_YIELD 1
+#define MTP_VERBOSE_PRINT_CONTAINER 1
+
+#if MTP_SEND_OBJECT_YIELD==1 && defined(__IMXRT1062__)
+// Note Currently only for T4.x
+#include <EventResponder.h>
+#endif
+
 // MTP Responder.
 class MTPD {
 public:
@@ -89,6 +97,24 @@ private:
   int push_packet(uint8_t *data_buffer, uint32_t len);
   int fetch_packet(uint8_t *data_buffer);
   int pull_packet(uint8_t *data_buffer);
+
+#ifdef MTP_SEND_OBJECT_YIELD
+  // BUGBUG make larger buffers static and DMAMEM? 
+  static const uint32_t BIG_BUFFER_SIZE = (DISK_BUFFER_SIZE * 3);  // big enough to double buffer. 
+  static uint8_t big_buffer[BIG_BUFFER_SIZE] __attribute__ ((aligned(32)));
+  static uint8_t *buffer_receive_pointer;  // which buffer are we filling 1 or 2 ...
+  static uint8_t *buffer_write_file_pointer;
+  static uint8_t *big_buffer_ptr;
+  static uint32_t big_buffer_size;
+
+  static EventResponder receive_eventresponder;
+  static elapsedMillis receive_event_elaped_mills;
+  static const uint32_t EVENT_RESPONDER_CYCLE = 1; // lets try every 2
+  static uint32_t receive_count_remaining;
+  static uint32_t receive_disk_pos;
+  static void receive_event_handler(EventResponderRef evref);
+  bool checkAndReceiveNextUSBBuffer();
+#endif
 
 #endif
 
@@ -167,8 +193,9 @@ public:
   // unclear if should pass in pfs or store? 
   bool send_addObjectEvent(uint32_t store, const char *pathname);
   bool send_removeObjectEvent(uint32_t store, const char *pathname);
-
-
+  #if MTP_VERBOSE_PRINT_CONTAINER
+  void _printContainer(MTPContainer *c, const char *msg = nullptr);
+  #endif
 #endif
 };
 

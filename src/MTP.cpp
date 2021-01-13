@@ -220,6 +220,53 @@ const uint16_t supported_events[] =
   
   const int supported_event_num = sizeof(supported_events)/sizeof(supported_events[0]);
 
+  // Responses
+
+    #define MTP_RESPONSE_UNDEFINED                                  0x2000
+    #define MTP_RESPONSE_OK                                         0x2001
+    #define MTP_RESPONSE_GENERAL_ERROR                              0x2002
+    #define MTP_RESPONSE_SESSION_NOT_OPEN                           0x2003
+    #define MTP_RESPONSE_INVALID_TRANSACTION_ID                     0x2004
+    #define MTP_RESPONSE_OPERATION_NOT_SUPPORTED                    0x2005
+    #define MTP_RESPONSE_PARAMETER_NOT_SUPPORTED                    0x2006
+    #define MTP_RESPONSE_INCOMPLETE_TRANSFER                        0x2007
+    #define MTP_RESPONSE_INVALID_STORAGE_ID                         0x2008
+    #define MTP_RESPONSE_INVALID_OBJECT_HANDLE                      0x2009
+    #define MTP_RESPONSE_DEVICE_PROP_NOT_SUPPORTED                  0x200A
+    #define MTP_RESPONSE_INVALID_OBJECT_FORMAT_CODE                 0x200B
+    #define MTP_RESPONSE_STORAGE_FULL                               0x200C
+    #define MTP_RESPONSE_OBJECT_WRITE_PROTECTED                     0x200D
+    #define MTP_RESPONSE_STORE_READ_ONLY                            0x200E
+    #define MTP_RESPONSE_ACCESS_DENIED                              0x200F
+    #define MTP_RESPONSE_NO_THUMBNAIL_PRESENT                       0x2010
+    #define MTP_RESPONSE_SELF_TEST_FAILED                           0x2011
+    #define MTP_RESPONSE_PARTIAL_DELETION                           0x2012
+    #define MTP_RESPONSE_STORE_NOT_AVAILABLE                        0x2013
+    #define MTP_RESPONSE_SPECIFICATION_BY_FORMAT_UNSUPPORTED        0x2014
+    #define MTP_RESPONSE_NO_VALID_OBJECT_INFO                       0x2015
+    #define MTP_RESPONSE_INVALID_CODE_FORMAT                        0x2016
+    #define MTP_RESPONSE_UNKNOWN_VENDOR_CODE                        0x2017
+    #define MTP_RESPONSE_CAPTURE_ALREADY_TERMINATED                 0x2018
+    #define MTP_RESPONSE_DEVICE_BUSY                                0x2019
+    #define MTP_RESPONSE_INVALID_PARENT_OBJECT                      0x201A
+    #define MTP_RESPONSE_INVALID_DEVICE_PROP_FORMAT                 0x201B
+    #define MTP_RESPONSE_INVALID_DEVICE_PROP_VALUE                  0x201C
+    #define MTP_RESPONSE_INVALID_PARAMETER                          0x201D
+    #define MTP_RESPONSE_SESSION_ALREADY_OPEN                       0x201E
+    #define MTP_RESPONSE_TRANSACTION_CANCELLED                      0x201F
+    #define MTP_RESPONSE_SPECIFICATION_OF_DESTINATION_UNSUPPORTED   0x2020
+    #define MTP_RESPONSE_INVALID_OBJECT_PROP_CODE                   0xA801
+    #define MTP_RESPONSE_INVALID_OBJECT_PROP_FORMAT                 0xA802
+    #define MTP_RESPONSE_INVALID_OBJECT_PROP_VALUE                  0xA803
+    #define MTP_RESPONSE_INVALID_OBJECT_REFERENCE                   0xA804
+    #define MTP_RESPONSE_GROUP_NOT_SUPPORTED                        0xA805
+    #define MTP_RESPONSE_INVALID_DATASET                            0xA806
+    #define MTP_RESPONSE_SPECIFICATION_BY_GROUP_UNSUPPORTED         0xA807
+    #define MTP_RESPONSE_SPECIFICATION_BY_DEPTH_UNSUPPORTED         0xA808
+    #define MTP_RESPONSE_OBJECT_TOO_LARGE                           0xA809
+    #define MTP_RESPONSE_OBJECT_PROP_NOT_SUPPORTED                  0xA80A
+
+
  uint32_t sessionID_;
 
 // MTP Responder.
@@ -709,25 +756,29 @@ const uint16_t supported_events[] =
     uint32_t len = ReadMTPHeader();
     char filename[MAX_FILENAME_LEN];
 
+    printf("SendObjectInfo: %u %u : ", storage, parent);
     uint32_t store = Storage2Store(storage);
 
-    read32(); len-=4; // storage
-    bool dir = read16() == 0x3001; len-=2; // format
-    read16();  len-=2; // protection
-    read32(); len-=4; // size
-    read16(); len-=2; // thumb format
-    read32(); len-=4; // thumb size
-    read32(); len-=4; // thumb width
-    read32(); len-=4; // thumb height
-    read32(); len-=4; // pix width
-    read32(); len-=4; // pix height
-    read32(); len-=4; // bit depth
-    read32(); len-=4; // parent
-    read16(); len-=2; // association type
-    read32(); len-=4; // association description
-    read32(); len-=4; // sequence number
+    printf("%x ",read32()); len-=4; // storage
+    uint16_t oformat = read16();  len-=2; // format
+    printf("%x ", oformat);
+    bool dir = oformat == 0x3001;
+    printf("%x ",read16());  len-=2; // protection
+    printf("%x ",read32()); len-=4; // size
+    printf("%x ",read16()); len-=2; // thumb format
+    printf("%x ",read32()); len-=4; // thumb size
+    printf("%x ",read32()); len-=4; // thumb width
+    printf("%x ",read32()); len-=4; // thumb height
+    printf("%x ",read32()); len-=4; // pix width
+    printf("%x ",read32()); len-=4; // pix height
+    printf("%x ",read32()); len-=4; // bit depth
+    printf("%x ",read32()); len-=4; // parent
+    printf("%x ",read16()); len-=2; // association type
+    printf("%x ",read32()); len-=4; // association description
+    printf("%x ",read32()); len-=4; // sequence number
 
     readstring(filename); len -= (2*(strlen(filename)+1)+1); 
+    printf(": %s\n", filename);
     // ignore rest of ObjectInfo
     while(len>=4) { read32(); len-=4;}
     while(len) {read8(); len--;}
@@ -837,6 +888,7 @@ const uint16_t supported_events[] =
                 }
               }
               break;
+            case 0x100C:  // SendObjectInfo
               p3 =  SendObjectInfo(p1, // storage
                                    p2); // parent
               CONTAINER->params[1]=p2;
@@ -1098,7 +1150,150 @@ const uint16_t supported_events[] =
       }                                                   \
     } while(0)
 
+    #if MTP_VERBOSE_PRINT_CONTAINER
+    void MTPD::_printContainer(MTPContainer *c, const char *msg) {
+      int print_property_name = -1;  //no
+      if (msg) printf("%s", msg);
+      switch (c->type) {
+      default: printf(" UNKWN: %x", c->type); break;
+      case MTP_CONTAINER_TYPE_COMMAND: printf(F("CMD: ")); break;
+      case MTP_CONTAINER_TYPE_DATA: printf(F("DATA:")); break;
+      case MTP_CONTAINER_TYPE_RESPONSE: printf(F("RESP:")); break;
+      case MTP_CONTAINER_TYPE_EVENT: printf(F("EVENT: ")); break;
+      }
+      printf(F("%x"), c->op);
+      switch (c->op) {
+      case MTP_OPERATION_GET_DEVICE_INFO: printf(F("(GET_DEVICE_INFO)")); break;
+      case MTP_OPERATION_OPEN_SESSION: printf(F("(OPEN_SESSION)")); break;
+      case MTP_OPERATION_CLOSE_SESSION: printf(F("(CLOSE_SESSION)")); break;
+      case MTP_OPERATION_GET_STORAGE_IDS: printf(F("(GET_STORAGE_IDS)")); break;
+      case MTP_OPERATION_GET_STORAGE_INFO: printf(F("(GET_STORAGE_INFO)")); break;
+      case MTP_OPERATION_GET_NUM_OBJECTS: printf(F("(GET_NUM_OBJECTS)")); break;
+      case MTP_OPERATION_GET_OBJECT_HANDLES: printf(F("(GET_OBJECT_HANDLES)")); break;
+      case MTP_OPERATION_GET_OBJECT_INFO: printf(F("(GET_OBJECT_INFO)")); break;
+      case MTP_OPERATION_GET_OBJECT: printf(F("(GET_OBJECT)")); break;
+      case MTP_OPERATION_GET_THUMB: printf(F("(GET_THUMB)")); break;
+      case MTP_OPERATION_DELETE_OBJECT: printf(F("(DELETE_OBJECT)")); break;
+      case MTP_OPERATION_SEND_OBJECT_INFO: printf(F("(SEND_OBJECT_INFO)")); break;
+      case MTP_OPERATION_SEND_OBJECT: printf(F("(SEND_OBJECT)")); break;
+      case MTP_OPERATION_INITIATE_CAPTURE: printf(F("(INITIATE_CAPTURE)")); break;
+      case MTP_OPERATION_FORMAT_STORE: printf(F("(FORMAT_STORE)")); break;
+      case MTP_OPERATION_RESET_DEVICE: printf(F("(RESET_DEVICE)")); break;
+      case MTP_OPERATION_SELF_TEST: printf(F("(SELF_TEST)")); break;
+      case MTP_OPERATION_SET_OBJECT_PROTECTION: printf(F("(SET_OBJECT_PROTECTION)")); break;
+      case MTP_OPERATION_POWER_DOWN: printf(F("(POWER_DOWN)")); break;
+      case MTP_OPERATION_GET_DEVICE_PROP_DESC: printf(F("(GET_DEVICE_PROP_DESC)")); break;
+      case MTP_OPERATION_GET_DEVICE_PROP_VALUE: printf(F("(GET_DEVICE_PROP_VALUE)")); break;
+      case MTP_OPERATION_SET_DEVICE_PROP_VALUE: printf(F("(SET_DEVICE_PROP_VALUE)")); break;
+      case MTP_OPERATION_RESET_DEVICE_PROP_VALUE: printf(F("(RESET_DEVICE_PROP_VALUE)")); break;
+      case MTP_OPERATION_TERMINATE_OPEN_CAPTURE: printf(F("(TERMINATE_OPEN_CAPTURE)")); break;
+      case MTP_OPERATION_MOVE_OBJECT: printf(F("(MOVE_OBJECT)")); break;
+      case MTP_OPERATION_COPY_OBJECT: printf(F("(COPY_OBJECT)")); break;
+      case MTP_OPERATION_GET_PARTIAL_OBJECT: printf(F("(GET_PARTIAL_OBJECT)")); break;
+      case MTP_OPERATION_INITIATE_OPEN_CAPTURE: printf(F("(INITIATE_OPEN_CAPTURE)")); break;
+      case MTP_OPERATION_GET_OBJECT_PROPS_SUPPORTED: printf(F("(GET_OBJECT_PROPS_SUPPORTED)")); break;
+      case MTP_OPERATION_GET_OBJECT_PROP_DESC: printf(F("(GET_OBJECT_PROP_DESC)")); break;
+      case MTP_OPERATION_GET_OBJECT_PROP_VALUE: printf(F("(GET_OBJECT_PROP_VALUE)")); print_property_name = 1; break;
+      case MTP_OPERATION_SET_OBJECT_PROP_VALUE: printf(F("(SET_OBJECT_PROP_VALUE)")); break;
+      case MTP_OPERATION_GET_OBJECT_PROP_LIST: printf(F("(GET_OBJECT_PROP_LIST)")); break;
+      case MTP_OPERATION_SET_OBJECT_PROP_LIST: printf(F("(SET_OBJECT_PROP_LIST)")); break;
+      case MTP_OPERATION_GET_INTERDEPENDENT_PROP_DESC: printf(F("(GET_INTERDEPENDENT_PROP_DESC)")); break;
+      case MTP_OPERATION_SEND_OBJECT_PROP_LIST: printf(F("(SEND_OBJECT_PROP_LIST)")); break;
+      case MTP_OPERATION_GET_OBJECT_REFERENCES: printf(F("(GET_OBJECT_REFERENCES)")); break;
+      case MTP_OPERATION_SET_OBJECT_REFERENCES: printf(F("(SET_OBJECT_REFERENCES)")); break;
+      case MTP_OPERATION_SKIP: printf(F("(SKIP)")); break;
+      // RESPONSES
+      case  MTP_RESPONSE_UNDEFINED: printf(F("(RSP:UNDEFINED)")); break;
+      case  MTP_RESPONSE_OK:  printf(F("(RSP:OK)")); break;
+      case  MTP_RESPONSE_GENERAL_ERROR: printf(F("(RSP:GENERAL_ERROR)")); break;
+      case  MTP_RESPONSE_SESSION_NOT_OPEN:  printf(F("(RSP:SESSION_NOT_OPEN)")); break;
+      case  MTP_RESPONSE_INVALID_TRANSACTION_ID:  printf(F("(RSP:INVALID_TRANSACTION_ID)")); break;
+      case  MTP_RESPONSE_OPERATION_NOT_SUPPORTED: printf(F("(RSP:OPERATION_NOT_SUPPORTED)")); break;
+      case  MTP_RESPONSE_PARAMETER_NOT_SUPPORTED: printf(F("(RSP:PARAMETER_NOT_SUPPORTED)")); break;
+      case  MTP_RESPONSE_INCOMPLETE_TRANSFER: printf(F("(RSP:INCOMPLETE_TRANSFER)")); break;
+      case  MTP_RESPONSE_INVALID_STORAGE_ID:  printf(F("(RSP:INVALID_STORAGE_ID)")); break;
+      case  MTP_RESPONSE_INVALID_OBJECT_HANDLE: printf(F("(RSP:INVALID_OBJECT_HANDLE)")); break;
+      case  MTP_RESPONSE_DEVICE_PROP_NOT_SUPPORTED: printf(F("(RSP:DEVICE_PROP_NOT_SUPPORTED)")); break;
+      case  MTP_RESPONSE_INVALID_OBJECT_FORMAT_CODE:  printf(F("(RSP:INVALID_OBJECT_FORMAT_CODE)")); break;
+      case  MTP_RESPONSE_STORAGE_FULL:  printf(F("(RSP:STORAGE_FULL)")); break;
+      case  MTP_RESPONSE_OBJECT_WRITE_PROTECTED:  printf(F("(RSP:OBJECT_WRITE_PROTECTED)")); break;
+      case  MTP_RESPONSE_STORE_READ_ONLY: printf(F("(RSP:STORE_READ_ONLY)")); break;
+      case  MTP_RESPONSE_ACCESS_DENIED: printf(F("(RSP:ACCESS_DENIED)")); break;
+      case  MTP_RESPONSE_NO_THUMBNAIL_PRESENT:  printf(F("(RSP:NO_THUMBNAIL_PRESENT)")); break;
+      case  MTP_RESPONSE_SELF_TEST_FAILED:  printf(F("(RSP:SELF_TEST_FAILED)")); break;
+      case  MTP_RESPONSE_PARTIAL_DELETION:  printf(F("(RSP:PARTIAL_DELETION)")); break;
+      case  MTP_RESPONSE_STORE_NOT_AVAILABLE: printf(F("(RSP:STORE_NOT_AVAILABLE)")); break;
+      case  MTP_RESPONSE_SPECIFICATION_BY_FORMAT_UNSUPPORTED: printf(F("(RSP:SPECIFICATION_BY_FORMAT_UNSUPPORTED)")); break;
+      case  MTP_RESPONSE_NO_VALID_OBJECT_INFO:  printf(F("(RSP:NO_VALID_OBJECT_INFO)")); break;
+      case  MTP_RESPONSE_INVALID_CODE_FORMAT: printf(F("(RSP:INVALID_CODE_FORMAT)")); break;
+      case  MTP_RESPONSE_UNKNOWN_VENDOR_CODE: printf(F("(RSP:UNKNOWN_VENDOR_CODE)")); break;
+      case  MTP_RESPONSE_CAPTURE_ALREADY_TERMINATED:  printf(F("(RSP:CAPTURE_ALREADY_TERMINATED)")); break;
+      case  MTP_RESPONSE_DEVICE_BUSY: printf(F("(RSP:DEVICE_BUSY)")); break;
+      case  MTP_RESPONSE_INVALID_PARENT_OBJECT: printf(F("(RSP:INVALID_PARENT_OBJECT)")); break;
+      case  MTP_RESPONSE_INVALID_DEVICE_PROP_FORMAT:  printf(F("(RSP:INVALID_DEVICE_PROP_FORMAT)")); break;
+      case  MTP_RESPONSE_INVALID_DEVICE_PROP_VALUE: printf(F("(RSP:INVALID_DEVICE_PROP_VALUE)")); break;
+      case  MTP_RESPONSE_INVALID_PARAMETER: printf(F("(RSP:INVALID_PARAMETER)")); break;
+      case  MTP_RESPONSE_SESSION_ALREADY_OPEN:  printf(F("(RSP:SESSION_ALREADY_OPEN)")); break;
+      case  MTP_RESPONSE_TRANSACTION_CANCELLED: printf(F("(RSP:TRANSACTION_CANCELLED)")); break;
+      case  MTP_RESPONSE_SPECIFICATION_OF_DESTINATION_UNSUPPORTED:  printf(F("(RSP:SPECIFICATION_OF_DESTINATION_UNSUPPORTED)")); break;
+      case  MTP_RESPONSE_INVALID_OBJECT_PROP_CODE:  printf(F("(RSP:INVALID_OBJECT_PROP_CODE)")); break;
+      case  MTP_RESPONSE_INVALID_OBJECT_PROP_FORMAT:  printf(F("(RSP:INVALID_OBJECT_PROP_FORMAT)")); break;
+      case  MTP_RESPONSE_INVALID_OBJECT_PROP_VALUE: printf(F("(RSP:INVALID_OBJECT_PROP_VALUE)")); break;
+      case  MTP_RESPONSE_INVALID_OBJECT_REFERENCE:  printf(F("(RSP:INVALID_OBJECT_REFERENCE)")); break;
+      case  MTP_RESPONSE_GROUP_NOT_SUPPORTED: printf(F("(RSP:GROUP_NOT_SUPPORTED)")); break;
+      case  MTP_RESPONSE_INVALID_DATASET: printf(F("(RSP:INVALID_DATASET)")); break;
+      case  MTP_RESPONSE_SPECIFICATION_BY_GROUP_UNSUPPORTED:  printf(F("(RSP:SPECIFICATION_BY_GROUP_UNSUPPORTED)")); break;
+      case  MTP_RESPONSE_SPECIFICATION_BY_DEPTH_UNSUPPORTED:  printf(F("(RSP:SPECIFICATION_BY_DEPTH_UNSUPPORTED)")); break;
+      case  MTP_RESPONSE_OBJECT_TOO_LARGE:  printf(F("(RSP:OBJECT_TOO_LARGE)")); break;
+      case  MTP_RESPONSE_OBJECT_PROP_NOT_SUPPORTED: printf(F("(RSP:OBJECT_PROP_NOT_SUPPORTED)")); break;
+      case  MTP_EVENT_UNDEFINED: printf(F("(EVT:UNDEFINED)")); break;
+      case  MTP_EVENT_CANCEL_TRANSACTION: printf(F("(EVT:CANCEL_TRANSACTION)")); break;
+      case  MTP_EVENT_OBJECT_ADDED: printf(F("(EVT:OBJECT_ADDED)")); break;
+      case  MTP_EVENT_OBJECT_REMOVED: printf(F("(EVT:OBJECT_REMOVED)")); break;
+      case  MTP_EVENT_STORE_ADDED: printf(F("(EVT:STORE_ADDED)")); break;
+      case  MTP_EVENT_STORE_REMOVED: printf(F("(EVT:STORE_REMOVED)")); break;
+      case  MTP_EVENT_DEVICE_PROP_CHANGED: printf(F("(EVT:DEVICE_PROP_CHANGED)")); break;
+      case  MTP_EVENT_OBJECT_INFO_CHANGED: printf(F("(EVT:OBJECT_INFO_CHANGED)")); break;
+      case  MTP_EVENT_DEVICE_INFO_CHANGED: printf(F("(EVT:DEVICE_INFO_CHANGED)")); break;
+      case  MTP_EVENT_REQUEST_OBJECT_TRANSFER: printf(F("(EVT:REQUEST_OBJECT_TRANSFER)")); break;
+      case  MTP_EVENT_STORE_FULL: printf(F("(EVT:STORE_FULL)")); break;
+      case  MTP_EVENT_DEVICE_RESET: printf(F("(EVT:DEVICE_RESET)")); break;
+      case  MTP_EVENT_STORAGE_INFO_CHANGED: printf(F("(EVT:STORAGE_INFO_CHANGED)")); break;
+      case  MTP_EVENT_CAPTURE_COMPLETE: printf(F("(EVT:CAPTURE_COMPLETE)")); break;
+      case  MTP_EVENT_UNREPORTED_STATUS: printf(F("(EVT:UNREPORTED_STATUS)")); break;
+      case  MTP_EVENT_OBJECT_PROP_CHANGED: printf(F("(EVT:OBJECT_PROP_CHANGED)")); break;
+      case  MTP_EVENT_OBJECT_PROP_DESC_CHANGED: printf(F("(EVT:OBJECT_PROP_DESC_CHANGED)")); break;
+      case  MTP_EVENT_OBJECT_REFERENCES_CHANGED: printf(F("(EVT:OBJECT_REFERENCES_CHANGED)")); break;
 
+
+      }
+      printf("l: %d", c->len);
+      printf(F(" T:%x"), c->transaction_id);
+      if (c->len >= 16) printf(F(" : %x"), c->params[0]);
+      if (c->len >= 20) printf(F(" %x"), c->params[1]);
+      if (c->len >= 24) printf(F(" %x"), c->params[2]);
+      if (c->len >= 28) printf(F(" %x"), c->params[3]);
+      if (c->len >= 32) printf(F(" %x"), c->params[4]);
+      if (print_property_name >= 0) {
+        switch (c->params[print_property_name]) {
+          case MTP_PROPERTY_STORAGE_ID: printf(" (STORAGE_ID)"); break;
+          case MTP_PROPERTY_OBJECT_FORMAT: printf(" (FORMAT)"); break;
+          case MTP_PROPERTY_PROTECTION_STATUS: printf(" (PROTECTION)"); break;
+          case MTP_PROPERTY_OBJECT_SIZE: printf(" (SIZE)"); break;
+          case MTP_PROPERTY_OBJECT_FILE_NAME: printf(" (OBJECT NAME)"); break;
+          case MTP_PROPERTY_DATE_CREATED: printf(" (CREATED)"); break;
+          case MTP_PROPERTY_DATE_MODIFIED: printf(" (MODIFIED)"); break;
+          case MTP_PROPERTY_PARENT_OBJECT: printf(" (PARENT)"); break;
+          case MTP_PROPERTY_PERSISTENT_UID: printf(" (PERSISTENT_UID)"); break;
+          case MTP_PROPERTY_NAME: printf(" (NAME)"); break;
+        }
+      }
+      printf("\n");
+    }
+
+    #define printContainer()  _printContainer(CONTAINER);
+ 
+    #else
     #define printContainer() \
     { printf("%x %d %d %d: ", CONTAINER->op, CONTAINER->len, CONTAINER->type, CONTAINER->transaction_id); \
       if(CONTAINER->len>12) printf(" %x", CONTAINER->params[0]); \
@@ -1106,6 +1301,7 @@ const uint16_t supported_events[] =
       if(CONTAINER->len>20) printf(" %x", CONTAINER->params[2]); \
     printf("\r\n"); \
     }
+    #endif
 
 
     void MTPD::read(char* data, uint32_t size) 
@@ -1136,35 +1332,225 @@ const uint16_t supported_events[] =
     uint32_t MTPD::SendObjectInfo(uint32_t storage, uint32_t parent) {
       pull_packet(rx_data_buffer);
       read(0,0); // resync read
-//      printContainer(); 
+      printContainer(); 
+      printf("SendObjectInfo: %u %u %x: ", storage, parent, (uint32_t)rx_data_buffer);
       uint32_t store = Storage2Store(storage);
 
       int len=ReadMTPHeader();
       char filename[MAX_FILENAME_LEN];
 
-      read32(); len -=4; // storage
-      bool dir = (read16() == 0x3001); len -=2; // format
-      read16(); len -=2; // protection
-      read32(); len -=4; // size
-      read16(); len -=2; // thumb format
-      read32(); len -=4; // thumb size
-      read32(); len -=4; // thumb width
-      read32(); len -=4; // thumb height
-      read32(); len -=4; // pix width
-      read32(); len -=4; // pix height
-      read32(); len -=4; // bit depth
-      read32(); len -=4; // parent
-      read16(); len -=2; // association type
-      read32(); len -=4; // association description
-      read32(); len -=4; // sequence number
+      printf("%x ",read32()); len-=4; // storage
+      uint16_t oformat = read16();  len-=2; // format
+      printf("%x ", oformat);
+      bool dir = oformat == 0x3001;
+      printf("%x ",read16());  len-=2; // protection
+      printf("%x ",read32()); len-=4; // size
+      printf("%x ",read16()); len-=2; // thumb format
+      printf("%x ",read32()); len-=4; // thumb size
+      printf("%x ",read32()); len-=4; // thumb width
+      printf("%x ",read32()); len-=4; // thumb height
+      printf("%x ",read32()); len-=4; // pix width
+      printf("%x ",read32()); len-=4; // pix height
+      printf("%x ",read32()); len-=4; // bit depth
+      printf("%x ",read32()); len-=4; // parent
+      printf("%x ",read16()); len-=2; // association type
+      printf("%x ",read32()); len-=4; // association description
+      printf("%x ",read32()); len-=4; // sequence number
+
       readstring(filename); len -= (2*(strlen(filename)+1)+1); 
+    printf(": %s\n", filename);
       // ignore rest of ObjectInfo
       while(len>=4) { read32(); len-=4;}
       while(len) {read8(); len--;}
 
       return storage_->Create(store, parent, dir, filename);
     }
+#ifdef MTP_SEND_OBJECT_YIELD
+    // static data. 
+    EventResponder MTPD::receive_eventresponder;
+    elapsedMillis MTPD::receive_event_elaped_mills;
+    uint8_t  MTPD::big_buffer[BIG_BUFFER_SIZE] DMAMEM __attribute__ ((aligned(32)));
+    uint8_t *MTPD::buffer_receive_pointer;  // which buffer are we filling 1 or 2 ...
+    uint8_t *MTPD::buffer_write_file_pointer;
+    uint32_t MTPD::receive_count_remaining;
+    uint32_t MTPD::receive_disk_pos=0;
+    uint8_t *MTPD::big_buffer_ptr;
+    uint32_t MTPD::big_buffer_size;
 
+
+
+    bool MTPD::SendObject() 
+    { 
+      pull_packet(rx_data_buffer);
+      read(0,0);
+//      printContainer(); 
+
+      receive_count_remaining = ReadMTPHeader();
+      uint32_t index = sizeof(MTPHeader);  
+      printf("MTPD::SendObject: len:%u\n", receive_count_remaining);
+
+      // Lets try real hack, can we allocate external memory for the size of the file.
+
+      if (receive_count_remaining > sizeof(big_buffer)) big_buffer_ptr = (uint8_t*)extmem_malloc(receive_count_remaining);
+
+      if (big_buffer_ptr) 
+      {
+        big_buffer_size = receive_count_remaining;
+      }
+      else
+      {
+        big_buffer_ptr = big_buffer;
+        big_buffer_size = sizeof(big_buffer);
+      }
+
+      // Maybe first copy remaining data of first buffer into our diskbuffer; 
+      uint32_t bytes = MTP_RX_SIZE - index;                     // how many data in usb-packet
+      bytes = min(bytes,receive_count_remaining);                                   // loimit at end
+      uint32_t to_copy=min(bytes, (uint32_t)DISK_BUFFER_SIZE);   // how many data to copy to disk buffer
+      memcpy(big_buffer_ptr, rx_data_buffer + index,to_copy);
+      buffer_receive_pointer = big_buffer_ptr; 
+      buffer_write_file_pointer = big_buffer_ptr;
+      receive_count_remaining -= to_copy;
+      receive_disk_pos=to_copy;
+      //only need to do this once...
+      uint32_t total_bytes_written = 0;
+      receive_eventresponder.setContext((void*)this);
+      receive_eventresponder.attach(&MTPD::receive_event_handler);
+
+      // loop while we have more data to receive or full buffers to write. 
+      elapsedMillis time_since_last_activity = 0;
+      while(((int)receive_count_remaining>0) || (buffer_receive_pointer != buffer_write_file_pointer))
+      { 
+        // See if we have a full write size buffer to output.
+
+        // See if we have any remaining data to receive? 
+        while(buffer_receive_pointer != buffer_write_file_pointer) {
+          // See if we need to allow the yield process to run.
+          receive_event_elaped_mills = 0;
+          if (receive_count_remaining) {
+            receive_eventresponder.triggerEvent();
+          }
+          #if DEBUG>0
+          elapsedMicros em = 0;
+          #endif
+          digitalWriteFast(1, HIGH);
+          size_t bytes_written = storage_->write((const char *)buffer_write_file_pointer, DISK_BUFFER_SIZE);
+          digitalWriteFast(1, LOW);
+          printf("WR %u %u %u %u %u\n", DISK_BUFFER_SIZE, bytes_written, receive_count_remaining, total_bytes_written, (uint32_t)em);
+          if (bytes_written < DISK_BUFFER_SIZE) goto abort_transfer;  // write failed. 
+          buffer_write_file_pointer += DISK_BUFFER_SIZE;
+          if (buffer_write_file_pointer >= (big_buffer_ptr+big_buffer_size)) buffer_write_file_pointer = big_buffer_ptr;
+          total_bytes_written += DISK_BUFFER_SIZE;
+          time_since_last_activity = 0;   //  clear out time 
+        }
+        if ((int)receive_count_remaining==0) break;
+        if (time_since_last_activity > 10000) break; // Looks like things have stopped responding?  
+        receive_eventresponder.clearEvent();    // Lets turn off the event reponser
+        checkAndReceiveNextUSBBuffer();         // and call off to see if any USB buffers have been received.
+        yield();
+      }
+
+      receive_eventresponder.clearEvent();
+      if (receive_count_remaining == 0) {
+        if(receive_disk_pos)
+        {
+          #if DEBUG>0
+          elapsedMicros em = 0;
+          #endif
+          digitalWriteFast(3, HIGH);
+          if(storage_->write((const char *)buffer_write_file_pointer, receive_disk_pos)<receive_disk_pos) goto abort_transfer;
+          digitalWriteFast(3, LOW);
+          printf("WR %u %u %u %u\n", receive_disk_pos, receive_count_remaining, total_bytes_written, (uint32_t)em);
+          total_bytes_written += receive_disk_pos;
+        }
+        storage_->close();
+        printf("CL %u\n", total_bytes_written);
+        if (big_buffer_ptr != big_buffer) extmem_free(big_buffer_ptr);
+
+        return true;
+      } else {
+         // We had some form of timeout... 
+        printf("*** SendObject TImeout ***\n");
+abort_transfer:
+        printf("*** tranfer did not complete fully ***\n");
+        storage_->close();
+        printf("CL %u\n", total_bytes_written);
+        if (big_buffer_ptr != big_buffer) extmem_free(big_buffer_ptr);
+        return false;
+      }  
+    }
+
+  bool MTPD::checkAndReceiveNextUSBBuffer() {
+    if (!receive_count_remaining) {
+      printf("$");
+      return false; // bail we have no more to read
+    }
+    bool trigger_again = true;
+    static uint32_t debug_count_of_dots = 0;
+    if (++debug_count_of_dots < 16) printf(".");
+    else if ((debug_count_of_dots == 16) || !(debug_count_of_dots & 0x3f)) printf(":");
+    // lets see if there is anything to receive? 
+    if (usb_mtp_available()) {
+      // Now read directly into our next output buffer. 
+        // We should be able to pull it directly in to our current disk buffer. 
+      digitalToggleFast(2);
+      printf("+");  
+      debug_count_of_dots = 0;
+      // make sure we can read all of this in one chunk, else will need to copy memory
+      uint32_t cbytes = min(receive_count_remaining, (uint32_t)MTP_RX_SIZE);
+      if ((buffer_receive_pointer+receive_disk_pos+MTP_RX_SIZE) <= (big_buffer_ptr + big_buffer_size)) {
+        usb_mtp_recv(buffer_receive_pointer+receive_disk_pos, 60);                  // read directly in.
+        receive_count_remaining -= cbytes;
+        receive_disk_pos += cbytes; 
+        if (receive_disk_pos >=  DISK_BUFFER_SIZE) {
+          receive_disk_pos -= DISK_BUFFER_SIZE;
+          buffer_receive_pointer += DISK_BUFFER_SIZE;
+        }
+      } else {
+        usb_mtp_recv(rx_data_buffer, 60);                  // read directly in.
+        uint32_t to_copy=min(cbytes, DISK_BUFFER_SIZE-receive_disk_pos);   // how many data to copy to disk buffer
+        memcpy(buffer_receive_pointer+receive_disk_pos, rx_data_buffer,to_copy);
+        receive_disk_pos += to_copy;
+        receive_count_remaining -= cbytes;
+        if (cbytes != to_copy) {
+          buffer_receive_pointer = big_buffer_ptr;
+          cbytes -= to_copy;  // how many left
+          memcpy (buffer_receive_pointer, rx_data_buffer+to_copy, cbytes);
+          receive_disk_pos = cbytes;
+        }
+      }  
+
+      // Now see if we think we can fit a full next one or not..
+      if (buffer_receive_pointer == buffer_write_file_pointer) trigger_again = false;
+      else if ((receive_disk_pos + MTP_RX_SIZE > DISK_BUFFER_SIZE)) {
+        uint8_t *pb = buffer_receive_pointer + DISK_BUFFER_SIZE;
+        if (pb >= (big_buffer_ptr + big_buffer_size)) pb = big_buffer_ptr;
+        if (pb == buffer_write_file_pointer) trigger_again = false;
+      }
+
+    }
+    return trigger_again;
+  }
+
+
+  void MTPD::receive_event_handler(EventResponderRef evref) {
+    // we limit how often we actually call this. 
+    if (receive_event_elaped_mills < EVENT_RESPONDER_CYCLE) {
+      evref.triggerEvent();  // no lets detch from here. 
+      return;
+    }
+    // Get the mtpd object... 
+    MTPD *pmtpd = (MTPD*)evref.getContext();
+
+    // now call off to function to process the data...
+    if (pmtpd->checkAndReceiveNextUSBBuffer()) {
+      evref.triggerEvent();  // lets setup to be called again.
+    }
+
+    receive_event_elaped_mills = 0; // clear out the timer. 
+  }
+
+#else 
     bool MTPD::SendObject() 
     { 
       pull_packet(rx_data_buffer);
@@ -1211,6 +1597,7 @@ const uint16_t supported_events[] =
       storage_->close();
       return true;
     }
+    #endif
 
     uint32_t MTPD::setObjectPropValue(uint32_t handle, uint32_t p2)
     { pull_packet(rx_data_buffer);
