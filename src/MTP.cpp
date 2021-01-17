@@ -42,7 +42,7 @@
 #include "usb_names.h"
 extern struct usb_string_descriptor_struct usb_string_serial_number; 
 
-#define DEBUG 1
+#define DEBUG 2
 #if DEBUG>0
   #define printf(...) Serial.printf(__VA_ARGS__)
 #else
@@ -213,7 +213,7 @@ const uint16_t supported_events[] =
     MTP_EVENT_STORAGE_INFO_CHANGED              ,//0x400C
 //    MTP_EVENT_CAPTURE_COMPLETE                  ,//0x400D
 //    MTP_EVENT_UNREPORTED_STATUS                 ,//0x400E
-//    MTP_EVENT_OBJECT_PROP_CHANGED               ,//0xC801
+    MTP_EVENT_OBJECT_PROP_CHANGED               ,//0xC801
 //    MTP_EVENT_OBJECT_PROP_DESC_CHANGED          ,//0xC802  
 //    MTP_EVENT_OBJECT_REFERENCES_CHANGED          //0xC803
   };
@@ -1192,7 +1192,7 @@ const uint16_t supported_events[] =
       case MTP_OPERATION_GET_PARTIAL_OBJECT: printf(F("(GET_PARTIAL_OBJECT)")); break;
       case MTP_OPERATION_INITIATE_OPEN_CAPTURE: printf(F("(INITIATE_OPEN_CAPTURE)")); break;
       case MTP_OPERATION_GET_OBJECT_PROPS_SUPPORTED: printf(F("(GET_OBJECT_PROPS_SUPPORTED)")); break;
-      case MTP_OPERATION_GET_OBJECT_PROP_DESC: printf(F("(GET_OBJECT_PROP_DESC)")); break;
+      case MTP_OPERATION_GET_OBJECT_PROP_DESC: printf(F("(GET_OBJECT_PROP_DESC)")); print_property_name = 0; break;
       case MTP_OPERATION_GET_OBJECT_PROP_VALUE: printf(F("(GET_OBJECT_PROP_VALUE)")); print_property_name = 1; break;
       case MTP_OPERATION_SET_OBJECT_PROP_VALUE: printf(F("(SET_OBJECT_PROP_VALUE)")); break;
       case MTP_OPERATION_GET_OBJECT_PROP_LIST: printf(F("(GET_OBJECT_PROP_LIST)")); break;
@@ -1367,14 +1367,16 @@ const uint16_t supported_events[] =
     }
 #ifdef MTP_SEND_OBJECT_YIELD
     // static data. 
-    EventResponder MTPD::receive_eventresponder;
-    elapsedMillis MTPD::receive_event_elaped_mills;
-    uint8_t  MTPD::big_buffer[BIG_BUFFER_SIZE] DMAMEM __attribute__ ((aligned(32)));
-    uint8_t *MTPD::buffer_receive_pointer;  // which buffer are we filling 1 or 2 ...
-    uint8_t *MTPD::buffer_write_file_pointer;
-    uint32_t MTPD::receive_count_remaining;
-    uint32_t MTPD::receive_disk_pos=0;
-    uint8_t *MTPD::big_buffer_ptr;
+    EventResponder MTPD::receive_eventresponder_;
+    elapsedMillis MTPD::receive_event_elaped_mills_;
+    uint8_t  MTPD::big_buffer_[BIG_BUFFER_SIZE] DMAMEM __attribute__ ((aligned(32)));
+    uint8_t *MTPD::buffer_receive_pointer_;  // which buffer are we filling 1 or 2 ...
+    uint8_t *MTPD::buffer_write_file_pointer_;
+    uint32_t MTPD::receive_count_remaining_;
+    uint32_t MTPD::receive_disk_pos_=0;
+    uint8_t *MTPD::sendObject_buffer_ptr_ = nullptr;
+    uint32_t MTPD::total_bytes_written_ = 0;
+
     uint32_t MTPD::big_buffer_size;
 
 
@@ -1385,88 +1387,94 @@ const uint16_t supported_events[] =
       read(0,0);
 //      printContainer(); 
 
-      receive_count_remaining = ReadMTPHeader();
+      receive_count_remaining_ = ReadMTPHeader();
       uint32_t index = sizeof(MTPHeader);  
-      printf("MTPD::SendObject: len:%u\n", receive_count_remaining);
+      printf("MTPD::SendObject: len:%u\n", receive_count_remaining_);
 
       // Lets try real hack, can we allocate external memory for the size of the file.
+      sendObject_buffer_ptr_ = nullptr;
+      if (receive_count_remaining_ > sizeof(big_buffer_)) sendObject_buffer_ptr_ = (uint8_t*)extmem_malloc(receive_count_remaining_);
 
-      if (receive_count_remaining > sizeof(big_buffer)) big_buffer_ptr = (uint8_t*)extmem_malloc(receive_count_remaining);
-
-      if (big_buffer_ptr) 
+      if (sendObject_buffer_ptr_) 
       {
-        big_buffer_size = receive_count_remaining;
+        big_buffer_size = receive_count_remaining_;
       }
       else
       {
-        big_buffer_ptr = big_buffer;
-        big_buffer_size = sizeof(big_buffer);
+        sendObject_buffer_ptr_ = big_buffer_;
+        big_buffer_size = sizeof(big_buffer_);
       }
 
       // Maybe first copy remaining data of first buffer into our diskbuffer; 
       uint32_t bytes = MTP_RX_SIZE - index;                     // how many data in usb-packet
-      bytes = min(bytes,receive_count_remaining);                                   // loimit at end
+      bytes = min(bytes,receive_count_remaining_);                                   // loimit at end
       uint32_t to_copy=min(bytes, (uint32_t)DISK_BUFFER_SIZE);   // how many data to copy to disk buffer
-      memcpy(big_buffer_ptr, rx_data_buffer + index,to_copy);
-      buffer_receive_pointer = big_buffer_ptr; 
-      buffer_write_file_pointer = big_buffer_ptr;
-      receive_count_remaining -= to_copy;
-      receive_disk_pos=to_copy;
+      memcpy(sendObject_buffer_ptr_, rx_data_buffer + index,to_copy);
+      buffer_receive_pointer_ = sendObject_buffer_ptr_; 
+      buffer_write_file_pointer_ = sendObject_buffer_ptr_;
+      receive_count_remaining_ -= to_copy;
+      receive_disk_pos_=to_copy;
       //only need to do this once...
-      uint32_t total_bytes_written = 0;
-      receive_eventresponder.setContext((void*)this);
-      receive_eventresponder.attach(&MTPD::receive_event_handler);
+      receive_eventresponder_.setContext((void*)this);
+      receive_eventresponder_.attach(&MTPD::receive_event_handler);
 
       // loop while we have more data to receive or full buffers to write. 
+      total_bytes_written_ = 0;
       elapsedMillis time_since_last_activity = 0;
-      while(((int)receive_count_remaining>0) || (buffer_receive_pointer != buffer_write_file_pointer))
+      //      while(((int)receive_count_remaining_>0) || (buffer_receive_pointer_ != buffer_write_file_pointer_))
+      while((int)receive_count_remaining_>0)
       { 
         // See if we have a full write size buffer to output.
 
         // See if we have any remaining data to receive? 
-        while(buffer_receive_pointer != buffer_write_file_pointer) {
+        while (buffer_receive_pointer_ != buffer_write_file_pointer_) {
           // See if we need to allow the yield process to run.
-          receive_event_elaped_mills = 0;
-          if (receive_count_remaining) {
-            receive_eventresponder.triggerEvent();
+          receive_event_elaped_mills_ = 0;
+          if (receive_count_remaining_) {
+            receive_eventresponder_.triggerEvent();
           }
           #if DEBUG>0
           elapsedMicros em = 0;
           #endif
           digitalWriteFast(1, HIGH);
-          size_t bytes_written = storage_->write((const char *)buffer_write_file_pointer, DISK_BUFFER_SIZE);
+          size_t bytes_written = storage_->write((const char *)buffer_write_file_pointer_, DISK_BUFFER_SIZE);
           digitalWriteFast(1, LOW);
-          printf("WR %u %u %u %u %u\n", DISK_BUFFER_SIZE, bytes_written, receive_count_remaining, total_bytes_written, (uint32_t)em);
+          printf("WR %u %u %u %u %u\n", DISK_BUFFER_SIZE, bytes_written, receive_count_remaining_, total_bytes_written_, (uint32_t)em);
           if (bytes_written < DISK_BUFFER_SIZE) goto abort_transfer;  // write failed. 
-          buffer_write_file_pointer += DISK_BUFFER_SIZE;
-          if (buffer_write_file_pointer >= (big_buffer_ptr+big_buffer_size)) buffer_write_file_pointer = big_buffer_ptr;
-          total_bytes_written += DISK_BUFFER_SIZE;
+          buffer_write_file_pointer_ += DISK_BUFFER_SIZE;
+          if (buffer_write_file_pointer_ >= (sendObject_buffer_ptr_+big_buffer_size)) buffer_write_file_pointer_ = sendObject_buffer_ptr_;
+          total_bytes_written_ += DISK_BUFFER_SIZE;
           time_since_last_activity = 0;   //  clear out time 
+          if ((int)receive_count_remaining_==0) break;  // We will carry on in main loop count area..
         }
-        if ((int)receive_count_remaining==0) break;
         if (time_since_last_activity > 10000) break; // Looks like things have stopped responding?  
-        receive_eventresponder.clearEvent();    // Lets turn off the event reponser
+        receive_eventresponder_.clearEvent();    // Lets turn off the event reponser
         checkAndReceiveNextUSBBuffer();         // and call off to see if any USB buffers have been received.
         yield();
       }
 
-      receive_eventresponder.clearEvent();
-      if (receive_count_remaining == 0) {
-        if(receive_disk_pos)
+      receive_eventresponder_.clearEvent();
+      if (receive_count_remaining_ == 0) {
+        // See of we are on the last buffer if so go ahead and output...
+        if(receive_disk_pos_ && (buffer_receive_pointer_ == buffer_write_file_pointer_))
         {
           #if DEBUG>0
           elapsedMicros em = 0;
           #endif
           digitalWriteFast(3, HIGH);
-          if(storage_->write((const char *)buffer_write_file_pointer, receive_disk_pos)<receive_disk_pos) goto abort_transfer;
+          if(storage_->write((const char *)buffer_write_file_pointer_, receive_disk_pos_)<receive_disk_pos_) goto abort_transfer;
           digitalWriteFast(3, LOW);
-          printf("WR %u %u %u %u\n", receive_disk_pos, receive_count_remaining, total_bytes_written, (uint32_t)em);
-          total_bytes_written += receive_disk_pos;
+          printf("WR %u %u %u %u\n", receive_disk_pos_, receive_count_remaining_, total_bytes_written_, (uint32_t)em);
+          total_bytes_written_ += receive_disk_pos_;
+          receive_disk_pos_ = 0;
         }
-        storage_->close();
-        printf("CL %u\n", total_bytes_written);
-        if (big_buffer_ptr != big_buffer) extmem_free(big_buffer_ptr);
-
+        if ((buffer_receive_pointer_ == buffer_write_file_pointer_) && !receive_disk_pos_)
+         {
+          storage_->close();
+          printf("CL %u\n", total_bytes_written_);
+          if (sendObject_buffer_ptr_ != big_buffer_) extmem_free(sendObject_buffer_ptr_);
+          sendObject_buffer_ptr_ = nullptr;
+        }
         return true;
       } else {
          // We had some form of timeout... 
@@ -1474,14 +1482,14 @@ const uint16_t supported_events[] =
 abort_transfer:
         printf("*** tranfer did not complete fully ***\n");
         storage_->close();
-        printf("CL %u\n", total_bytes_written);
-        if (big_buffer_ptr != big_buffer) extmem_free(big_buffer_ptr);
+        printf("CL %u\n", total_bytes_written_);
+        if (sendObject_buffer_ptr_ != big_buffer_) extmem_free(sendObject_buffer_ptr_);
         return false;
       }  
     }
 
   bool MTPD::checkAndReceiveNextUSBBuffer() {
-    if (!receive_count_remaining) {
+    if (!receive_count_remaining_) {
       printf("$");
       return false; // bail we have no more to read
     }
@@ -1497,35 +1505,35 @@ abort_transfer:
       printf("+");  
       debug_count_of_dots = 0;
       // make sure we can read all of this in one chunk, else will need to copy memory
-      uint32_t cbytes = min(receive_count_remaining, (uint32_t)MTP_RX_SIZE);
-      if ((buffer_receive_pointer+receive_disk_pos+MTP_RX_SIZE) <= (big_buffer_ptr + big_buffer_size)) {
-        usb_mtp_recv(buffer_receive_pointer+receive_disk_pos, 60);                  // read directly in.
-        receive_count_remaining -= cbytes;
-        receive_disk_pos += cbytes; 
-        if (receive_disk_pos >=  DISK_BUFFER_SIZE) {
-          receive_disk_pos -= DISK_BUFFER_SIZE;
-          buffer_receive_pointer += DISK_BUFFER_SIZE;
+      uint32_t cbytes = min(receive_count_remaining_, (uint32_t)MTP_RX_SIZE);
+      if ((buffer_receive_pointer_+receive_disk_pos_+MTP_RX_SIZE) <= (sendObject_buffer_ptr_ + big_buffer_size)) {
+        usb_mtp_recv(buffer_receive_pointer_+receive_disk_pos_, 60);                  // read directly in.
+        receive_count_remaining_ -= cbytes;
+        receive_disk_pos_ += cbytes; 
+        if (receive_disk_pos_ >=  DISK_BUFFER_SIZE) {
+          receive_disk_pos_ -= DISK_BUFFER_SIZE;
+          buffer_receive_pointer_ += DISK_BUFFER_SIZE;
         }
       } else {
         usb_mtp_recv(rx_data_buffer, 60);                  // read directly in.
-        uint32_t to_copy=min(cbytes, DISK_BUFFER_SIZE-receive_disk_pos);   // how many data to copy to disk buffer
-        memcpy(buffer_receive_pointer+receive_disk_pos, rx_data_buffer,to_copy);
-        receive_disk_pos += to_copy;
-        receive_count_remaining -= cbytes;
+        uint32_t to_copy=min(cbytes, DISK_BUFFER_SIZE-receive_disk_pos_);   // how many data to copy to disk buffer
+        memcpy(buffer_receive_pointer_+receive_disk_pos_, rx_data_buffer,to_copy);
+        receive_disk_pos_ += to_copy;
+        receive_count_remaining_ -= cbytes;
         if (cbytes != to_copy) {
-          buffer_receive_pointer = big_buffer_ptr;
+          buffer_receive_pointer_ = sendObject_buffer_ptr_;
           cbytes -= to_copy;  // how many left
-          memcpy (buffer_receive_pointer, rx_data_buffer+to_copy, cbytes);
-          receive_disk_pos = cbytes;
+          memcpy (buffer_receive_pointer_, rx_data_buffer+to_copy, cbytes);
+          receive_disk_pos_ = cbytes;
         }
       }  
 
       // Now see if we think we can fit a full next one or not..
-      if (buffer_receive_pointer == buffer_write_file_pointer) trigger_again = false;
-      else if ((receive_disk_pos + MTP_RX_SIZE > DISK_BUFFER_SIZE)) {
-        uint8_t *pb = buffer_receive_pointer + DISK_BUFFER_SIZE;
-        if (pb >= (big_buffer_ptr + big_buffer_size)) pb = big_buffer_ptr;
-        if (pb == buffer_write_file_pointer) trigger_again = false;
+      if (buffer_receive_pointer_ == buffer_write_file_pointer_) trigger_again = false;
+      else if ((receive_disk_pos_ + MTP_RX_SIZE > DISK_BUFFER_SIZE)) {
+        uint8_t *pb = buffer_receive_pointer_ + DISK_BUFFER_SIZE;
+        if (pb >= (sendObject_buffer_ptr_ + big_buffer_size)) pb = sendObject_buffer_ptr_;
+        if (pb == buffer_write_file_pointer_) trigger_again = false;
       }
 
     }
@@ -1535,7 +1543,7 @@ abort_transfer:
 
   void MTPD::receive_event_handler(EventResponderRef evref) {
     // we limit how often we actually call this. 
-    if (receive_event_elaped_mills < EVENT_RESPONDER_CYCLE) {
+    if (receive_event_elaped_mills_ < EVENT_RESPONDER_CYCLE) {
       evref.triggerEvent();  // no lets detch from here. 
       return;
     }
@@ -1547,7 +1555,7 @@ abort_transfer:
       evref.triggerEvent();  // lets setup to be called again.
     }
 
-    receive_event_elaped_mills = 0; // clear out the timer. 
+    receive_event_elaped_mills_ = 0; // clear out the timer. 
   }
 
 #else 
@@ -1616,159 +1624,207 @@ abort_transfer:
     }
 
     void MTPD::loop(void)
-    { if(!usb_mtp_available()) return;
-      if(fetch_packet(rx_data_buffer))
-      { printContainer(); // to switch on set debug to 1 at beginning of file
+    { if(usb_mtp_available())
 
-        int op = CONTAINER->op;
-        int p1 = CONTAINER->params[0];
-        int p2 = CONTAINER->params[1];
-        int p3 = CONTAINER->params[2];
-        int id = CONTAINER->transaction_id;
-        int len= CONTAINER->len;
-        int typ= CONTAINER->type;
-        TID=id;
+      { if(fetch_packet(rx_data_buffer))
+        { printContainer(); // to switch on set debug to 1 at beginning of file
 
-        int return_code =0x2001; //OK use as default value
+          int op = CONTAINER->op;
+          int p1 = CONTAINER->params[0];
+          int p2 = CONTAINER->params[1];
+          int p3 = CONTAINER->params[2];
+          int id = CONTAINER->transaction_id;
+          int len= CONTAINER->len;
+          int typ= CONTAINER->type;
+          TID=id;
 
-        if(typ==2) return_code=0x2005; // we should only get cmds
+          int return_code =0x2001; //OK use as default value
 
-        switch (op)
-        {
-          case 0x1001:
-            TRANSMIT(WriteDescriptor());
-            break;
+          if(typ==2) return_code=0x2005; // we should only get cmds
 
-          case 0x1002:  //open session
-            openSession(p1);
-            break;
+          switch (op)
+          {
+            case 0x1001:
+              TRANSMIT(WriteDescriptor());
+              break;
 
-          case 0x1003:  // CloseSession
-            break;
+            case 0x1002:  //open session
+              openSession(p1);
+              break;
 
-          case 0x1004:  // GetStorageIDs
-              TRANSMIT(WriteStorageIDs());
-            break;
+            case 0x1003:  // CloseSession
+              break;
 
-          case 0x1005:  // GetStorageInfo
-            TRANSMIT(GetStorageInfo(p1));
-            break;
+            case 0x1004:  // GetStorageIDs
+                TRANSMIT(WriteStorageIDs());
+              break;
 
-          case 0x1006:  // GetNumObjects
-            if (p2) 
-            {
-                return_code = 0x2014; // spec by format unsupported
-            } else 
-            {
-                p1 = GetNumObjects(p1, p3);
-            }
-            break;
+            case 0x1005:  // GetStorageInfo
+              TRANSMIT(GetStorageInfo(p1));
+              break;
 
-          case 0x1007:  // GetObjectHandles
-            if (p2) 
-            { return_code = 0x2014; // spec by format unsupported
-            } else 
-            { 
-              TRANSMIT(GetObjectHandles(p1, p3));
-            }
-            break;
-
-          case 0x1008:  // GetObjectInfo
-            TRANSMIT(GetObjectInfo(p1));
-            break;
-
-          case 0x1009:  // GetObject
-            TRANSMIT(GetObject(p1));
-            break;
-
-          case 0x100B:  // DeleteObject
-              if (p2) {
-                return_code = 0x2014; // spec by format unsupported
-              } else {
-                if (!storage_->DeleteObject(p1)) {
-                  return_code = 0x2012; // partial deletion
-                }
+            case 0x1006:  // GetNumObjects
+              if (p2) 
+              {
+                  return_code = 0x2014; // spec by format unsupported
+              } else 
+              {
+                  p1 = GetNumObjects(p1, p3);
               }
               break;
 
-          case 0x100C:  // SendObjectInfo
-              p3 = SendObjectInfo(p1, // storage
-                                  p2); // parent
-
-              CONTAINER->params[1]=p2;
-              CONTAINER->params[2]=p3;
-              len = 12 + 3 * 4;
+            case 0x1007:  // GetObjectHandles
+              if (p2) 
+              { return_code = 0x2014; // spec by format unsupported
+              } else 
+              { 
+                TRANSMIT(GetObjectHandles(p1, p3));
+              }
               break;
 
-          case 0x100D:  // SendObject
-              if(!SendObject()) return_code = 0x2005;
-              len = 12;
+            case 0x1008:  // GetObjectInfo
+              TRANSMIT(GetObjectInfo(p1));
               break;
 
-          case 0x1014:  // GetDevicePropDesc
-              TRANSMIT(GetDevicePropDesc(p1));
+            case 0x1009:  // GetObject
+              TRANSMIT(GetObject(p1));
               break;
 
-          case 0x1015:  // GetDevicePropvalue
-              TRANSMIT(GetDevicePropValue(p1));
-              break;
+            case 0x100B:  // DeleteObject
+                if (p2) {
+                  return_code = 0x2014; // spec by format unsupported
+                } else {
+                  if (!storage_->DeleteObject(p1)) {
+                    return_code = 0x2012; // partial deletion
+                  }
+                }
+                break;
 
-          case 0x1010:  // Reset
-              return_code = 0x2005;
-              break;
+            case 0x100C:  // SendObjectInfo
+                p3 = SendObjectInfo(p1, // storage
+                                    p2); // parent
 
-          case 0x1019:  // MoveObject
-              return_code = moveObject(p1,p2,p3);
-              len = 12;
-              break;
+                CONTAINER->params[1]=p2;
+                CONTAINER->params[2]=p3;
+                len = 12 + 3 * 4;
+                break;
 
-          case 0x101A:  // CopyObject
-              return_code = copyObject(p1,p2,p3);
-              if(!return_code) 
-              { return_code=0x2005; len = 12; }
-              else
-              { p1 = return_code; return_code=0x2001; len = 16;  }
-              break;
+            case 0x100D:  // SendObject
+                if(!SendObject()) return_code = 0x2005;
+                len = 12;
+                break;
 
-          case 0x101B:  // GetPartialObject
-              TRANSMIT1(GetPartialObject(p1,p2,p3));
-              break;
+            case 0x1014:  // GetDevicePropDesc
+                TRANSMIT(GetDevicePropDesc(p1));
+                break;
 
-          case 0x9801:  // getObjectPropsSupported
-              TRANSMIT(getObjectPropsSupported(p1));
-              break;
+            case 0x1015:  // GetDevicePropvalue
+                TRANSMIT(GetDevicePropValue(p1));
+                break;
 
-          case 0x9802:  // getObjectPropDesc
-              TRANSMIT(getObjectPropDesc(p1,p2));
-              break;
+            case 0x1010:  // Reset
+                return_code = 0x2005;
+                break;
 
-          case 0x9803:  // getObjectPropertyValue
-              TRANSMIT(getObjectPropValue(p1,p2));
-              break;
+            case 0x1019:  // MoveObject
+                return_code = moveObject(p1,p2,p3);
+                len = 12;
+                break;
 
-          case 0x9804:  // setObjectPropertyValue
-              return_code = setObjectPropValue(p1,p2);
-              break;
+            case 0x101A:  // CopyObject
+                return_code = copyObject(p1,p2,p3);
+                if(!return_code) 
+                { return_code=0x2005; len = 12; }
+                else
+                { p1 = return_code; return_code=0x2001; len = 16;  }
+                break;
 
-          default:
-              return_code = 0x2005;  // operation not supported
-              break;
-        }
-        if(return_code)
-        {
-            CONTAINER->type=3;
-            CONTAINER->len=len;
-            CONTAINER->op=return_code;
-            CONTAINER->transaction_id=id;
-            CONTAINER->params[0]=p1;
-            #if DEBUG >1
-              printContainer(); // to switch on set debug to 2 at beginning of file
-            #endif
+            case 0x101B:  // GetPartialObject
+                TRANSMIT1(GetPartialObject(p1,p2,p3));
+                break;
 
-            memcpy(tx_data_buffer,rx_data_buffer,len);
-            push_packet(tx_data_buffer,len); // for acknowledge use rx_data_buffer
+            case 0x9801:  // getObjectPropsSupported
+                TRANSMIT(getObjectPropsSupported(p1));
+                break;
+
+            case 0x9802:  // getObjectPropDesc
+                TRANSMIT(getObjectPropDesc(p1,p2));
+                break;
+
+            case 0x9803:  // getObjectPropertyValue
+                TRANSMIT(getObjectPropValue(p1,p2));
+                break;
+
+            case 0x9804:  // setObjectPropertyValue
+                return_code = setObjectPropValue(p1,p2);
+                break;
+
+            default:
+                return_code = 0x2005;  // operation not supported
+                break;
+          }
+          if(return_code)
+          {
+              CONTAINER->type=3;
+              CONTAINER->len=len;
+              CONTAINER->op=return_code;
+              CONTAINER->transaction_id=id;
+              CONTAINER->params[0]=p1;
+              #if DEBUG >1
+                printContainer(); // to switch on set debug to 2 at beginning of file
+              #endif
+
+              memcpy(tx_data_buffer,rx_data_buffer,len);
+              push_packet(tx_data_buffer,len); // for acknowledge use rx_data_buffer
+          }
         }
       }
+
+      // See of we have any pending writes to do:
+      #ifdef MTP_SEND_OBJECT_YIELD
+      if (sendObject_buffer_ptr_) 
+      {
+        if (buffer_receive_pointer_ != buffer_write_file_pointer_) 
+        {
+          #if DEBUG>0
+          elapsedMicros em = 0;
+          #endif
+          digitalWriteFast(1, HIGH);
+          size_t bytes_written = storage_->write((const char *)buffer_write_file_pointer_, DISK_BUFFER_SIZE);
+          digitalWriteFast(1, LOW);
+          printf("WRL %u %u %u %u\n", DISK_BUFFER_SIZE, bytes_written, total_bytes_written_, (uint32_t)em);
+          buffer_write_file_pointer_ += DISK_BUFFER_SIZE;
+          if (buffer_write_file_pointer_ >= (sendObject_buffer_ptr_+big_buffer_size)) buffer_write_file_pointer_ = sendObject_buffer_ptr_;
+          total_bytes_written_ += DISK_BUFFER_SIZE;
+        }
+        else if(receive_disk_pos_)
+        {
+          #if DEBUG>0
+          elapsedMicros em = 0;
+          #endif
+          digitalWriteFast(3, HIGH);
+          storage_->write((const char *)buffer_write_file_pointer_, receive_disk_pos_);
+          digitalWriteFast(3, LOW);
+          printf("WRLE %u %u %u %u\n", receive_disk_pos_, receive_count_remaining_, total_bytes_written_, (uint32_t)em);
+          total_bytes_written_ += receive_disk_pos_;
+          receive_disk_pos_ = 0; // clear this one out.
+        }
+        // Need to maybe clean this up and just have two pointer/counter instead of three but...
+        if ((buffer_receive_pointer_ == buffer_write_file_pointer_) && !receive_disk_pos_)
+        {
+          // Done, let clear out the file and free any buffers.
+          uint32_t open_fle_index = storage_->openFileIndex(); // get the Storage index for this file
+          storage_->close();
+          printf("CL %u\n", total_bytes_written_);
+          if (sendObject_buffer_ptr_ != big_buffer_) extmem_free(sendObject_buffer_ptr_);
+          sendObject_buffer_ptr_ = nullptr;
+
+          // Tell the other side that the size may have changed. 
+          send_Event(MTP_EVENT_OBJECT_PROP_CHANGED, open_fle_index, MTP_PROPERTY_OBJECT_SIZE);
+        }
+      }
+      #endif
+
     }
 
 

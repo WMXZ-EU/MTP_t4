@@ -101,17 +101,19 @@ private:
 #ifdef MTP_SEND_OBJECT_YIELD
   // BUGBUG make larger buffers static and DMAMEM? 
   static const uint32_t BIG_BUFFER_SIZE = (DISK_BUFFER_SIZE * 3);  // big enough to double buffer. 
-  static uint8_t big_buffer[BIG_BUFFER_SIZE] __attribute__ ((aligned(32)));
-  static uint8_t *buffer_receive_pointer;  // which buffer are we filling 1 or 2 ...
-  static uint8_t *buffer_write_file_pointer;
-  static uint8_t *big_buffer_ptr;
+  static uint8_t big_buffer_[BIG_BUFFER_SIZE] __attribute__ ((aligned(32)));
+  static uint8_t *buffer_receive_pointer_;  // which buffer are we filling 1 or 2 ...
+  static uint8_t *buffer_write_file_pointer_;
+  static uint8_t *sendObject_buffer_ptr_;
+  static uint32_t total_bytes_written_;
+
   static uint32_t big_buffer_size;
 
-  static EventResponder receive_eventresponder;
-  static elapsedMillis receive_event_elaped_mills;
+  static EventResponder receive_eventresponder_;
+  static elapsedMillis receive_event_elaped_mills_;
   static const uint32_t EVENT_RESPONDER_CYCLE = 1; // lets try every 2
-  static uint32_t receive_count_remaining;
-  static uint32_t receive_disk_pos;
+  static uint32_t receive_count_remaining_;
+  static uint32_t receive_disk_pos_;
   static void receive_event_handler(EventResponderRef evref);
   bool checkAndReceiveNextUSBBuffer();
 #endif

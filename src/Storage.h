@@ -133,6 +133,8 @@ public:
 
   virtual bool CopyFiles(uint32_t storage, uint32_t handle, uint32_t newHandle) = 0;
   virtual uint32_t MapFileNameToIndex(uint32_t storage, const char *pathname,  bool addLastNode=false, bool *node_added=nullptr) = 0;
+  virtual uint32_t openFileIndex(void) = 0;
+
 };
 
   struct Record 
@@ -160,7 +162,7 @@ public:
   uint32_t getFSCount(void) {return sd_getFSCount();}
   const char *getStoreName(uint32_t store) {return sd_getStoreName(store);} 
   FS* getStoreFS(uint32_t store) {return sd_getStoreFS(store);}
-
+  uint32_t openFileIndex(void) {return open_file_;}
 private:
   File index_;
   File file_;
