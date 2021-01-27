@@ -65,6 +65,10 @@ extern struct usb_string_descriptor_struct usb_string_serial_number;
   #define MTP_CONTAINER_PARAMETER_OFFSET          12
   #define MTP_CONTAINER_HEADER_SIZE               12
 
+  // Define global(static) members
+  uint32_t MTPD::sessionID_ = 0;
+
+
   // MTP Operation Codes
   #define MTP_OPERATION_GET_DEVICE_INFO                       0x1001
   #define MTP_OPERATION_OPEN_SESSION                          0x1002
@@ -122,6 +126,7 @@ extern struct usb_string_descriptor_struct usb_string_serial_number;
     MTP_OPERATION_DELETE_OBJECT                          ,//0x100B
     MTP_OPERATION_SEND_OBJECT_INFO                       ,//0x100C
     MTP_OPERATION_SEND_OBJECT                            ,//0x100D
+    MTP_OPERATION_FORMAT_STORE                           ,//0x100F
     MTP_OPERATION_GET_DEVICE_PROP_DESC                   ,//0x1014
     MTP_OPERATION_GET_DEVICE_PROP_VALUE                  ,//0x1015
     //MTP_OPERATION_SET_DEVICE_PROP_VALUE                  ,//0x1016
@@ -212,7 +217,7 @@ const uint16_t supported_events[] =
     MTP_EVENT_DEVICE_RESET                      ,//0x400B
     MTP_EVENT_STORAGE_INFO_CHANGED              ,//0x400C
 //    MTP_EVENT_CAPTURE_COMPLETE                  ,//0x400D
-//    MTP_EVENT_UNREPORTED_STATUS                 ,//0x400E
+    MTP_EVENT_UNREPORTED_STATUS                 ,//0x400E
     MTP_EVENT_OBJECT_PROP_CHANGED               ,//0xC801
 //    MTP_EVENT_OBJECT_PROP_DESC_CHANGED          ,//0xC802  
 //    MTP_EVENT_OBJECT_REFERENCES_CHANGED          //0xC803
@@ -267,7 +272,6 @@ const uint16_t supported_events[] =
     #define MTP_RESPONSE_OBJECT_PROP_NOT_SUPPORTED                  0xA80A
 
 
- uint32_t sessionID_;
 
 // MTP Responder.
 /*
@@ -752,7 +756,7 @@ const uint16_t supported_events[] =
     }
   }
 
-  uint32_t MTPD::SendObjectInfo(uint32_t storage, uint32_t parent) {
+  uint32_t MTPD::SendObjectInfo(uint32_t storage, uint32_t parent,  int &object_id) {
     uint32_t len = ReadMTPHeader();
     char filename[MAX_FILENAME_LEN];
 
@@ -764,7 +768,8 @@ const uint16_t supported_events[] =
     printf("%x ", oformat);
     bool dir = oformat == 0x3001;
     printf("%x ",read16());  len-=2; // protection
-    printf("%x ",read32()); len-=4; // size
+    uint32_t file_size = read32(); len-=4;               // size
+    printf("%x ",file_size);      // size
     printf("%x ",read16()); len-=2; // thumb format
     printf("%x ",read32()); len-=4; // thumb size
     printf("%x ",read32()); len-=4; // thumb width
@@ -783,7 +788,16 @@ const uint16_t supported_events[] =
     while(len>=4) { read32(); len-=4;}
     while(len) {read8(); len--;}
     
-    return storage_->Create(store, parent, dir, filename);
+    // Lets see if we have enough room to store this file:
+    uint32_t free_space = storage_->totalSize(store) - storage_->usedSize(store);
+    if (file_size > free_space)
+    {
+      printf("Size of object:%u is > free space: %u\n", file_size, free_space);
+      return MTP_RESPONSE_STORAGE_FULL;
+    }
+
+    object_id = storage_->Create(store, parent, dir, filename);
+    return MTP_RESPONSE_OK;
   }
 
   bool MTPD::SendObject() {
@@ -852,6 +866,8 @@ const uint16_t supported_events[] =
               openSession(p1);
               break;
             case 0x1003:  // CloseSession
+              printf("MTPD::CloseSession\n");
+              sessionID_ = 0;   // 
               break;
             case 0x1004:  // GetStorageIDs
               TRANSMIT(WriteStorageIDs());
@@ -889,8 +905,9 @@ const uint16_t supported_events[] =
               }
               break;
             case 0x100C:  // SendObjectInfo
-              p3 =  SendObjectInfo(p1, // storage
-                                   p2); // parent
+              return_code =  SendObjectInfo(p1, // storage
+                                   p2,  // parent
+                                   p3); // returned new object ID
               CONTAINER->params[1]=p2;
               CONTAINER->params[2]=p3;
               len = receive_buffer->len = 12 + 3 * 4;
@@ -898,6 +915,10 @@ const uint16_t supported_events[] =
             case 0x100D:  // SendObject
               SendObject();
               break;
+            case 0x100F: // FormatStore
+              return_code = formatStore(p1, p2);
+              break;
+
             case 0x1014:  // GetDevicePropDesc
               TRANSMIT(GetDevicePropDesc(p1));
               break;
@@ -1032,14 +1053,14 @@ const uint16_t supported_events[] =
           if(disk_pos==DISK_BUFFER_SIZE)
           {
             uint32_t nread=min(size-pos,(uint32_t)DISK_BUFFER_SIZE);
-            storage_->read(object_id,pos,(char *)disk_buffer,nread);
+            storage_->read(object_id,pos,(char *)disk_buffer_,nread);
             disk_pos=0;
           }
 
           uint32_t to_copy = min(size-pos,MTP_TX_SIZE-len);
           to_copy = min (to_copy, DISK_BUFFER_SIZE-disk_pos);
 
-          memcpy(tx_data_buffer+len,disk_buffer+disk_pos,to_copy);
+          memcpy(tx_data_buffer+len,disk_buffer_+disk_pos,to_copy);
           disk_pos += to_copy;
           pos += to_copy;
           len += to_copy;
@@ -1076,14 +1097,14 @@ const uint16_t supported_events[] =
           if(disk_pos==DISK_BUFFER_SIZE)
           {
             uint32_t nread=min(size-pos,(uint32_t)DISK_BUFFER_SIZE);
-            storage_->read(object_id,pos,(char *)disk_buffer,nread);
+            storage_->read(object_id,pos,(char *)disk_buffer_,nread);
             disk_pos=0;
           }
 
           uint32_t to_copy = min(size-pos,MTP_TX_SIZE-len);
           to_copy = min (to_copy, DISK_BUFFER_SIZE-disk_pos);
 
-          memcpy(tx_data_buffer+len,disk_buffer+disk_pos,to_copy);
+          memcpy(tx_data_buffer+len,disk_buffer_+disk_pos,to_copy);
           disk_pos += to_copy;
           pos += to_copy;
           len += to_copy;
@@ -1329,7 +1350,7 @@ const uint16_t supported_events[] =
       }
     }
 
-    uint32_t MTPD::SendObjectInfo(uint32_t storage, uint32_t parent) {
+    uint32_t MTPD::SendObjectInfo(uint32_t storage, uint32_t parent, int &object_id) {
       pull_packet(rx_data_buffer);
       read(0,0); // resync read
       printContainer(); 
@@ -1344,7 +1365,8 @@ const uint16_t supported_events[] =
       printf("%x ", oformat);
       bool dir = oformat == 0x3001;
       printf("%x ",read16());  len-=2; // protection
-      printf("%x ",read32()); len-=4; // size
+      uint32_t file_size = read32(); len-=4;               // size
+      printf("%x ",file_size);      // size
       printf("%x ",read16()); len-=2; // thumb format
       printf("%x ",read32()); len-=4; // thumb size
       printf("%x ",read32()); len-=4; // thumb width
@@ -1358,18 +1380,83 @@ const uint16_t supported_events[] =
       printf("%x ",read32()); len-=4; // sequence number
 
       readstring(filename); len -= (2*(strlen(filename)+1)+1); 
-    printf(": %s\n", filename);
+      printf(": %s\n", filename);
       // ignore rest of ObjectInfo
       while(len>=4) { read32(); len-=4;}
       while(len) {read8(); len--;}
 
-      return storage_->Create(store, parent, dir, filename);
+      // Lets see if we have enough room to store this file:
+      uint32_t free_space = storage_->totalSize(store) - storage_->usedSize(store);
+      if (file_size > free_space)
+      {
+        printf("Size of object:%u is > free space: %u\n", file_size, free_space);
+        return MTP_RESPONSE_STORAGE_FULL;
+      }
+
+      object_id = storage_->Create(store, parent, dir, filename);
+      return MTP_RESPONSE_OK;
     }
-#ifdef MTP_SEND_OBJECT_YIELD
+#if defined(MTP_SEND_OBJECT_SIMPLE)
+    bool MTPD::SendObject() {
+      bool return_value = false;
+      uint8_t print_count = 0;
+      pull_packet(rx_data_buffer);
+      read(0,0);
+      uint32_t len = ReadMTPHeader();
+      uint32_t index = sizeof(MTPHeader);  
+      printf("MTPD::SendObject: len:%u\n", len);
+      elapsedMicros em_total = 0;
+      uint32_t cb_write = MTP_RX_SIZE - index;                     // how many data in usb-packet
+      elapsedMillis em_notify = 0;
+
+      if (cb_write > len) cb_write = len;
+      if(!storage_->write((char*)rx_data_buffer + index, cb_write)) goto abort;
+      len -= cb_write;
+      cb_write = MTP_RX_SIZE;
+      while (len) 
+      { 
+        /*
+        printf(".");
+        if (!(++print_count & 0x3f)) printf("\n");
+
+        if (em_notify > 1000) {
+          // Not likely to work, but see what happens.
+          send_Event(MTP_EVENT_UNREPORTED_STATUS);  // 
+          printf("#");
+          em_notify = 0; // reset
+        }
+        */
+        // Build in timeout... 
+        uint32_t elapsed_before_packet = em_total;
+        elapsedMillis em_packet = 0;
+        while(!usb_mtp_available())
+        {
+          if (em_packet > 1000)
+          {
+            printf("\nTimeout: %u\n", elapsed_before_packet);
+            goto abort;
+          }
+        }
+        usb_mtp_recv(rx_data_buffer, 60);
+        if (cb_write > len) cb_write = len;
+        if(!storage_->write((char*)rx_data_buffer, cb_write)) goto abort;
+        len -= cb_write;
+      }
+      return_value = true;
+      printf("$");
+    abort:      
+      storage_->close();
+      printf(">> %u\n", (uint32_t)em_total);
+      return return_value;
+    }
+
+#elif defined(MTP_SEND_OBJECT_YIELD)
     // static data. 
     EventResponder MTPD::receive_eventresponder_;
-    elapsedMillis MTPD::receive_event_elaped_mills_;
-    uint8_t  MTPD::big_buffer_[BIG_BUFFER_SIZE] DMAMEM __attribute__ ((aligned(32)));
+    elapsedMicros MTPD::receive_event_elaped_mills_;
+
+    uint8_t  MTPD::disk_buffer_[BIG_BUFFER_SIZE] DMAMEM __attribute__ ((aligned(32)));
+    uint8_t  MTPD::rx_data_buffer[MTP_RX_SIZE] DMAMEM;
     uint8_t *MTPD::buffer_receive_pointer_;  // which buffer are we filling 1 or 2 ...
     uint8_t *MTPD::buffer_write_file_pointer_;
     uint32_t MTPD::receive_count_remaining_;
@@ -1393,16 +1480,20 @@ const uint16_t supported_events[] =
 
       // Lets try real hack, can we allocate external memory for the size of the file.
       sendObject_buffer_ptr_ = nullptr;
-      if (receive_count_remaining_ > sizeof(big_buffer_)) sendObject_buffer_ptr_ = (uint8_t*)extmem_malloc(receive_count_remaining_);
+      if (receive_count_remaining_ > sizeof(disk_buffer_)) 
+      {
+        sendObject_buffer_ptr_ = (uint8_t*)extmem_malloc(receive_count_remaining_);
 
+        //if (!sendObject_buffer_ptr_)
+      }
       if (sendObject_buffer_ptr_) 
       {
         big_buffer_size = receive_count_remaining_;
       }
       else
       {
-        sendObject_buffer_ptr_ = big_buffer_;
-        big_buffer_size = sizeof(big_buffer_);
+        sendObject_buffer_ptr_ = disk_buffer_;
+        big_buffer_size = sizeof(disk_buffer_);
       }
 
       // Maybe first copy remaining data of first buffer into our diskbuffer; 
@@ -1410,10 +1501,11 @@ const uint16_t supported_events[] =
       bytes = min(bytes,receive_count_remaining_);                                   // loimit at end
       uint32_t to_copy=min(bytes, (uint32_t)DISK_BUFFER_SIZE);   // how many data to copy to disk buffer
       memcpy(sendObject_buffer_ptr_, rx_data_buffer + index,to_copy);
+
       buffer_receive_pointer_ = sendObject_buffer_ptr_; 
       buffer_write_file_pointer_ = sendObject_buffer_ptr_;
       receive_count_remaining_ -= to_copy;
-      receive_disk_pos_=to_copy;
+      receive_disk_pos_ = to_copy;
       //only need to do this once...
       receive_eventresponder_.setContext((void*)this);
       receive_eventresponder_.attach(&MTPD::receive_event_handler);
@@ -1472,7 +1564,7 @@ const uint16_t supported_events[] =
          {
           storage_->close();
           printf("CL %u\n", total_bytes_written_);
-          if (sendObject_buffer_ptr_ != big_buffer_) extmem_free(sendObject_buffer_ptr_);
+          if (sendObject_buffer_ptr_ != disk_buffer_) extmem_free(sendObject_buffer_ptr_);
           sendObject_buffer_ptr_ = nullptr;
         }
         return true;
@@ -1483,7 +1575,7 @@ abort_transfer:
         printf("*** tranfer did not complete fully ***\n");
         storage_->close();
         printf("CL %u\n", total_bytes_written_);
-        if (sendObject_buffer_ptr_ != big_buffer_) extmem_free(sendObject_buffer_ptr_);
+        if (sendObject_buffer_ptr_ != disk_buffer_) extmem_free(sendObject_buffer_ptr_);
         return false;
       }  
     }
@@ -1568,12 +1660,12 @@ abort_transfer:
       uint32_t len = ReadMTPHeader();
       uint32_t index = sizeof(MTPHeader);
       disk_pos=0;
-      
+      elapsedMicros em_total = 0;
       while((int)len>0)
       { uint32_t bytes = MTP_RX_SIZE - index;                     // how many data in usb-packet
         bytes = min(bytes,len);                                   // loimit at end
         uint32_t to_copy=min(bytes, DISK_BUFFER_SIZE-disk_pos);   // how many data to copy to disk buffer
-        memcpy(disk_buffer+disk_pos, rx_data_buffer + index,to_copy);
+        memcpy(disk_buffer_+disk_pos, rx_data_buffer + index,to_copy);
         disk_pos += to_copy;
         bytes -= to_copy;
         len -= to_copy;
@@ -1581,12 +1673,12 @@ abort_transfer:
         //
         if(disk_pos==DISK_BUFFER_SIZE)
         {
-          if(storage_->write((const char *)disk_buffer, DISK_BUFFER_SIZE)<DISK_BUFFER_SIZE) return false;
+          if(storage_->write((const char *)disk_buffer_, DISK_BUFFER_SIZE)<DISK_BUFFER_SIZE) return false;
           disk_pos =0;
 
-          if(bytes) // we have still data in transfer buffer, copy to initial disk_buffer
+          if(bytes) // we have still data in transfer buffer, copy to initial disk_buffer_
           {
-            memcpy(disk_buffer,rx_data_buffer+index+to_copy,bytes);
+            memcpy(disk_buffer_,rx_data_buffer+index+to_copy,bytes);
             disk_pos += bytes;
             len -= bytes;
           }
@@ -1600,12 +1692,15 @@ abort_transfer:
       //printf("len %d\n",disk_pos);
       if(disk_pos)
       {
-        if(storage_->write((const char *)disk_buffer, disk_pos)<disk_pos) return false;
+        if(storage_->write((const char *)disk_buffer_, disk_pos)<disk_pos) return false;
       }
       storage_->close();
+      printf(">>>Total Time: %u\n", (uint32_t)em_total);
       return true;
     }
     #endif
+
+    //=============================================================
 
     uint32_t MTPD::setObjectPropValue(uint32_t handle, uint32_t p2)
     { pull_packet(rx_data_buffer);
@@ -1621,6 +1716,19 @@ abort_transfer:
       }
       else
         return 0x2005;
+    }
+
+    //=============================================================
+    uint32_t MTPD::formatStore(uint32_t storage,uint32_t p2)
+    {
+      printf(" MTPD::formatStore called");
+      uint32_t store = Storage2Store(storage);
+      if (formatCB_ && (*formatCB_)(store, p2)) 
+      { storage_->ResetIndex();  // maybe should add a less of sledge hammer here. 
+        return MTP_RESPONSE_OK;
+      }
+
+      return MTP_RESPONSE_OPERATION_NOT_SUPPORTED; // 0x2005
     }
 
     void MTPD::loop(void)
@@ -1653,6 +1761,8 @@ abort_transfer:
               break;
 
             case 0x1003:  // CloseSession
+              printf("MTPD::CloseSession\n");
+              sessionID_ = 0;   // 
               break;
 
             case 0x1004:  // GetStorageIDs
@@ -1701,8 +1811,9 @@ abort_transfer:
                 break;
 
             case 0x100C:  // SendObjectInfo
-                p3 = SendObjectInfo(p1, // storage
-                                    p2); // parent
+                return_code = SendObjectInfo(p1, // storage
+                                    p2, // parent
+                                    p3); // returned object id;
 
                 CONTAINER->params[1]=p2;
                 CONTAINER->params[2]=p3;
@@ -1712,6 +1823,10 @@ abort_transfer:
             case 0x100D:  // SendObject
                 if(!SendObject()) return_code = 0x2005;
                 len = 12;
+                break;
+
+            case 0x100F: // FormatStore
+                return_code = formatStore(p1, p2);
                 break;
 
             case 0x1014:  // GetDevicePropDesc
@@ -1816,7 +1931,7 @@ abort_transfer:
           uint32_t open_fle_index = storage_->openFileIndex(); // get the Storage index for this file
           storage_->close();
           printf("CL %u\n", total_bytes_written_);
-          if (sendObject_buffer_ptr_ != big_buffer_) extmem_free(sendObject_buffer_ptr_);
+          if (sendObject_buffer_ptr_ != disk_buffer_) extmem_free(sendObject_buffer_ptr_);
           sendObject_buffer_ptr_ = nullptr;
 
           // Tell the other side that the size may have changed. 

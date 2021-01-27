@@ -203,6 +203,79 @@ void storage_configure()
     }
     #endif
 }
+
+  // try to get the right FS for this store and then call it's format if we have one...
+  bool mtpd_format_cb(uint32_t store, uint32_t p2)
+  {
+    // lets try to map the store to the actual FS object.
+    Serial.printf("Format Callback: store: %u p2:%u\n", store, p2);
+    FS *store_fs = storage.getStoreFS(store); 
+    LittleFS *lfs = nullptr;
+    SDClass *sfs = nullptr;
+  #if USE_SD==1
+    for(int ii=0; ii<nsd; ii++)
+    { 
+      if (store_fs == &sdx[ii] ) 
+      { sfs = &sdx[ii];
+        break;
+      }
+    }
+    #endif
+
+    #if USE_LFS_RAM==1
+    for(int ii=0; ii<nfs_ram;ii++)
+    {
+      if (store_fs == &ramfs[ii] ) 
+      { lfs = &ramfs[ii];
+        break;
+      }
+    }
+    #endif
+
+    #if USE_LFS_PROGM==1
+    for(int ii=0; ii<nfs_progm;ii++)
+    {
+      if (store_fs == &progmfs[ii] ) 
+      { lfs = &progmfs[ii];
+        break;
+      }
+    }
+    #endif
+
+    #if USE_LFS_QSPI==1
+    for(int ii=0; ii<nfs_qspi;ii++)
+    {
+      if (store_fs == &qspifs[ii] ) 
+      { lfs = &qspifs[ii];
+        break;
+      }
+    }
+    #endif
+
+    #if USE_LFS_SPI==1
+    for(int ii=0; ii<nfs_spi;ii++)
+    {
+      if (store_fs == &spifs[ii] ) 
+      { lfs = &spifs[ii];
+        break;
+      }
+    }
+    #endif
+    // see if we have an lfs
+    if (lfs) 
+    { Serial.printf("Quick Format: %s\n", storage.getStoreName(store));
+      return lfs->quickFormat();
+    }
+    else if (sfs)
+    { Serial.printf("Format of SD types not implemented yet\n");
+
+    }
+    else Serial.println("Did not find Store in list???");
+    return false;
+
+  }
+
+
 /****  End of device specific change area  ****/
 
   #if USE_SD==1
@@ -283,6 +356,9 @@ void setup()
     file.close();
 
   #endif
+
+  // WIP - try format callback code.
+  mtpd.setFormatCB(&mtpd_format_cb);
 
   Serial.println("\nSetup done");
 }
