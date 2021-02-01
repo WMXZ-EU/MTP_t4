@@ -48,11 +48,12 @@ class mSD_Base
       fsCount = 0;
     }
 
-    uint32_t sd_addFilesystem(FS &fs, const char *name, bool slow_writes) {
+    uint32_t sd_addFilesystem(FS &fs, const char *name, bool read_on_yield_writes) {
       if (fsCount < MTPD_MAX_FILESYSTEMS) {
         sd_name[fsCount] = name;
         sdx[fsCount] = &fs;
-        sdslow[fsCount] = slow_writes;
+        read_on_yield_writes_[fsCount] = read_on_yield_writes;
+        Serial.printf("sd_addFilesystem: %d %x %s %u\n", fsCount, (uint32_t)&fs, name, read_on_yield_writes);
         return fsCount++;
       }
       return 0xFFFFFFFFUL;  // no room left
@@ -76,9 +77,16 @@ class mSD_Base
       return nullptr;
     } 
 
-    bool sd_getSoreSlowWrites(uint32_t store) 
+    bool sd_getReadOnYieldWrites(uint32_t store) 
     {
-      if (store < (uint32_t)fsCount) return sdslow[fsCount];
+
+      Serial.printf("sd_getReadOnYieldWrites store:%u count:%u ", store, fsCount);
+      if (store < (uint32_t)fsCount) 
+      {
+        Serial.printf("%u\n", read_on_yield_writes_[store]);
+        return read_on_yield_writes_[store];
+      }
+      Serial.println("Out of range");
       return false;      
     }
 
@@ -101,14 +109,15 @@ class mSD_Base
     int fsCount;
     const char *sd_name[MTPD_MAX_FILESYSTEMS];
     FS *sdx[MTPD_MAX_FILESYSTEMS];
-    bool sdslow[MTPD_MAX_FILESYSTEMS];
+    bool read_on_yield_writes_[MTPD_MAX_FILESYSTEMS];
 };
 
 // This interface lets the MTP responder interface any storage.
 // We'll need to give the MTP responder a pointer to one of these.
 class MTPStorageInterface {
 public:
-  virtual uint32_t addFilesystem(FS &filesystem, const char *name, bool slow_writes=false)=0;
+  virtual uint32_t addFilesystem(FS &filesystem, const char *name, bool read_on_yield_writes=false)=0;
+  virtual bool getReadOnYieldWrites(uint32_t store) = 0;
   virtual uint32_t get_FSCount(void) = 0;
   virtual const char *get_FSName(uint32_t storage) = 0;
 
@@ -164,12 +173,13 @@ public:
 class MTPStorage_SD : public MTPStorageInterface, mSD_Base
 { 
 public:
-  uint32_t addFilesystem(FS &fs, const char *name, bool slow_writes=false) {return sd_addFilesystem(fs, name, slow_writes);}
+  uint32_t addFilesystem(FS &fs, const char *name, bool read_on_yield_writes=false) {return sd_addFilesystem(fs, name, read_on_yield_writes);}
   void dumpIndexList(void);
   uint32_t getStoreID(const char *name) {return sd_getStoreID(name);}
   uint32_t getFSCount(void) {return sd_getFSCount();}
   const char *getStoreName(uint32_t store) {return sd_getStoreName(store);} 
   FS* getStoreFS(uint32_t store) {return sd_getStoreFS(store);}
+  bool getReadOnYieldWrites(uint32_t store) {return sd_getReadOnYieldWrites(store);}
   uint32_t openFileIndex(void) {return open_file_;}
 private:
   File index_;

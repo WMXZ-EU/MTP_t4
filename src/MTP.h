@@ -45,7 +45,7 @@ extern "C" 	int usb_mtp_sendEvent(const void *buffer, uint32_t len, uint32_t tim
 #define USE_EVENTS 1
 
 //#define MTP_SEND_OBJECT_SIMPLE 1
-//#define MTP_SEND_OBJECT_YIELD 1
+#define MTP_SEND_OBJECT_YIELD 1
 #define MTP_VERBOSE_PRINT_CONTAINER 1
 
 #if MTP_SEND_OBJECT_YIELD==1 && defined(__IMXRT1062__)
@@ -96,7 +96,7 @@ private:
   
   uint8_t tx_data_buffer[MTP_TX_SIZE] __attribute__ ((aligned(32)));
 
-  #define DISK_BUFFER_SIZE 4*1024
+  static const uint32_t DISK_BUFFER_SIZE = 8*1024;
   uint32_t disk_pos=0;
 
   int push_packet(uint8_t *data_buffer, uint32_t len);
@@ -107,23 +107,25 @@ private:
 
 #ifdef MTP_SEND_OBJECT_YIELD
   // BUGBUG make larger buffers static and DMAMEM? 
-  static const uint32_t BIG_BUFFER_SIZE = (DISK_BUFFER_SIZE * 3);  // big enough to double buffer. 
-  static uint8_t disk_buffer_[BIG_BUFFER_SIZE + MTP_RX_SIZE] __attribute__ ((aligned(32)));
+  static const uint32_t YIELD_WRITE_SIZE = (2*1024);  // How much should we write in the yield version?
+  static char disk_buffer_[DISK_BUFFER_SIZE] __attribute__ ((aligned(32)));
   static uint8_t rx_data_buffer[MTP_RX_SIZE];
-  static uint8_t *buffer_receive_pointer_;  // which buffer are we filling 1 or 2 ...
-  static uint8_t *buffer_write_file_pointer_;
-  static uint8_t *sendObject_buffer_ptr_;
+  static uint32_t buffer_receive_index_;  // which buffer are we filling 1 or 2 ...
+  static uint32_t buffer_write_file_index_;
+//  static uint8_t *sendObject_buffer_ptr_;
   static uint32_t total_bytes_written_;
-
-  static uint32_t big_buffer_size;
+  static bool     read_on_yield_writes_;
+  static char  *secondary_sendObject_buffer_;
+  static uint32_t total_buffer_size_;
 
   static EventResponder receive_eventresponder_;
   static elapsedMicros receive_event_elaped_mills_;
-  static const uint32_t EVENT_RESPONDER_CYCLE = 7500; // lets try every 2
+  static const uint32_t EVENT_RESPONDER_CYCLE = 5000; // how rast to read in. 
   static uint32_t receive_count_remaining_;
   static uint32_t receive_disk_pos_;
   static void receive_event_handler(EventResponderRef evref);
   bool checkAndReceiveNextUSBBuffer();
+  void writeNextSendObjectBuffer();
 #else
   uint8_t rx_data_buffer[MTP_RX_SIZE] __attribute__ ((aligned(32)));
   uint8_t disk_buffer_[DISK_BUFFER_SIZE] __attribute__ ((aligned(32)));
@@ -169,6 +171,7 @@ private:
 
   uint32_t SendObjectInfo(uint32_t storage, uint32_t parent, int &object_id) ;
   bool SendObject() ;
+  bool SendObjectWithYield();
 
   void GetDevicePropValue(uint32_t prop) ;
   void GetDevicePropDesc(uint32_t prop) ;
@@ -198,6 +201,7 @@ public:
   void test(void) ;
   operator bool() { return usb_configuration && (sessionID_ != 0); }
 
+  void addSendObjectBuffer(char *pb, uint32_t cb);  // you can extend the send object buffer by this buffer
   // BUGBUG need to cleanup maybe more Callback options...
   void setFormatCB(formatCB_t formatCB) {formatCB_ = formatCB;}
   formatCB_t formatCB_ = nullptr;

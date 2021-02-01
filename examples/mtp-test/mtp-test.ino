@@ -13,6 +13,10 @@
 #define USE_LFS_PROGM 1   // T4.4 Progam Flash
 #define USE_LFS_SPI 1     // SPI Flash
 
+extern "C" {
+  extern uint8_t external_psram_size;
+}
+
 #if USE_EVENTS==1
   extern "C" int usb_init_events(void);
 #else
@@ -93,6 +97,11 @@ LittleFS_SPIFlash spifs[nfs_spi];
 
 MTPStorage_SD storage;
 MTPD    mtpd(&storage);
+
+char *send_object_buffer = nullptr;
+uint32_t send_object_buffer_size = 0;
+#define SEND_BUFFER_SIZE_EXTMEM 1048576  // 1mb to start?
+#define SEND_BUFFER_SIZE_DMAMEM 131072  // 128KB?  // Need to experiment...
 
 void storage_configure()
 {
@@ -179,7 +188,7 @@ void storage_configure()
       }
       else
       {
-        storage.addFilesystem(qspifs[ii], lfs_qspi_str[ii]);
+        storage.addFilesystem(qspifs[ii], lfs_qspi_str[ii], true);
         uint64_t totalSize = qspifs[ii].totalSize();
         uint64_t usedSize  = qspifs[ii].usedSize();
         Serial.printf("QSPI Storage %d %s ",ii,lfs_qspi_str[ii]); Serial.print(totalSize); Serial.print(" "); Serial.println(usedSize);
@@ -195,7 +204,7 @@ void storage_configure()
       }
       else
       {
-        storage.addFilesystem(spifs[ii], lfs_spi_str[ii]);
+        storage.addFilesystem(spifs[ii], lfs_spi_str[ii], true);
         uint64_t totalSize = spifs[ii].totalSize();
         uint64_t usedSize  = spifs[ii].usedSize();
         Serial.printf("SPIFlash Storage %d %d %s ",ii,lfs_cs[ii],lfs_spi_str[ii]); Serial.print(totalSize); Serial.print(" "); Serial.println(usedSize);
@@ -293,10 +302,22 @@ void setup()
   #if defined(USB_MTPDISK_SERIAL) 
     while(!Serial); // comment if you do not want to wait for terminal
   #else
-    //while(!Serial.available()); // comment if you do not want to wait for terminal (otherwise press any key to continue)
-    while(!Serial.available() && millis() < 5000); // or third option to wait up to 5 seconds and then continue
+    while(!Serial.available()); // comment if you do not want to wait for terminal (otherwise press any key to continue)
+    //while(!Serial.available() && millis() < 5000); // or third option to wait up to 5 seconds and then continue
   #endif
   Serial.println("MTP_test");
+
+#ifdef ARDUINO_TEENSY41
+  if (external_psram_size) {
+    send_object_buffer_size = SEND_BUFFER_SIZE_EXTMEM;
+    send_object_buffer = (char*)extmem_malloc(send_object_buffer_size);
+  }
+#endif
+  if (!send_object_buffer) {
+    send_object_buffer_size = SEND_BUFFER_SIZE_DMAMEM;
+    send_object_buffer = (char*)malloc(send_object_buffer_size);
+  }
+  if (send_object_buffer) mtpd.addSendObjectBuffer(send_object_buffer, send_object_buffer_size);
 
   #if USE_EVENTS==1
     usb_init_events();
@@ -383,7 +404,7 @@ void loop()
       uint32_t fsCount = storage.getFSCount();
       Serial.printf("\nDump Storage list(%u)\n", fsCount);
       for (uint32_t ii = 0; ii < fsCount; ii++) {
-        Serial.printf("store:%u name:%s fs:%x\n", ii, storage.getStoreName(ii), (uint32_t)storage.getStoreFS(ii));
+        Serial.printf("store:%u name:%s fs:%x ROYW:%x\n", ii, storage.getStoreName(ii), (uint32_t)storage.getStoreFS(ii), storage.getReadOnYieldWrites(ii));
       }
       Serial.println("\nDump Index List");
       storage.dumpIndexList();
