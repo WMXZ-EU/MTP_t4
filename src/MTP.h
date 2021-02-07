@@ -121,7 +121,7 @@ private:
 
   static EventResponder receive_eventresponder_;
   static elapsedMicros receive_event_elaped_mills_;
-  static const uint32_t MAX_EVENT_RESPONDER_CYCLE =  5000; // max delay time between usb reads... to read in. 
+  static const uint32_t MAX_EVENT_RESPONDER_CYCLE =  4000; // max delay time between usb reads... to read in. 
   static const uint32_t INIT_EVENT_RESPONDER_CYCLE =  500; // initial delay time between usb reads... to read in. 
   static uint32_t event_responder_cycle_;
   uint32_t sum_time_for_writes_;

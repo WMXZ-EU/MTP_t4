@@ -1608,6 +1608,8 @@ abort_transfer:
       // make sure we can read all of this in one chunk, else will need to copy memory
       uint32_t cbytes = min(receive_count_remaining_, (uint32_t)MTP_RX_SIZE);
       // See if we can read the whole thing into the one or two buffers. 
+      count_bytes_in_write_buffer_ += cbytes;
+
       if ((buffer_receive_index_+ cbytes) <= DISK_BUFFER_SIZE) 
       {
         usb_mtp_recv(&disk_buffer_[buffer_receive_index_], 60);                  // read directly in.
@@ -1644,7 +1646,6 @@ abort_transfer:
           buffer_receive_index_ += cbytes;
         }
       }  
-      count_bytes_in_write_buffer_ += count_bytes_in_write_buffer_;
 
       trigger_again = (total_buffer_size_ - count_bytes_in_write_buffer_) >= MTP_RX_SIZE;
       receive_event_elaped_mills_ = 0; // clear out the timer. 
