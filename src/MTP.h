@@ -117,14 +117,20 @@ private:
   static bool     read_on_yield_writes_;
   static char  *secondary_sendObject_buffer_;
   static uint32_t total_buffer_size_;
+  static uint32_t count_bytes_in_write_buffer_;
 
   static EventResponder receive_eventresponder_;
   static elapsedMicros receive_event_elaped_mills_;
-  static const uint32_t EVENT_RESPONDER_CYCLE = 5000; // how rast to read in. 
+  static const uint32_t MAX_EVENT_RESPONDER_CYCLE =  5000; // max delay time between usb reads... to read in. 
+  static const uint32_t INIT_EVENT_RESPONDER_CYCLE =  500; // initial delay time between usb reads... to read in. 
+  static uint32_t event_responder_cycle_;
+  uint32_t sum_time_for_writes_;
+  uint32_t count_writes_;
+  
   static uint32_t receive_count_remaining_;
   static uint32_t receive_disk_pos_;
   static void receive_event_handler(EventResponderRef evref);
-  bool checkAndReceiveNextUSBBuffer();
+  bool checkAndReceiveNextUSBBuffer(char ch);
   void writeNextSendObjectBuffer();
 #else
   uint8_t rx_data_buffer[MTP_RX_SIZE] __attribute__ ((aligned(32)));

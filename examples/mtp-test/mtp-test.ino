@@ -299,11 +299,14 @@ void storage_configure()
 
 void setup()
 { 
+  // setup debug pins.
+  for (uint8_t pin=20; pin < 24; pin++) {pinMode(pin, OUTPUT); digitalWriteFast(pin, LOW);}
+  
   #if defined(USB_MTPDISK_SERIAL) 
     while(!Serial); // comment if you do not want to wait for terminal
   #else
-    while(!Serial.available()); // comment if you do not want to wait for terminal (otherwise press any key to continue)
-    //while(!Serial.available() && millis() < 5000); // or third option to wait up to 5 seconds and then continue
+    //while(!Serial.available()); // comment if you do not want to wait for terminal (otherwise press any key to continue)
+    while(!Serial.available() && millis() < 5000); // or third option to wait up to 5 seconds and then continue
   #endif
   Serial.println("MTP_test");
 
