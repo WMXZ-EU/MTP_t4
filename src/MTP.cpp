@@ -314,7 +314,7 @@ const uint16_t supported_events[] =
 //    write32(0xFFFFFFFFUL);    // MTP extension
     write16(100);  // MTP version
     writestring("microsoft.com: 1.0;");
-    write16(0);    // functional mode
+    write16(1);    // functional mode
 
     // Supported operations (array of uint16)
     write32(supported_op_num);
