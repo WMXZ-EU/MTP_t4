@@ -303,7 +303,7 @@ void MTPStorage_SD::removeFile(uint32_t store, char *file)
   File f2;
   while(f2=f1.openNextFile())
   { sprintf(tname,"%s/%s",file,f2.name());
-    if(f2.isDirectory()) removeFile(store,tname); else sd_remove(store,tname);
+    if(!f2.isDirectory()) removeFile(store,tname); else sd_remove(store,tname);
   }
   sd_rmdir(store,file);
 }
