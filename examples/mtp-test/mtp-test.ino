@@ -4,7 +4,11 @@
 #include "MTP.h"
 
 #define USE_SD  1         // SDFAT based SDIO and SPI
+#ifdef ARDUINO_TEENSY41
 #define USE_LFS_RAM 1     // T4.1 PSRAM (or RAM)
+#else
+#define USE_LFS_RAM 0     // T4.1 PSRAM (or RAM)
+#endif
 #define USE_LFS_QSPI 1    // T4.1 QSPI
 #define USE_LFS_PROGM 1   // T4.4 Progam Flash
 #define USE_LFS_SPI 1     // SPI Flash
@@ -57,7 +61,7 @@ SDClass sdx[nsd];
 //LittleFS classes
 #if USE_LFS_RAM==1
   const char *lfs_ram_str[]={"RAM1","RAM2"};     // edit to reflect your configuration
-  const int lfs_ram_size[] = {2'000'000,4'000'000}; // edit to reflect your configuration
+  const int lfs_ram_size[] = {200'000,4'000'000}; // edit to reflect your configuration
   const int nfs_ram = sizeof(lfs_ram_str)/sizeof(const char *);
 
   LittleFS_RAM ramfs[nfs_ram]; 
@@ -216,7 +220,8 @@ void setup()
   #if defined(USB_MTPDISK_SERIAL) 
     while(!Serial); // comment if you do not want to wait for terminal
   #else
-    while(!Serial.available()); // comment if you do not want to wait for terminal (otherwise press any key to continue)
+    //while(!Serial.available()); // comment if you do not want to wait for terminal (otherwise press any key to continue)
+    while(!Serial.available() && millis() < 5000); // or third option to wait up to 5 seconds and then continue
   #endif
   Serial.println("MTP_test");
 
@@ -296,21 +301,97 @@ void loop()
       Serial.println("Reset");
       mtpd.send_DeviceResetEvent();
     }
+    if (ch=='d')
+    {
+      // first dump list of storages:
+      uint32_t fsCount = storage.getFSCount();
+      Serial.printf("\nDump Storage list(%u)\n", fsCount);
+      for (uint32_t ii = 0; ii < fsCount; ii++) {
+        Serial.printf("store:%u name:%s fs:%x\n", ii, storage.getStoreName(ii), (uint32_t)storage.getStoreFS(ii));
+      }
+      Serial.println("\nDump Index List");
+      storage.dumpIndexList();
+    }
     #if USE_LFS_RAM==1
       if(ch=='a') 
       {
         Serial.println("Add Files");
-        static int count=100;
+      static int next_file_index_to_add=100;
+        uint32_t store = storage.getStoreID("RAM1");
         for(int ii=0; ii<10;ii++)
         { char filename[80];
-          sprintf(filename,"/test_%d.txt",count++);
+          sprintf(filename,"/test_%d.txt",next_file_index_to_add++);
           Serial.println(filename);
           File file=ramfs[0].open(filename,FILE_WRITE_BEGIN);
             file.println("This is a test line");
+            file.println("This is a test line");
+            file.println("This is a test line");
+            file.println("This is a test line");
+            file.println("This is a test line");
+            file.println("This is a test line");
+            file.println("This is a test line");
+            file.println("This is a test line");
+            file.println("This is a test line");
+            file.println("This is a test line");
           file.close();
+          mtpd.send_addObjectEvent(store, filename);
         }
         // attempt to notify PC on added files (does not work yet)
+        Serial.print("Store "); Serial.println(store);
+        mtpd.send_StorageInfoChangedEvent(store);
+      }
+      if(ch=='x') 
+      {
+        Serial.println("Delete Files");
+        static int next_file_index_to_delete=100;
         uint32_t store = storage.getStoreID("RAM1");
+        for(int ii=0; ii<10;ii++)
+        { char filename[80];
+          sprintf(filename,"/test_%d.txt",next_file_index_to_delete++);
+          Serial.println(filename);
+          if (ramfs[0].remove(filename))
+          {
+            mtpd.send_removeObjectEvent(store, filename);
+          }
+        }
+        // attempt to notify PC on added files (does not work yet)
+        Serial.print("Store "); Serial.println(store);
+        mtpd.send_StorageInfoChangedEvent(store);
+      }
+    #elif USE_SD==1
+      if(ch=='a') 
+      {
+        Serial.println("Add Files");
+        static int next_file_index_to_add=100;
+        uint32_t store = storage.getStoreID("sdio");
+        for(int ii=0; ii<10;ii++)
+        { char filename[80];
+          sprintf(filename,"/test_%d.txt",next_file_index_to_add++);
+          Serial.println(filename);
+          File file=sdx[0].open(filename,FILE_WRITE_BEGIN);
+            file.println("This is a test line");
+          file.close();
+          mtpd.send_addObjectEvent(store, filename);
+        }
+        // attempt to notify PC on added files (does not work yet)
+        Serial.print("Store "); Serial.println(store);
+        mtpd.send_StorageInfoChangedEvent(store);
+      }
+      if(ch=='x') 
+      {
+        Serial.println("Delete Files");
+        static int next_file_index_to_delete=100;
+        uint32_t store = storage.getStoreID("sdio");
+        for(int ii=0; ii<10;ii++)
+        { char filename[80];
+          sprintf(filename,"/test_%d.txt",next_file_index_to_delete++);
+          Serial.println(filename);
+          if (sdx[0].remove(filename))
+          {
+            mtpd.send_removeObjectEvent(store, filename);
+          }
+        }
+        // attempt to notify PC on added files (does not work yet)
         Serial.print("Store "); Serial.println(store);
         mtpd.send_StorageInfoChangedEvent(store);
       }
