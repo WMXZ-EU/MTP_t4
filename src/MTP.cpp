@@ -1394,6 +1394,8 @@ const uint16_t supported_events[] =
       }
 
       object_id = storage_->Create(store, parent, dir, filename);
+      if (object_id == 0xFFFFFFFFUL) return MTP_RESPONSE_SPECIFICATION_OF_DESTINATION_UNSUPPORTED; 
+
       #if defined(MTP_SEND_OBJECT_YIELD)
       read_on_yield_writes_ = storage_->getReadOnYieldWrites(store);
       #endif

@@ -380,6 +380,14 @@ void MTPStorage_SD::removeFile(uint32_t store, char *file)
     else 
     {
       OpenFileByIndex(ret, FILE_WRITE_BEGIN);
+      // lets check to see if we opened the file or not...
+      if(!sd_isOpen(file_))
+      {
+        Serial.printf("MTPStorage_SD::Create %s failed to create file\n", filename);
+        DeleteObject(ret);  // note this will mark that new item as deleted...
+        ret = 0xFFFFFFFFUL; // return an error code...
+      }
+
     }
     #if DEBUG>1
     Serial.print("Create "); 
