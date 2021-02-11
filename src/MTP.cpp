@@ -797,6 +797,8 @@ const uint16_t supported_events[] =
     }
 
     object_id = storage_->Create(store, parent, dir, filename);
+    if ((uint32_t)object_id == 0xFFFFFFFFUL) return MTP_RESPONSE_SPECIFICATION_OF_DESTINATION_UNSUPPORTED; 
+
     return MTP_RESPONSE_OK;
   }
 
@@ -1394,7 +1396,7 @@ const uint16_t supported_events[] =
       }
 
       object_id = storage_->Create(store, parent, dir, filename);
-      if (object_id == 0xFFFFFFFFUL) return MTP_RESPONSE_SPECIFICATION_OF_DESTINATION_UNSUPPORTED; 
+      if ((uint32_t)object_id == 0xFFFFFFFFUL) return MTP_RESPONSE_SPECIFICATION_OF_DESTINATION_UNSUPPORTED; 
 
       #if defined(MTP_SEND_OBJECT_YIELD)
       read_on_yield_writes_ = storage_->getReadOnYieldWrites(store);
@@ -1706,12 +1708,16 @@ abort_transfer:
       pull_packet(rx_data_buffer);
       read(0,0);
 //      printContainer(); 
-      printf("MTPD::SendObject: len:%u Use Yield:%u\n", receive_count_remaining_, read_on_yield_writes_);
-
       uint32_t len = ReadMTPHeader();
       uint32_t index = sizeof(MTPHeader);
+      printf("MTPD::SendObject: len:%u\n", len);
       disk_pos=0;
       elapsedMicros em_total = 0;
+
+      uint32_t sum_read_em = 0;
+      uint32_t c_read_em = 0;
+      uint32_t read_em_max = 0;
+
       while((int)len>0)
       { uint32_t bytes = MTP_RX_SIZE - index;                     // how many data in usb-packet
         bytes = min(bytes,len);                                   // loimit at end
@@ -1736,7 +1742,22 @@ abort_transfer:
           //printf("b %d %d %d %d %d\n", len,disk_pos,bytes,index,to_copy);
         }
         if(len>0)  // we have still data to be transfered
-        { pull_packet(rx_data_buffer);
+        { //pull_packet(rx_data_buffer);
+          elapsedMillis emRead = 0;
+          bool usb_mtp_avail = false; 
+          while (!(usb_mtp_avail = usb_mtp_available()) && (emRead < SENDOBJECT_READ_TIMEOUT_MS)) ;
+          if (usb_mtp_avail) 
+          {
+              uint32_t em = emRead;
+              sum_read_em += em;
+              c_read_em++;
+              if (em > read_em_max) read_em_max = em;
+              usb_mtp_recv(rx_data_buffer, 60);                  // read directly in.
+          }
+          else
+          { printf("MTPD::SendObject *** USB Read Timeout ***");
+            break;  //
+          }
           index=0;
         }
       }
@@ -1746,8 +1767,10 @@ abort_transfer:
         if(storage_->write((const char *)disk_buffer_, disk_pos)<disk_pos) return false;
       }
       storage_->close();
+      if (c_read_em) printf(" # USB Packets: %u avg ms: %u max: %u\n", c_read_em, sum_read_em / c_read_em, read_em_max);
       printf(">>>Total Time: %u\n", (uint32_t)em_total);
-      return true;
+
+      return (len == 0);
     }
     #endif
 
@@ -1879,7 +1902,7 @@ abort_transfer:
                 }
                 else
                 #endif
-                  if(!SendObject()) return_code = 0x2005;
+                  if(!SendObject()) return_code = MTP_RESPONSE_INCOMPLETE_TRANSFER;
                 len = 12;
                 break;
 

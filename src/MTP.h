@@ -45,7 +45,7 @@ extern "C" 	int usb_mtp_sendEvent(const void *buffer, uint32_t len, uint32_t tim
 #define USE_EVENTS 1
 
 //#define MTP_SEND_OBJECT_SIMPLE 1
-#define MTP_SEND_OBJECT_YIELD 1
+//#define MTP_SEND_OBJECT_YIELD 1
 #define MTP_VERBOSE_PRINT_CONTAINER 1
 
 #if MTP_SEND_OBJECT_YIELD==1 && defined(__IMXRT1062__)
@@ -104,7 +104,7 @@ private:
   int pull_packet(uint8_t *data_buffer);
 
   static uint32_t sessionID_;
-
+  static const uint32_t SENDOBJECT_READ_TIMEOUT_MS = 500; 
 #ifdef MTP_SEND_OBJECT_YIELD
   // BUGBUG make larger buffers static and DMAMEM? 
   static const uint32_t YIELD_WRITE_SIZE = (2*1024);  // How much should we write in the yield version?
