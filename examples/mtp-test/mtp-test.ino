@@ -19,6 +19,8 @@ extern "C" {
   extern uint8_t external_psram_size;
 }
 
+bool g_lowLevelFormat = true;
+
 #if USE_EVENTS==1
 extern "C" int usb_init_events(void);
 #else
@@ -318,8 +320,17 @@ Serial.printf("Format Callback: store: %u p2:%u\n", store, p2);
 #endif
   // see if we have an lfs
   if (lfs)
-  { Serial.printf("Quick Format: %s\n", storage.getStoreName(store));
-    return lfs->quickFormat();
+  { 
+    if (g_lowLevelFormat)
+    {
+      Serial.printf("Low Level Format: %s\n", storage.getStoreName(store));
+      return lfs->lowLevelFormat('.');
+    }
+    else 
+    {
+      Serial.printf("Quick Format: %s\n", storage.getStoreName(store));
+      return lfs->quickFormat();
+    }
   }
   else if (sfs)
   { Serial.printf("Format of SD types not implemented yet\n");
@@ -467,6 +478,12 @@ void loop()
       }
       Serial.println("\nDump Index List");
       storage.dumpIndexList();
+    }
+    if (ch == 'f')
+    {
+      g_lowLevelFormat = !g_lowLevelFormat;
+      if (g_lowLevelFormat) Serial.println("low level format of LittleFS disks selected");
+      else Serial.println("Quick format of LittleFS disks selected");
     }
 #if USE_LFS_RAM==1
     if (ch == 'a')
