@@ -57,7 +57,7 @@ extern "C" {
 extern volatile uint8_t usb_configuration;
 }
 
-typedef bool (*formatCB_t)(uint32_t store, uint32_t p2);
+typedef bool (*formatCB_t)(uint32_t store, uint32_t p2, bool post_process);
 
 // MTP Responder.
 class MTPD {
@@ -187,7 +187,11 @@ private:
   void getObjectPropValue(uint32_t p1, uint32_t p2) ;
 
   uint32_t setObjectPropValue(uint32_t p1, uint32_t p2) ;
-  uint32_t formatStore(uint32_t storage, uint32_t p2);
+  uint32_t formatStore(uint32_t storage, uint32_t p2, bool post_process);
+  static  MTPD  *g_pmtpd_interval;
+  static  void _interval_timer_handler();
+  static IntervalTimer g_intervaltimer;
+  void processIntervalTimer();
 
   uint32_t deleteObject(uint32_t p1) ;
   uint32_t copyObject(uint32_t p1,uint32_t p2, uint32_t p3) ;

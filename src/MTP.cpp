@@ -204,7 +204,7 @@ extern struct usb_string_descriptor_struct usb_string_serial_number;
 const uint16_t supported_events[] =
   {
 //    MTP_EVENT_UNDEFINED                         ,//0x4000
-//    MTP_EVENT_CANCEL_TRANSACTION                ,//0x4001
+    MTP_EVENT_CANCEL_TRANSACTION                ,//0x4001
     MTP_EVENT_OBJECT_ADDED                      ,//0x4002
     MTP_EVENT_OBJECT_REMOVED                    ,//0x4003
     MTP_EVENT_STORE_ADDED                       ,//0x4004
@@ -1718,6 +1718,10 @@ abort_transfer:
       uint32_t c_read_em = 0;
       uint32_t read_em_max = 0;
 
+      uint32_t sum_write_em = 0;
+      uint32_t c_write_em = 0;
+      uint32_t write_em_max = 0;
+
       while((int)len>0)
       { uint32_t bytes = MTP_RX_SIZE - index;                     // how many data in usb-packet
         bytes = min(bytes,len);                                   // loimit at end
@@ -1730,7 +1734,12 @@ abort_transfer:
         //
         if(disk_pos==DISK_BUFFER_SIZE)
         {
+          elapsedMillis emWrite = 0;
           if(storage_->write((const char *)disk_buffer_, DISK_BUFFER_SIZE)<DISK_BUFFER_SIZE) return false;
+          uint32_t em = emWrite;
+          sum_write_em += em;
+          c_write_em++;
+          if (em > write_em_max) write_em_max = em;
           disk_pos =0;
 
           if(bytes) // we have still data in transfer buffer, copy to initial disk_buffer_
@@ -1755,7 +1764,7 @@ abort_transfer:
               usb_mtp_recv(rx_data_buffer, 60);                  // read directly in.
           }
           else
-          { printf("MTPD::SendObject *** USB Read Timeout ***");
+          { printf("\nMTPD::SendObject *** USB Read Timeout ***\n");
             break;  //
           }
           index=0;
@@ -1764,10 +1773,17 @@ abort_transfer:
       //printf("len %d\n",disk_pos);
       if(disk_pos)
       {
+        elapsedMillis emWrite = 0;
         if(storage_->write((const char *)disk_buffer_, disk_pos)<disk_pos) return false;
+        uint32_t em = emWrite;
+        sum_write_em += em;
+        c_write_em++;
+        if (em > write_em_max) write_em_max = em;
+        disk_pos =0;
       }
       storage_->close();
-      if (c_read_em) printf(" # USB Packets: %u avg ms: %u max: %u\n", c_read_em, sum_read_em / c_read_em, read_em_max);
+      if (c_read_em) printf(" # USB Packets: %u total: %u avg ms: %u max: %u\n", c_read_em, sum_read_em, sum_read_em / c_read_em, read_em_max);
+      if (c_write_em) printf(" # Write: %u total:%u avg ms: %u max: %u\n", c_write_em, sum_write_em, sum_write_em / c_write_em, write_em_max);
       printf(">>>Total Time: %u\n", (uint32_t)em_total);
 
       return (len == 0);
@@ -1793,15 +1809,155 @@ abort_transfer:
     }
 
     //=============================================================
-    uint32_t MTPD::formatStore(uint32_t storage,uint32_t p2)
-    {
-      printf(" MTPD::formatStore called");
-      uint32_t store = Storage2Store(storage);
-      if (formatCB_ && (*formatCB_)(store, p2)) 
-      { storage_->ResetIndex();  // maybe should add a less of sledge hammer here. 
-        return MTP_RESPONSE_OK;
-      }
 
+    MTPD  *MTPD::g_pmtpd_interval = nullptr;
+    IntervalTimer MTPD::g_intervaltimer;
+
+    void MTPD::_interval_timer_handler()
+    {
+       if (g_pmtpd_interval) g_pmtpd_interval->processIntervalTimer();
+    }
+
+    void MTPD::processIntervalTimer()
+    {
+      { if(usb_mtp_available())
+
+        { if(fetch_packet(rx_data_buffer))
+          { printContainer(); // to switch on set debug to 1 at beginning of file
+
+            int op = CONTAINER->op;
+            int p1 = CONTAINER->params[0];
+            int p2 = CONTAINER->params[1];
+            int p3 = CONTAINER->params[2];
+            int id = CONTAINER->transaction_id;
+            int len= CONTAINER->len;
+            int typ= CONTAINER->type;
+            TID=id;
+
+            int return_code = MTP_RESPONSE_OK; 
+
+            if(typ==2) return_code=MTP_RESPONSE_OPERATION_NOT_SUPPORTED; // we should only get cmds
+
+            switch (op)
+            {
+              case 0x1001:
+                TRANSMIT(WriteDescriptor());
+                break;
+
+              case 0x1002:  //open session
+                openSession(p1);
+                break;
+
+              case 0x1003:  // CloseSession
+                printf("MTPD::CloseSession\n");
+                sessionID_ = 0;   // 
+                break;
+
+              case 0x1004:  // GetStorageIDs
+                  TRANSMIT(WriteStorageIDs());
+                break;
+
+              case 0x1005:  // GetStorageInfo
+                TRANSMIT(GetStorageInfo(p1));
+                break;
+
+              case 0x1006:  // GetNumObjects
+                if (p2) 
+                {
+                    return_code = 0x2014; // spec by format unsupported
+                } else 
+                {
+                    p1 = GetNumObjects(p1, p3);
+                }
+                break;
+
+              case 0x1007:  // GetObjectHandles
+                if (p2) 
+                { return_code = 0x2014; // spec by format unsupported
+                } else 
+                { 
+                  TRANSMIT(GetObjectHandles(p1, p3));
+                }
+                break;
+
+              case 0x1008:  // GetObjectInfo
+                TRANSMIT(GetObjectInfo(p1));
+                break;
+
+              case 0x1009:  // GetObject
+                TRANSMIT(GetObject(p1));
+                break;
+
+
+              case 0x1014:  // GetDevicePropDesc
+                  TRANSMIT(GetDevicePropDesc(p1));
+                  break;
+
+              case 0x1015:  // GetDevicePropvalue
+                  TRANSMIT(GetDevicePropValue(p1));
+                  break;
+
+              case 0x9801:  // getObjectPropsSupported
+                  TRANSMIT(getObjectPropsSupported(p1));
+                  break;
+
+              case 0x9802:  // getObjectPropDesc
+                  TRANSMIT(getObjectPropDesc(p1,p2));
+                  break;
+
+              case 0x9803:  // getObjectPropertyValue
+                  TRANSMIT(getObjectPropValue(p1,p2));
+                  break;
+
+              case 0x9804:  // setObjectPropertyValue
+                  return_code = setObjectPropValue(p1,p2);
+                  break;
+
+              default:
+                  return_code = MTP_RESPONSE_DEVICE_BUSY;  // operation not supported
+                  break;
+            }
+            if(return_code)
+            {
+                CONTAINER->type=3;
+                CONTAINER->len=len;
+                CONTAINER->op=return_code;
+                CONTAINER->transaction_id=id;
+                CONTAINER->params[0]=p1;
+                #if DEBUG >1
+                  printContainer(); // to switch on set debug to 2 at beginning of file
+                #endif
+
+                memcpy(tx_data_buffer,rx_data_buffer,len);
+                push_packet(tx_data_buffer,len); // for acknowledge use rx_data_buffer
+            }
+          }
+        }
+      }
+    }
+
+    uint32_t MTPD::formatStore(uint32_t storage,uint32_t p2, bool post_process)
+    {
+      printf(" MTPD::formatStore called post:%u\n", post_process);
+      uint32_t store = Storage2Store(storage);
+      if (formatCB_ )
+      {
+        if (post_process)
+        {
+          g_pmtpd_interval = this;
+          printf("*** Start Interval Timer ***\n");
+          g_intervaltimer.begin(&_interval_timer_handler, 50000); // try maybe 20 times per second...
+        }
+        bool format_ok = (*formatCB_)(store, p2, post_process); 
+        if (post_process)
+        {
+          g_pmtpd_interval = nullptr;
+          g_intervaltimer.end(); // try maybe 20 times per second...
+          printf("*** end Interval Timer ***\n");
+          storage_->ResetIndex();  // maybe should add a less of sledge hammer here. 
+        }
+        return format_ok? MTP_RESPONSE_OK : MTP_RESPONSE_OPERATION_NOT_SUPPORTED;
+      }
       return MTP_RESPONSE_OPERATION_NOT_SUPPORTED; // 0x2005
     }
 
@@ -1902,12 +2058,15 @@ abort_transfer:
                 }
                 else
                 #endif
-                  if(!SendObject()) return_code = MTP_RESPONSE_INCOMPLETE_TRANSFER;
+                  if(!SendObject()) 
+                  { return_code = MTP_RESPONSE_INCOMPLETE_TRANSFER;
+                    send_Event(MTP_EVENT_CANCEL_TRANSACTION);  // try sending an event to cancel?
+                  }  
                 len = 12;
                 break;
 
             case 0x100F: // FormatStore
-                return_code = formatStore(p1, p2);
+                return_code = formatStore(p1, p2, false);
                 break;
 
             case 0x1014:  // GetDevicePropDesc
@@ -1972,6 +2131,17 @@ abort_transfer:
 
               memcpy(tx_data_buffer,rx_data_buffer,len);
               push_packet(tx_data_buffer,len); // for acknowledge use rx_data_buffer
+          }
+
+          // Some operations may want to do some additional work after they send back a response
+          // so give them a chance here...
+          switch (op)
+          {
+            default:
+               break;
+            case 0x100F: // FormatStore
+                return_code = formatStore(p1, p2, true);
+                break;
           }
         }
       }
@@ -2137,6 +2307,7 @@ abort_transfer:
 
   int MTPD::send_Event(uint16_t eventCode)
   {
+    printf("*MTPD::send_Event(%x)\n", eventCode);
     MTPContainer event;
     event.len = 12;
     event.op =eventCode ;
@@ -2149,6 +2320,7 @@ abort_transfer:
   }
   int MTPD::send_Event(uint16_t eventCode, uint32_t p1)
   {
+    printf("*MTPD::send_Event(%x) %x\n", eventCode, p1);
     MTPContainer event;
     event.len = 16;
     event.op =eventCode ;
@@ -2161,6 +2333,7 @@ abort_transfer:
   }
   int MTPD::send_Event(uint16_t eventCode, uint32_t p1, uint32_t p2)
   {
+    printf("*MTPD::send_Event(%x) %x %x\n", eventCode, p1, p2);
     MTPContainer event;
     event.len = 20;
     event.op =eventCode ;
