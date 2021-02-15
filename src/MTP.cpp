@@ -1840,6 +1840,7 @@ abort_transfer:
 
             switch (op)
             {
+#if 0              
               case 0x1001:
                 TRANSMIT(WriteDescriptor());
                 break;
@@ -1912,7 +1913,7 @@ abort_transfer:
               case 0x9804:  // setObjectPropertyValue
                   return_code = setObjectPropValue(p1,p2);
                   break;
-
+#endif
               default:
                   return_code = MTP_RESPONSE_DEVICE_BUSY;  // operation not supported
                   break;
