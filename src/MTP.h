@@ -164,7 +164,6 @@ private:
 
   uint32_t TID;  
 #if USE_EVENTS==1
-  int send_Event(uint16_t eventCode);
   int send_Event(uint16_t eventCode, uint32_t p1);
   int send_Event(uint16_t eventCode, uint32_t p1, uint32_t p2);
   int send_Event(uint16_t eventCode, uint32_t p1, uint32_t p2, uint32_t p3);
@@ -181,11 +180,13 @@ public:
   formatCB_t formatCB_ = nullptr;
 
 #if USE_EVENTS==1
+  int send_Event(uint16_t eventCode);
   int send_addObjectEvent(uint32_t p1);
   int send_removeObjectEvent(uint32_t p1);
   int send_StorageInfoChangedEvent(uint32_t p1);
   int send_StorageRemovedEvent(uint32_t p1);
   int send_DeviceResetEvent(void);
+  int send_StoreAddedEvent(uint32_t store);
 
   // higer level version of sending events
   // unclear if should pass in pfs or store? 

@@ -1,7 +1,7 @@
 #include "Arduino.h"
 
 #include "SD.h"
-#include "MTP.h"
+#include <MTP.h>
 
 #define USE_SD  1         // SDFAT based SDIO and SPI
 #ifdef ARDUINO_TEENSY41
@@ -67,6 +67,7 @@ const int cs[] = {10}; // edit to reflect your configuration
 const int nsd = sizeof(sd_str) / sizeof(const char *);
 
 SDClass sdx[nsd];
+int  BUILTIN_SDCARD_missing_index = -1;
 #endif
 
 //LittleFS classes
@@ -115,7 +116,6 @@ const int lfs_ram_size[] = {200'000,4'000'000}; // edit to reflect your configur
                             uint32_t send_object_buffer_size = 0;
 #define SEND_BUFFER_SIZE_EXTMEM 1048576  // 1mb to start?
 #define SEND_BUFFER_SIZE_DMAMEM 131072  // 128KB?  // Need to experiment...
-                            uint32_t  cd_pres_bit = 0;
 
 //=============================================================================
 void storage_configure()
@@ -134,7 +134,7 @@ void storage_configure()
   {
     if(!sdx[ii].sdfs.begin(SdioConfig(FIFO_SDIO)))
     { Serial.printf("SDIO Storage %d %d %s failed or missing",ii,cs[ii],sd_str[ii]);  Serial.println();
-      Serial.printf("    PRES_STATE: %x\n", USDHC1_PRES_STATE);
+      BUILTIN_SDCARD_missing_index = ii;
     }
     else
     {
@@ -143,8 +143,7 @@ void storage_configure()
       uint64_t usedSize  = sdx[ii].usedSize();
       Serial.printf("SDIO Storage %d %d %s ",ii,cs[ii],sd_str[ii]);
       Serial.print(totalSize); Serial.print(" "); Serial.println(usedSize);
-      }
-    cd_pres_bit = USDHC1_PRES_STATE & ((uint32_t)(1<<16));
+    }
   }
   else if(cs[ii]<BUILTIN_SDCARD)
 #endif
@@ -449,127 +448,235 @@ void setup()
   Serial.println("\nSetup done");
 }
 
+int ReadAndEchoSerialChar() {
+  int ch = Serial.read();
+  if (ch >= ' ') Serial.write(ch);
+  return ch;
+}
+
+uint32_t last_storage_index = (uint32_t)-1;
+#define DEFAULT_FILESIZE 1024
+
+//Checks if a Card is present:
+//- only when it is not in use! - 
+void checkForInsertedSDCard() {
+#if defined(ARDUINO_TEENSY41) && defined(USE_SD)
+  static const int _SD_DAT3 = 46;
+  if (BUILTIN_SDCARD_missing_index != -1)
+  {
+    pinMode(_SD_DAT3, INPUT_PULLDOWN);
+    delayMicroseconds(5);
+    bool r = digitalReadFast(_SD_DAT3);
+    pinMode(_SD_DAT3, INPUT_DISABLE);
+    if (r)
+    {
+      // looks like SD Inserted.
+      delay(1);
+      Serial.printf("\n*** SDIO Card Inserted ***");
+      if(!sdx[BUILTIN_SDCARD_missing_index].sdfs.begin(SdioConfig(FIFO_SDIO)))
+      { Serial.printf("SDIO Storage %d %d %s failed or missing",BUILTIN_SDCARD_missing_index,cs[BUILTIN_SDCARD_missing_index],sd_str[BUILTIN_SDCARD_missing_index]);  Serial.println();
+      }
+      else
+      {
+        uint32_t store = storage.addFilesystem(sdx[BUILTIN_SDCARD_missing_index], sd_str[BUILTIN_SDCARD_missing_index]);
+        uint64_t totalSize = sdx[BUILTIN_SDCARD_missing_index].totalSize();
+        uint64_t usedSize  = sdx[BUILTIN_SDCARD_missing_index].usedSize();
+        Serial.printf("SDIO Storage %d %d %s ",BUILTIN_SDCARD_missing_index,cs[BUILTIN_SDCARD_missing_index],sd_str[BUILTIN_SDCARD_missing_index]);
+        Serial.print(totalSize); Serial.print(" "); Serial.println(usedSize);
+
+        // Try to send event
+        mtpd.send_StoreAddedEvent(store);
+      }
+      BUILTIN_SDCARD_missing_index = -1; // only try this once
+    }
+  }
+#endif  
+}
+
 void loop()
 {
 
-  if (cd_pres_bit != (USDHC1_PRES_STATE & ((uint32_t)(1 << 16)))) {
-    cd_pres_bit = USDHC1_PRES_STATE & ((uint32_t)(1 << 16));
-    Serial.printf("New CD pres BIT: %x\n", cd_pres_bit);
-  }
-
   mtpd.loop();
 
-#if USE_EVENTS==1
+  checkForInsertedSDCard();
+
   if (Serial.available())
   {
-    char ch = Serial.read();
-    Serial.println(ch);
-    if (ch == 'r')
-    {
-      Serial.println("Reset");
-      mtpd.send_DeviceResetEvent();
-    }
-    if (ch == 'd')
-    {
-      // first dump list of storages:
-      uint32_t fsCount = storage.getFSCount();
-      Serial.printf("\nDump Storage list(%u)\n", fsCount);
-      for (uint32_t ii = 0; ii < fsCount; ii++) {
-        Serial.printf("store:%u name:%s fs:%x\n", ii, storage.getStoreName(ii), (uint32_t)storage.getStoreFS(ii));
+    char pathname[MAX_FILENAME_LEN]; 
+    uint32_t storage_index = 0;
+    uint32_t file_size = 0;
+
+    // Should probably use Serial.parse ...
+    Serial.printf("\n *** Command line: ");
+    int cmd_char = ReadAndEchoSerialChar();
+    int ch = ReadAndEchoSerialChar();
+    while (ch == ' ') ch = ReadAndEchoSerialChar();
+    if (ch >= '0' && ch <= '9') {
+      storage_index = ch - '0';
+      ch = ReadAndEchoSerialChar();
+      if (ch == 'x') {
+        ch = ReadAndEchoSerialChar();
+        for(;;) {
+          if  (ch >= '0' && ch <= '9') storage_index = storage_index*16 + ch - '0';
+          else if  (ch >= 'a' && ch <= 'f') storage_index = storage_index*16 + 10 + ch - 'a';
+          else break;
+          ch = ReadAndEchoSerialChar();
+        }
       }
-      Serial.println("\nDump Index List");
-      storage.dumpIndexList();
+      else 
+      {
+        while (ch >= '0' && ch <= '9') {
+          storage_index = storage_index*10 + ch - '0';
+          ch = ReadAndEchoSerialChar();
+        }
+      }
+      while (ch == ' ') ch = ReadAndEchoSerialChar();
+      last_storage_index = storage_index;
+    } else {
+      storage_index = last_storage_index;
     }
-    if (ch == 'f')
+    char *psz = pathname;
+    while (ch > ' ') {
+      *psz++ = ch;
+      ch = ReadAndEchoSerialChar();
+    }
+    *psz = 0;
+    while (ch == ' ') ch = ReadAndEchoSerialChar();
+    while (ch >= '0' && ch <= '9') {
+      file_size = file_size*10 + ch - '0';
+      ch = ReadAndEchoSerialChar();
+    }
+
+
+    while(ReadAndEchoSerialChar() != -1) ;
+    Serial.println();
+    switch (cmd_char) 
     {
-      g_lowLevelFormat = !g_lowLevelFormat;
-      if (g_lowLevelFormat) Serial.println("low level format of LittleFS disks selected");
-      else Serial.println("Quick format of LittleFS disks selected");
-    }
+      case'r':
+        Serial.println("Reset");
+        mtpd.send_DeviceResetEvent();
+        break;
+      case 'd':
+        {
+          // first dump list of storages:
+          uint32_t fsCount = storage.getFSCount();
+          Serial.printf("\nDump Storage list(%u)\n", fsCount);
+          for (uint32_t ii = 0; ii < fsCount; ii++) {
+            Serial.printf("store:%u name:%s fs:%x\n", ii, storage.getStoreName(ii), (uint32_t)storage.getStoreFS(ii));
+          }
+          Serial.println("\nDump Index List");
+          storage.dumpIndexList();
+        }
+        break;    
+
+      case 'f':
+        g_lowLevelFormat = !g_lowLevelFormat;
+        if (g_lowLevelFormat) Serial.println("low level format of LittleFS disks selected");
+        else Serial.println("Quick format of LittleFS disks selected");
+        break;
 #if USE_LFS_RAM==1
-    if (ch == 'a')
-    {
-      Serial.println("Add Files");
-      static int next_file_index_to_add = 100;
-      uint32_t store = storage.getStoreID("RAM1");
-      for (int ii = 0; ii < 10; ii++)
-      { char filename[80];
-        sprintf(filename, "/test_%d.txt", next_file_index_to_add++);
-        Serial.println(filename);
-        File file = ramfs[0].open(filename, FILE_WRITE_BEGIN);
-        file.println("This is a test line");
-        file.println("This is a test line");
-        file.println("This is a test line");
-        file.println("This is a test line");
-        file.println("This is a test line");
-        file.println("This is a test line");
-        file.println("This is a test line");
-        file.println("This is a test line");
-        file.println("This is a test line");
-        file.println("This is a test line");
-        file.close();
-        mtpd.send_addObjectEvent(store, filename);
-      }
-      // attempt to notify PC on added files (does not work yet)
-      Serial.print("Store "); Serial.println(store);
-      mtpd.send_StorageInfoChangedEvent(store);
-    }
-    if (ch == 'x')
-    {
-      Serial.println("Delete Files");
-      static int next_file_index_to_delete = 100;
-      uint32_t store = storage.getStoreID("RAM1");
-      for (int ii = 0; ii < 10; ii++)
-      { char filename[80];
-        sprintf(filename, "/test_%d.txt", next_file_index_to_delete++);
-        Serial.println(filename);
-        if (ramfs[0].remove(filename))
+      case 'a':
         {
-          mtpd.send_removeObjectEvent(store, filename);
+          Serial.println("Add Files");
+          static int next_file_index_to_add = 100;
+          uint32_t store = storage.getStoreID("RAM1");
+          for (int ii = 0; ii < 10; ii++)
+          { char filename[80];
+            sprintf(filename, "/test_%d.txt", next_file_index_to_add++);
+            Serial.println(filename);
+            File file = ramfs[0].open(filename, FILE_WRITE_BEGIN);
+            file.println("This is a test line");
+            file.println("This is a test line");
+            file.println("This is a test line");
+            file.println("This is a test line");
+            file.println("This is a test line");
+            file.println("This is a test line");
+            file.println("This is a test line");
+            file.println("This is a test line");
+            file.println("This is a test line");
+            file.println("This is a test line");
+            file.close();
+            mtpd.send_addObjectEvent(store, filename);
+          }
+          //  Notify PC on added files
+          Serial.print("Store "); Serial.println(store);
+          mtpd.send_StorageInfoChangedEvent(store);
         }
-      }
-      // attempt to notify PC on added files (does not work yet)
-      Serial.print("Store "); Serial.println(store);
-      mtpd.send_StorageInfoChangedEvent(store);
-    }
+        break;
+      case 'x':
+        {
+          Serial.println("Delete Files");
+          static int next_file_index_to_delete = 100;
+          uint32_t store = storage.getStoreID("RAM1");
+          for (int ii = 0; ii < 10; ii++)
+          { char filename[80];
+            sprintf(filename, "/test_%d.txt", next_file_index_to_delete++);
+            Serial.println(filename);
+            if (ramfs[0].remove(filename))
+            {
+              mtpd.send_removeObjectEvent(store, filename);
+            }
+          }
+          // attempt to notify PC on added files (does not work yet)
+          Serial.print("Store "); Serial.println(store);
+          mtpd.send_StorageInfoChangedEvent(store);
+        }
+        break;
 #elif USE_SD==1
-    if (ch == 'a')
-    {
-      Serial.println("Add Files");
-      static int next_file_index_to_add = 100;
-      uint32_t store = storage.getStoreID("sdio");
-      for (int ii = 0; ii < 10; ii++)
-      { char filename[80];
-        sprintf(filename, "/test_%d.txt", next_file_index_to_add++);
-        Serial.println(filename);
-        File file = sdx[0].open(filename, FILE_WRITE_BEGIN);
-        file.println("This is a test line");
-        file.close();
-        mtpd.send_addObjectEvent(store, filename);
-      }
-      // attempt to notify PC on added files (does not work yet)
-      Serial.print("Store "); Serial.println(store);
-      mtpd.send_StorageInfoChangedEvent(store);
-    }
-    if (ch == 'x')
-    {
-      Serial.println("Delete Files");
-      static int next_file_index_to_delete = 100;
-      uint32_t store = storage.getStoreID("sdio");
-      for (int ii = 0; ii < 10; ii++)
-      { char filename[80];
-        sprintf(filename, "/test_%d.txt", next_file_index_to_delete++);
-        Serial.println(filename);
-        if (sdx[0].remove(filename))
+      case'a':
         {
-          mtpd.send_removeObjectEvent(store, filename);
+          Serial.println("Add Files");
+          static int next_file_index_to_add = 100;
+          uint32_t store = storage.getStoreID("sdio");
+          for (int ii = 0; ii < 10; ii++)
+          { char filename[80];
+            sprintf(filename, "/test_%d.txt", next_file_index_to_add++);
+            Serial.println(filename);
+            File file = sdx[0].open(filename, FILE_WRITE_BEGIN);
+            file.println("This is a test line");
+            file.close();
+            mtpd.send_addObjectEvent(store, filename);
+          }
+          // attempt to notify PC on added files (does not work yet)
+          Serial.print("Store "); Serial.println(store);
+          mtpd.send_StorageInfoChangedEvent(store);
         }
+        break;
+      case 'x':
+        {
+          Serial.println("Delete Files");
+          static int next_file_index_to_delete = 100;
+          uint32_t store = storage.getStoreID("sdio");
+          for (int ii = 0; ii < 10; ii++)
+          { char filename[80];
+            sprintf(filename, "/test_%d.txt", next_file_index_to_delete++);
+            Serial.println(filename);
+            if (sdx[0].remove(filename))
+            {
+              mtpd.send_removeObjectEvent(store, filename);
+            }
+          }
+          // attempt to notify PC on added files (does not work yet)
+          Serial.print("Store "); Serial.println(store);
+          mtpd.send_StorageInfoChangedEvent(store);
+        }
+        break;
+#endif        
+      case 'e':
+        Serial.printf("Sending event: %x\n", storage_index);
+        mtpd.send_Event(storage_index);
+        break;
+      default:
+        // show list of commands.
+        Serial.println("\nCommands");
+        Serial.println("  r - Reset mtp connection");
+        Serial.println("  d - Dump storage list");
+        Serial.println("  a - Add some dummy files");
+        Serial.println("  x - delete dummy files");
+        Serial.println("  f - toggle storage format type");
+        Serial.println("  e <event> - Send some random event");
+        break;    
+
       }
-      // attempt to notify PC on added files (does not work yet)
-      Serial.print("Store "); Serial.println(store);
-      mtpd.send_StorageInfoChangedEvent(store);
     }
-#endif
   }
-#endif
-}

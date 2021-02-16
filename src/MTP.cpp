@@ -2045,6 +2045,12 @@ const uint16_t supported_events[] =
   { return send_Event(MTP_EVENT_OBJECT_REMOVED, p1); }
 
 
+  int  MTPD::send_StoreAddedEvent(uint32_t store)
+  {
+    return send_Event(MTP_EVENT_STORE_ADDED, Store2Storage(store));
+  }
+
+
   bool MTPD::send_addObjectEvent(uint32_t store, const char *pathname)
   {
     bool node_added = false;
