@@ -44,14 +44,8 @@ extern "C" 	int usb_mtp_sendEvent(const void *buffer, uint32_t len, uint32_t tim
 
 #define USE_EVENTS 1
 
-//#define MTP_SEND_OBJECT_SIMPLE 1
-//#define MTP_SEND_OBJECT_YIELD 1
 #define MTP_VERBOSE_PRINT_CONTAINER 1
 
-#if MTP_SEND_OBJECT_YIELD==1 && defined(__IMXRT1062__)
-// Note Currently only for T4.x
-#include <EventResponder.h>
-#endif
 
 extern "C" {
 extern volatile uint8_t usb_configuration;
@@ -105,38 +99,8 @@ private:
 
   static uint32_t sessionID_;
   static const uint32_t SENDOBJECT_READ_TIMEOUT_MS = 500; 
-#ifdef MTP_SEND_OBJECT_YIELD
-  // BUGBUG make larger buffers static and DMAMEM? 
-  static const uint32_t YIELD_WRITE_SIZE = (2*1024);  // How much should we write in the yield version?
-  static char disk_buffer_[DISK_BUFFER_SIZE] __attribute__ ((aligned(32)));
-  static uint8_t rx_data_buffer[MTP_RX_SIZE];
-  static uint32_t buffer_receive_index_;  // which buffer are we filling 1 or 2 ...
-  static uint32_t buffer_write_file_index_;
-//  static uint8_t *sendObject_buffer_ptr_;
-  static uint32_t total_bytes_written_;
-  static bool     read_on_yield_writes_;
-  static char  *secondary_sendObject_buffer_;
-  static uint32_t total_buffer_size_;
-  static uint32_t count_bytes_in_write_buffer_;
-
-  static EventResponder receive_eventresponder_;
-  static elapsedMicros receive_event_elaped_mills_;
-  static const uint32_t MAX_EVENT_RESPONDER_CYCLE =  4000; // max delay time between usb reads... to read in. 
-  static const uint32_t INIT_EVENT_RESPONDER_CYCLE =  500; // initial delay time between usb reads... to read in. 
-  static uint32_t event_responder_cycle_;
-  uint32_t sum_time_for_writes_;
-  uint32_t count_writes_;
-  
-  static uint32_t receive_count_remaining_;
-  static uint32_t receive_disk_pos_;
-  static void receive_event_handler(EventResponderRef evref);
-  bool checkAndReceiveNextUSBBuffer(char ch);
-  void writeNextSendObjectBuffer();
-#else
   uint8_t rx_data_buffer[MTP_RX_SIZE] __attribute__ ((aligned(32)));
   uint8_t disk_buffer_[DISK_BUFFER_SIZE] __attribute__ ((aligned(32)));
-
-#endif
 
 #endif
 
