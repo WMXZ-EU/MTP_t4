@@ -839,6 +839,86 @@ const uint16_t supported_events[] =
         return 0x2005;
     }
 
+    MTPD  *MTPD::g_pmtpd_interval = nullptr;
+    IntervalTimer MTPD::g_intervaltimer;
+
+    void MTPD::_interval_timer_handler()
+    {
+       if (g_pmtpd_interval) g_pmtpd_interval->processIntervalTimer();
+    }
+
+    void MTPD::processIntervalTimer()
+    {
+      usb_packet_t *receive_buffer;
+      if ((receive_buffer = usb_rx(MTP_RX_ENDPOINT))) {
+        printContainer();
+        
+          int op = CONTAINER->op;
+          int p1 = CONTAINER->params[0];
+          int id = CONTAINER->transaction_id;
+          int len= CONTAINER->len;
+          int typ= CONTAINER->type;
+          TID=id;
+
+        uint32_t return_code = 0;
+        if (receive_buffer->len >= 12) {
+          return_code = 0x2001;  // Ok
+          receive_buffer->len = 12;
+          
+          if (typ == 1) { // command
+            switch (op) {
+              default:
+                return_code = MTP_RESPONSE_DEVICE_BUSY;  // operation not supported
+                break;
+            }
+          } else {
+            return_code = 0x2000;  // undefined
+          }
+        }
+        if (return_code) {
+          CONTAINER->type=3;
+          CONTAINER->len=len;
+          CONTAINER->op=return_code;
+          CONTAINER->transaction_id=id;
+          CONTAINER->params[0]=p1;
+          #if DEBUG>1
+            printContainer();
+          #endif
+
+          usb_tx(MTP_TX_ENDPOINT, receive_buffer);
+          receive_buffer = 0;
+        } else {
+            usb_free(receive_buffer);
+        }
+      }
+    }
+
+    uint32_t MTPD::formatStore(uint32_t storage,uint32_t p2, bool post_process)
+    {
+      printf(" MTPD::formatStore called post:%u\n", post_process);
+      uint32_t store = Storage2Store(storage);
+      if (formatCB_ )
+      {
+        if (post_process)
+        {
+          g_pmtpd_interval = this;
+          printf("*** Start Interval Timer ***\n");
+          g_intervaltimer.begin(&_interval_timer_handler, 50000); // try maybe 20 times per second...
+        }
+        bool format_ok = (*formatCB_)(store, p2, post_process); 
+        if (post_process)
+        {
+          g_pmtpd_interval = nullptr;
+          g_intervaltimer.end(); // try maybe 20 times per second...
+          printf("*** end Interval Timer ***\n");
+          storage_->ResetIndex();  // maybe should add a less of sledge hammer here. 
+        }
+        return format_ok? MTP_RESPONSE_OK : MTP_RESPONSE_OPERATION_NOT_SUPPORTED;
+      }
+      return MTP_RESPONSE_OPERATION_NOT_SUPPORTED; // 0x2005
+    }
+
+
   void MTPD::loop(void) 
   {
     usb_packet_t *receive_buffer;
@@ -918,7 +998,7 @@ const uint16_t supported_events[] =
               SendObject();
               break;
             case 0x100F: // FormatStore
-              return_code = formatStore(p1, p2);
+              return_code = formatStore(p1, p2, false);
               break;
 
             case 0x1014:  // GetDevicePropDesc
@@ -982,6 +1062,17 @@ const uint16_t supported_events[] =
       } else {
           usb_free(receive_buffer);
       }
+      // Some operations may want to do some additional work after they send back a response
+      // so give them a chance here...
+      switch (op)
+      {
+        default:
+           break;
+        case 0x100F: // FormatStore
+            return_code = formatStore(p1, p2, true);
+            break;
+      }
+
     }
     // Maybe put event handling inside mtp_yield()?
     if ((receive_buffer = usb_rx(MTP_EVENT_ENDPOINT))) {
@@ -1539,80 +1630,6 @@ const uint16_t supported_events[] =
 
             switch (op)
             {
-#if 0              
-              case 0x1001:
-                TRANSMIT(WriteDescriptor());
-                break;
-
-              case 0x1002:  //open session
-                openSession(p1);
-                break;
-
-              case 0x1003:  // CloseSession
-                printf("MTPD::CloseSession\n");
-                sessionID_ = 0;   // 
-                break;
-
-              case 0x1004:  // GetStorageIDs
-                  TRANSMIT(WriteStorageIDs());
-                break;
-
-              case 0x1005:  // GetStorageInfo
-                TRANSMIT(GetStorageInfo(p1));
-                break;
-
-              case 0x1006:  // GetNumObjects
-                if (p2) 
-                {
-                    return_code = 0x2014; // spec by format unsupported
-                } else 
-                {
-                    p1 = GetNumObjects(p1, p3);
-                }
-                break;
-
-              case 0x1007:  // GetObjectHandles
-                if (p2) 
-                { return_code = 0x2014; // spec by format unsupported
-                } else 
-                { 
-                  TRANSMIT(GetObjectHandles(p1, p3));
-                }
-                break;
-
-              case 0x1008:  // GetObjectInfo
-                TRANSMIT(GetObjectInfo(p1));
-                break;
-
-              case 0x1009:  // GetObject
-                TRANSMIT(GetObject(p1));
-                break;
-
-
-              case 0x1014:  // GetDevicePropDesc
-                  TRANSMIT(GetDevicePropDesc(p1));
-                  break;
-
-              case 0x1015:  // GetDevicePropvalue
-                  TRANSMIT(GetDevicePropValue(p1));
-                  break;
-
-              case 0x9801:  // getObjectPropsSupported
-                  TRANSMIT(getObjectPropsSupported(p1));
-                  break;
-
-              case 0x9802:  // getObjectPropDesc
-                  TRANSMIT(getObjectPropDesc(p1,p2));
-                  break;
-
-              case 0x9803:  // getObjectPropertyValue
-                  TRANSMIT(getObjectPropValue(p1,p2));
-                  break;
-
-              case 0x9804:  // setObjectPropertyValue
-                  return_code = setObjectPropValue(p1,p2);
-                  break;
-#endif
               default:
                   return_code = MTP_RESPONSE_DEVICE_BUSY;  // operation not supported
                   break;

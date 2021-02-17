@@ -81,6 +81,7 @@ private:
   usb_packet_t *data_buffer_ = NULL;
   void get_buffer() ;
   void receive_buffer() ;
+  static uint32_t sessionID_;
 //  inline MTPContainer *contains (usb_packet_t *receive_buffer) { return (MTPContainer*)(receive_buffer->buf);  }
 // possible events for T3.xx ?
 

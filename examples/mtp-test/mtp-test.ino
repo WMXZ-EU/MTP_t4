@@ -55,6 +55,8 @@ void usb_mtp_configure(void) {}
 #define SD_MISO 12
 #define SD_SCK  13
 
+
+
 #define SPI_SPEED SD_SCK_MHZ(33)  // adjust to sd card 
 
 #if defined (BUILTIN_SDCARD)
@@ -67,7 +69,16 @@ const int cs[] = {10}; // edit to reflect your configuration
 const int nsd = sizeof(sd_str) / sizeof(const char *);
 
 SDClass sdx[nsd];
+
+// Code to detect if SD Card is inserted. 
 int  BUILTIN_SDCARD_missing_index = -1;
+#if defined(ARDUINO_TEENSY41)
+  #define _SD_DAT3 46
+#elif defined(ARDUINO_TEENSY40)
+  #define _SD_DAT3 38
+#elif defined(ARDUINO_TEENSY35) || defined(ARDUINO_TEENSY36)
+  #define _SD_DAT3 62
+#endif
 #endif
 
 //LittleFS classes
@@ -135,6 +146,10 @@ void storage_configure()
     if(!sdx[ii].sdfs.begin(SdioConfig(FIFO_SDIO)))
     { Serial.printf("SDIO Storage %d %d %s failed or missing",ii,cs[ii],sd_str[ii]);  Serial.println();
       BUILTIN_SDCARD_missing_index = ii;
+      #ifdef _SD_DAT3
+      // for now lets leave it in PULLDOWN state...
+      pinMode(_SD_DAT3, INPUT_PULLDOWN);
+      #endif
     }
     else
     {
@@ -460,17 +475,16 @@ uint32_t last_storage_index = (uint32_t)-1;
 //Checks if a Card is present:
 //- only when it is not in use! - 
 void checkForInsertedSDCard() {
-#if defined(ARDUINO_TEENSY41) && defined(USE_SD)
-  static const int _SD_DAT3 = 46;
+#ifdef _SD_DAT3
   if (BUILTIN_SDCARD_missing_index != -1)
   {
-    pinMode(_SD_DAT3, INPUT_PULLDOWN);
-    delayMicroseconds(5);
+   // delayMicroseconds(5);
     bool r = digitalReadFast(_SD_DAT3);
-    pinMode(_SD_DAT3, INPUT_DISABLE);
     if (r)
     {
-      // looks like SD Inserted.
+      // looks like SD Inserted. so disable the pin for now...
+      pinMode(_SD_DAT3, INPUT_DISABLE);
+
       delay(1);
       Serial.printf("\n*** SDIO Card Inserted ***");
       if(!sdx[BUILTIN_SDCARD_missing_index].sdfs.begin(SdioConfig(FIFO_SDIO)))
