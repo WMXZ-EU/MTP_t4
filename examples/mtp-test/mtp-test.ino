@@ -506,7 +506,10 @@ void checkForInsertedSDCard() {
         uint32_t store = storage.getStoreID(sd_str[BUILTIN_SDCARD_missing_index]);
         if (store != 0xFFFFFFFFUL) 
         {
-          mtpd.send_StorageInfoChangedEvent(store);
+          mtpd.send_StoreRemovedEvent(store);
+          delay(50);
+          //mtpd.send_StorageInfoChangedEvent(store);
+          mtpd.send_StoreAddedEvent(store);
 
         } else {
           // not in our list, try adding it

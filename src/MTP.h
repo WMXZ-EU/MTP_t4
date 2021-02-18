@@ -185,9 +185,9 @@ public:
   int send_addObjectEvent(uint32_t p1);
   int send_removeObjectEvent(uint32_t p1);
   int send_StorageInfoChangedEvent(uint32_t p1);
-  int send_StorageRemovedEvent(uint32_t p1);
   int send_DeviceResetEvent(void);
   int send_StoreAddedEvent(uint32_t store);
+  int send_StoreRemovedEvent(uint32_t store);
 
   // higer level version of sending events
   // unclear if should pass in pfs or store? 
