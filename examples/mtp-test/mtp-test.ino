@@ -149,6 +149,8 @@ void storage_configure()
       #ifdef _SD_DAT3
       // for now lets leave it in PULLDOWN state...
       pinMode(_SD_DAT3, INPUT_PULLDOWN);
+      // What happens if we add it and it failed to open?
+      //storage.addFilesystem(sdx[ii], sd_str[ii]);
       #endif
     }
     else
@@ -272,6 +274,14 @@ void storage_configure()
     uint64_t totalSize = qnspifs[ii].totalSize();
     uint64_t usedSize  = qnspifs[ii].usedSize();
     Serial.printf("Storage %d %s ",ii,qnspi_str[ii]); Serial.print(totalSize); Serial.print(" "); Serial.println(usedSize);
+  }
+#endif
+
+// Test to add missing SDCard to end of list if the card is missing.  We will update it later... 
+#if defined(BUILTIN_SDCARD) && defined(_SD_DAT3)
+  if (BUILTIN_SDCARD_missing_index != -1)
+  {
+      storage.addFilesystem(sdx[BUILTIN_SDCARD_missing_index], sd_str[BUILTIN_SDCARD_missing_index]);
   }
 #endif
 
@@ -492,14 +502,24 @@ void checkForInsertedSDCard() {
       }
       else
       {
-        uint32_t store = storage.addFilesystem(sdx[BUILTIN_SDCARD_missing_index], sd_str[BUILTIN_SDCARD_missing_index]);
+        // The SD is valid now... 
+        uint32_t store = storage.getStoreID(sd_str[BUILTIN_SDCARD_missing_index]);
+        if (store != 0xFFFFFFFFUL) 
+        {
+          mtpd.send_StorageInfoChangedEvent(store);
+
+        } else {
+          // not in our list, try adding it
+          store = storage.addFilesystem(sdx[BUILTIN_SDCARD_missing_index], sd_str[BUILTIN_SDCARD_missing_index]);
+          mtpd.send_StoreAddedEvent(store);
+        }
+
+
         uint64_t totalSize = sdx[BUILTIN_SDCARD_missing_index].totalSize();
         uint64_t usedSize  = sdx[BUILTIN_SDCARD_missing_index].usedSize();
         Serial.printf("SDIO Storage %d %d %s ",BUILTIN_SDCARD_missing_index,cs[BUILTIN_SDCARD_missing_index],sd_str[BUILTIN_SDCARD_missing_index]);
         Serial.print(totalSize); Serial.print(" "); Serial.println(usedSize);
 
-        // Try to send event
-        mtpd.send_StoreAddedEvent(store);
       }
       BUILTIN_SDCARD_missing_index = -1; // only try this once
     }
