@@ -15,6 +15,8 @@
 #define USE_LFS_NAND 1
 #define USE_LFS_QSPI_NAND 0
 #define USE_LFS_FRAM 0
+#define USE_MSC_FAT 0     // set to 1 experiment with MTP (USBHost.t36 + mscFS)
+
 extern "C" {
   extern uint8_t external_psram_size;
 }
@@ -48,7 +50,9 @@ void usb_mtp_configure(void) {}
 
 
 /****  Start device specific change area  ****/
+//=============================================================================
 // SDClasses
+//=============================================================================
 #if USE_SD==1
 // edit SPI to reflect your configuration (following is for T4.1)
 #define SD_MOSI 11
@@ -81,7 +85,10 @@ int  BUILTIN_SDCARD_missing_index = -1;
 #endif
 #endif
 
+//=============================================================================
 //LittleFS classes
+//=============================================================================
+
 #if USE_LFS_RAM==1
 const char *lfs_ram_str[] = {"RAM1", "RAM2"};  // edit to reflect your configuration
 const int lfs_ram_size[] = {200'000,4'000'000}; // edit to reflect your configuration
@@ -119,14 +126,34 @@ const int lfs_ram_size[] = {200'000,4'000'000}; // edit to reflect your configur
                             LittleFS_SPINAND nspifs[nspi_nsd]; // needs to be declared if LittleFS is used in storage.h
 #endif
 
+//=============================================================================
+// MSC FAT classes
+//=============================================================================
+#if USE_MSC_FAT == 1
+#if defined(__IMXRT1062__) || defined(ARDUINO_TEENSY36)
+#include <mscFS.h>
+USBHost myusb;
+USBHub hub1(myusb);
+USBHub hub2(myusb);
+
+// start off with one controller. 
+msController msDrive1(myusb);
+
+
+#else 
+// Only those Teensy support USB
+#warning "Only Teensy 3.6 and 4.x support MSC"
+#endif
+#endif
+//=============================================================================
+// Global defines
+//=============================================================================
+
 
                             MTPStorage_SD storage;
                             MTPD    mtpd(&storage);
 
-                            char *send_object_buffer = nullptr;
-                            uint32_t send_object_buffer_size = 0;
-#define SEND_BUFFER_SIZE_EXTMEM 1048576  // 1mb to start?
-#define SEND_BUFFER_SIZE_DMAMEM 131072  // 128KB?  // Need to experiment...
+
 
 //=============================================================================
 void storage_configure()
@@ -268,12 +295,30 @@ void storage_configure()
     }
     else
     {
-    {Serial.println("No storage"); while(1);}
-    storage.addFilesystem(qnspifs[ii], qnspi_str[ii]);
+      storage.addFilesystem(qnspifs[ii], qnspi_str[ii]);
 
-    uint64_t totalSize = qnspifs[ii].totalSize();
-    uint64_t usedSize  = qnspifs[ii].usedSize();
-    Serial.printf("Storage %d %s ",ii,qnspi_str[ii]); Serial.print(totalSize); Serial.print(" "); Serial.println(usedSize);
+      uint64_t totalSize = qnspifs[ii].totalSize();
+      uint64_t usedSize  = qnspifs[ii].usedSize();
+      Serial.printf("Storage %d %s ",ii,qnspi_str[ii]); Serial.print(totalSize); Serial.print(" "); Serial.println(usedSize);
+  }
+#endif
+
+// Start USBHost_t36, HUB(s) and USB devices.
+#if USE_MSC_FAT == 1
+  myusb.begin();
+
+  Serial.print("\nInitializing USB MSC drive...");
+
+  if (!MSC.begin(&msDrive1))
+    { Serial.printf("MSC Storage failed or missing"); Serial.println();
+    }
+    else
+    {
+      storage.addFilesystem(MSC, "MSC");
+      uint64_t totalSize = MSC.totalSize();
+      uint64_t usedSize  = MSC.usedSize();
+      Serial.printf("Storage MSC "); Serial.print(totalSize); Serial.print(" "); Serial.println(usedSize);
+    return;
   }
 #endif
 
@@ -416,6 +461,7 @@ void setup()
   usb_mtp_configure();
 #endif
   storage_configure();
+
 
 #if USE_SD==1
   // Set Time callback // needed for SDFat
