@@ -15,7 +15,7 @@
 #define USE_LFS_NAND 1
 #define USE_LFS_QSPI_NAND 0
 #define USE_LFS_FRAM 0
-#define USE_MSC_FAT 0     // set to 1 experiment with MTP (USBHost.t36 + mscFS)
+#define USE_MSC_FAT 2     // set to > 0 experiment with MTP (USBHost.t36 + mscFS)
 
 extern "C" {
   extern uint8_t external_psram_size;
@@ -129,7 +129,7 @@ const int lfs_ram_size[] = {200'000,4'000'000}; // edit to reflect your configur
 //=============================================================================
 // MSC FAT classes
 //=============================================================================
-#if USE_MSC_FAT == 1
+#if USE_MSC_FAT > 0
 #if defined(__IMXRT1062__) || defined(ARDUINO_TEENSY36)
 #include <mscFS.h>
 USBHost myusb;
@@ -137,7 +137,9 @@ USBHub hub1(myusb);
 USBHub hub2(myusb);
 
 // start off with one controller. 
-msController msDrive1(myusb);
+msController msDrive[USE_MSC_FAT](myusb);
+MSCClass msc[USE_MSC_FAT];
+char *nmsc_str[USE_MSC_FAT] = {nullptr};
 
 
 #else 
@@ -304,21 +306,27 @@ void storage_configure()
 #endif
 
 // Start USBHost_t36, HUB(s) and USB devices.
-#if USE_MSC_FAT == 1
+#if USE_MSC_FAT > 0
+  char msc_drive_name[8];  // probably don't need more than 5 MSC1<cr>
   myusb.begin();
 
-  Serial.print("\nInitializing USB MSC drive...");
+  Serial.println("\nInitializing USB MSC drives...");
 
-  if (!MSC.begin(&msDrive1))
-    { Serial.printf("MSC Storage failed or missing"); Serial.println();
-    }
-    else
-    {
-      storage.addFilesystem(MSC, "MSC");
-      uint64_t totalSize = MSC.totalSize();
-      uint64_t usedSize  = MSC.usedSize();
-      Serial.printf("Storage MSC "); Serial.print(totalSize); Serial.print(" "); Serial.println(usedSize);
-    return;
+  for (int ii = 0; ii < USE_MSC_FAT; ii++) {
+    int cb = snprintf(msc_drive_name, sizeof(msc_drive_name), "MSC%d", ii);
+    nmsc_str[ii] = (char*)malloc (cb+1);
+    strcpy(nmsc_str[ii], msc_drive_name);
+
+    if (!msc[ii].begin(&msDrive[ii]))
+      { Serial.printf("MSC Storage %s failed or missing", nmsc_str[ii]); Serial.println();
+      }
+      else
+      {
+        storage.addFilesystem(msc[ii], nmsc_str[ii]);
+        uint64_t totalSize = msc[ii].totalSize();
+        uint64_t usedSize  = msc[ii].usedSize();
+        Serial.printf("Storage %s ", nmsc_str[ii]); Serial.print(totalSize); Serial.print(" "); Serial.println(usedSize);
+      }
   }
 #endif
 
@@ -482,7 +490,7 @@ void setup()
 #if USE_LFS_RAM==1
   for (int ii = 0; ii < 10; ii++)
   { char filename[80];
-    sprintf(filename, "/test_%d.txt", ii);
+    snprintf(filename, sizeof(filename), "/test_%d.txt", ii);
     File file = ramfs[0].open(filename, FILE_WRITE_BEGIN);
     file.println("This is a test line");
     file.close();
@@ -490,7 +498,7 @@ void setup()
   ramfs[0].mkdir("Dir0");
   for (int ii = 0; ii < 10; ii++)
   { char filename[80];
-    sprintf(filename, "/Dir0/test_%d.txt", ii);
+    snprintf(filename, sizeof(filename), "/Dir0/test_%d.txt", ii);
     File file = ramfs[0].open(filename, FILE_WRITE_BEGIN);
     file.println("This is a test line");
     file.close();
@@ -498,7 +506,7 @@ void setup()
   ramfs[0].mkdir("Dir0/dir1");
   for (int ii = 0; ii < 10; ii++)
   { char filename[80];
-    sprintf(filename, "/Dir0/dir1/test_%d.txt", ii);
+    snprintf(filename, sizeof(filename), "/Dir0/dir1/test_%d.txt", ii);
     File file = ramfs[0].open(filename, FILE_WRITE_BEGIN);
     file.println("This is a test line");
     file.close();
@@ -665,7 +673,7 @@ void loop()
           uint32_t store = storage.getStoreID("RAM1");
           for (int ii = 0; ii < 10; ii++)
           { char filename[80];
-            sprintf(filename, "/test_%d.txt", next_file_index_to_add++);
+            snprintf(filename, sizeof(filename),"/test_%d.txt", next_file_index_to_add++);
             Serial.println(filename);
             File file = ramfs[0].open(filename, FILE_WRITE_BEGIN);
             file.println("This is a test line");
@@ -693,7 +701,7 @@ void loop()
           uint32_t store = storage.getStoreID("RAM1");
           for (int ii = 0; ii < 10; ii++)
           { char filename[80];
-            sprintf(filename, "/test_%d.txt", next_file_index_to_delete++);
+            snprintf(filename, sizeof(filename), "/test_%d.txt", next_file_index_to_delete++);
             Serial.println(filename);
             if (ramfs[0].remove(filename))
             {
@@ -713,7 +721,7 @@ void loop()
           uint32_t store = storage.getStoreID("sdio");
           for (int ii = 0; ii < 10; ii++)
           { char filename[80];
-            sprintf(filename, "/test_%d.txt", next_file_index_to_add++);
+            snprintf(filename, sizeof(filename), "/test_%d.txt", next_file_index_to_add++);
             Serial.println(filename);
             File file = sdx[0].open(filename, FILE_WRITE_BEGIN);
             file.println("This is a test line");
@@ -732,7 +740,7 @@ void loop()
           uint32_t store = storage.getStoreID("sdio");
           for (int ii = 0; ii < 10; ii++)
           { char filename[80];
-            sprintf(filename, "/test_%d.txt", next_file_index_to_delete++);
+            snprintf(filename, sizeof(filename), "/test_%d.txt", next_file_index_to_delete++);
             Serial.println(filename);
             if (sdx[0].remove(filename))
             {
