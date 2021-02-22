@@ -58,6 +58,17 @@ class mSD_Base
       return 0xFFFFFFFFUL;  // no room left
     }
 
+    bool sd_removeFilesystem(uint32_t store)
+    {
+      if ((store < (uint32_t)fsCount) && (sd_name[store])) {
+        sd_name[store] = nullptr;
+        sdx[store] = nullptr;
+        return true;
+      }
+      return false;;
+
+    }
+
     uint32_t sd_getStoreID( const char *name)
     {
       for(int ii=0; ii<fsCount;ii++) if(!strcmp(name,sd_name[ii])) return ii;
@@ -102,6 +113,7 @@ class mSD_Base
 class MTPStorageInterface {
 public:
   virtual uint32_t addFilesystem(FS &filesystem, const char *name)=0;
+  virtual bool removeFilesystem(uint32_t storage)=0;
   virtual uint32_t get_FSCount(void) = 0;
   virtual const char *get_FSName(uint32_t storage) = 0;
 
@@ -158,6 +170,7 @@ class MTPStorage_SD : public MTPStorageInterface, mSD_Base
 { 
 public:
   uint32_t addFilesystem(FS &fs, const char *name) {return sd_addFilesystem(fs, name);}
+  bool removeFilesystem(uint32_t storage) {return sd_removeFilesystem(storage);}
   void dumpIndexList(void);
   uint32_t getStoreID(const char *name) {return sd_getStoreID(name);}
   uint32_t getFSCount(void) {return sd_getFSCount();}

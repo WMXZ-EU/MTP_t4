@@ -140,11 +140,12 @@ USBHub hub2(myusb);
 msController msDrive[USE_MSC_FAT](myusb);
 MSCClass msc[USE_MSC_FAT];
 char *nmsc_str[USE_MSC_FAT] = {nullptr};
-
+uint32_t msc_storage_index[USE_MSC_FAT] = {(uint32_t)-1};
 
 #else 
 // Only those Teensy support USB
 #warning "Only Teensy 3.6 and 4.x support MSC"
+#define USE_MSC_FAT 0
 #endif
 #endif
 //=============================================================================
@@ -317,15 +318,19 @@ void storage_configure()
     nmsc_str[ii] = (char*)malloc (cb+1);
     strcpy(nmsc_str[ii], msc_drive_name);
 
-    if (!msc[ii].begin(&msDrive[ii]))
-      { Serial.printf("MSC Storage %s failed or missing", nmsc_str[ii]); Serial.println();
-      }
-      else
-      {
-        storage.addFilesystem(msc[ii], nmsc_str[ii]);
-        uint64_t totalSize = msc[ii].totalSize();
-        uint64_t usedSize  = msc[ii].usedSize();
-        Serial.printf("Storage %s ", nmsc_str[ii]); Serial.print(totalSize); Serial.print(" "); Serial.println(usedSize);
+    msc_storage_index[ii] = (uint32_t)-1;
+    if (msDrive[ii]) 
+    {
+      if (!msc[ii].begin(&msDrive[ii]))
+        { Serial.printf("MSC Storage %s failed or missing", nmsc_str[ii]); Serial.println();
+        }
+        else
+        {
+          msc_storage_index[ii] = storage.addFilesystem(msc[ii], nmsc_str[ii]);
+          uint64_t totalSize = msc[ii].totalSize();
+          uint64_t usedSize  = msc[ii].usedSize();
+          Serial.printf("Storage %i %s ", ii, nmsc_str[ii]); Serial.print(totalSize); Serial.print(" "); Serial.println(usedSize);
+        }
       }
   }
 #endif
@@ -538,7 +543,63 @@ uint32_t last_storage_index = (uint32_t)-1;
 
 //Checks if a Card is present:
 //- only when it is not in use! - 
-void checkForInsertedSDCard() {
+#if USE_MSC_FAT > 0
+//------------------------------------------------------------------------------
+// Check for a connected USB drive and try to mount if not mounted.
+bool driveAvailable(msController *pDrive,MSCClass *mscVol) {
+  if(pDrive->checkConnectedInitialized()) {
+    return false; // No USB Drive connected, give up!
+  }
+  if(!mscVol->mscfs.fatType()) {  // USB drive present try mount it.
+    if (!mscVol->mscfs.begin(pDrive)) {
+      mscVol->mscfs.initErrorPrint(&Serial); // Could not mount it print reason.
+      return false;
+    }
+  }
+  return true;
+}
+
+#endif
+
+void checkUSBandSDIOStatus() {
+#if USE_MSC_FAT > 0
+  bool usb_drive_changed_state = false;
+  myusb.Task(); // make sure we are up to date.
+  for (int ii = 0; ii < USE_MSC_FAT; ii++)
+  {
+    USBDriver *pdriver = &msDrive[ii];
+    if (*pdriver) 
+    {
+      if (msc_storage_index[ii] == (uint32_t)-1) 
+      {
+        // lets try to add this storage...
+        Serial.println("USB Drive Inserted");
+        if (msc[ii].begin(&msDrive[ii]))
+        {
+          msc_storage_index[ii] = storage.addFilesystem(msc[ii], nmsc_str[ii]);
+          uint64_t totalSize = msc[ii].totalSize();
+          uint64_t usedSize  = msc[ii].usedSize();
+          Serial.printf("new Storage %d %s ", ii, nmsc_str[ii]); Serial.print(totalSize); Serial.print(" "); Serial.println(usedSize);
+          usb_drive_changed_state = true;
+          mtpd.send_StoreAddedEvent(msc_storage_index[ii]);
+        }
+      }
+
+    } else if (msc_storage_index[ii] != (uint32_t)-1) {
+        mtpd.send_StoreRemovedEvent(msc_storage_index[ii]);
+        storage.removeFilesystem(msc_storage_index[ii]);
+        msc_storage_index[ii] = (uint32_t)-1;
+        usb_drive_changed_state = true;
+
+    }
+  }
+
+  if (usb_drive_changed_state) {
+    delay(10); // give some time to handle previous one
+    mtpd.send_DeviceResetEvent();
+  }
+#endif
+
 #ifdef _SD_DAT3
   if (BUILTIN_SDCARD_missing_index != -1)
   {
@@ -589,7 +650,7 @@ void loop()
 
   mtpd.loop();
 
-  checkForInsertedSDCard();
+  checkUSBandSDIOStatus();
 
   if (Serial.available())
   {
