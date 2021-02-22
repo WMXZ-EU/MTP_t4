@@ -350,9 +350,20 @@ const uint16_t supported_events[] =
   }
 
   void MTPD::WriteStorageIDs() {
+
     uint32_t num=storage_->get_FSCount();
-    write32(num); // number of storages (disks)
-    for(uint32_t ii=0;ii<num;ii++)  write32(Store2Storage(ii)); // storage id
+
+    // Quick and dirty, we maybe allow some storages to be removed, lets loop through
+    // and see if there are any...
+    uint32_t num_valid = 0;
+    for(uint32_t ii=0;ii<num;ii++) {
+      if (storage_->get_FSName(ii)) num_valid++; // storage id
+    }
+
+    write32(num_valid); // number of storages (disks)
+    for(uint32_t ii=0;ii<num;ii++) {
+      if (storage_->get_FSName(ii)) write32(Store2Storage(ii)); // storage id
+    }
   }
 
   void MTPD::GetStorageInfo(uint32_t storage) {
