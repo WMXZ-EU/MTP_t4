@@ -381,9 +381,11 @@ const uint16_t supported_events[] =
     write32(0xFFFFFFFFUL);  // free space (objects)
     const char *name = storage_->get_FSName(store);
     writestring(name);  // storage descriptor
-    writestring("");  // volume identifier
+    const char *volumeID = storage_->get_volumeID(store);
 
-    //printf("%d %d ",storage,store); Serial.println(name); Serial.flush();
+    writestring(volumeID);  // volume identifier
+
+    printf("%d %d name:%s vol:%s\n",storage,store, name, volumeID);
   }
 
   uint32_t MTPD::GetNumObjects(uint32_t storage, uint32_t parent) 

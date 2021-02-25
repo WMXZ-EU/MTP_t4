@@ -48,9 +48,10 @@ class mSD_Base
       fsCount = 0;
     }
 
-    uint32_t sd_addFilesystem(FS &fs, const char *name) {
+    uint32_t sd_addFilesystem(FS &fs, const char *name, const char *volumeID) {
       if (fsCount < MTPD_MAX_FILESYSTEMS) {
         sd_name[fsCount] = name;
+        sd_volumeID[fsCount] = volumeID;
         sdx[fsCount] = &fs;
         Serial.printf("sd_addFilesystem: %d %x %s\n", fsCount, (uint32_t)&fs, name);
         return fsCount++;
@@ -62,6 +63,7 @@ class mSD_Base
     {
       if ((store < (uint32_t)fsCount) && (sd_name[store])) {
         sd_name[store] = nullptr;
+        sd_volumeID[store] = nullptr;
         sdx[store] = nullptr;
         return true;
       }
@@ -80,6 +82,12 @@ class mSD_Base
       if (store < (uint32_t)fsCount) return sd_name[store];
       return nullptr;
     } 
+    const char *sd_getVolumeID(uint32_t store)
+    {
+      if (store >= (uint32_t)fsCount) return nullptr;
+
+      return sd_volumeID[store]? sd_volumeID[store] : "";
+    }
 
     FS*  sd_getStoreFS(uint32_t store)
     {
@@ -105,6 +113,7 @@ class mSD_Base
   private:
     int fsCount;
     const char *sd_name[MTPD_MAX_FILESYSTEMS];
+    const char *sd_volumeID[MTPD_MAX_FILESYSTEMS];
     FS *sdx[MTPD_MAX_FILESYSTEMS];
 };
 
@@ -112,10 +121,11 @@ class mSD_Base
 // We'll need to give the MTP responder a pointer to one of these.
 class MTPStorageInterface {
 public:
-  virtual uint32_t addFilesystem(FS &filesystem, const char *name)=0;
+  virtual uint32_t addFilesystem(FS &filesystem, const char *name, const char *volumeID=nullptr)=0;
   virtual bool removeFilesystem(uint32_t storage)=0;
   virtual uint32_t get_FSCount(void) = 0;
   virtual const char *get_FSName(uint32_t storage) = 0;
+  virtual const char *get_volumeID(uint32_t storage) = 0;
 
   virtual uint64_t totalSize(uint32_t storage) = 0;
   virtual uint64_t usedSize(uint32_t storage) = 0;
@@ -169,11 +179,12 @@ public:
 class MTPStorage_SD : public MTPStorageInterface, mSD_Base
 { 
 public:
-  uint32_t addFilesystem(FS &fs, const char *name) {return sd_addFilesystem(fs, name);}
+  uint32_t addFilesystem(FS &fs, const char *name, const char *volumeID=nullptr) {return sd_addFilesystem(fs, name, volumeID);}
   bool removeFilesystem(uint32_t storage) {return sd_removeFilesystem(storage);}
   void dumpIndexList(void);
   uint32_t getStoreID(const char *name) {return sd_getStoreID(name);}
   uint32_t getFSCount(void) {return sd_getFSCount();}
+  const char *get_volumeID(uint32_t store) {return sd_getVolumeID(store);}
   const char *getStoreName(uint32_t store) {return sd_getStoreName(store);} 
   FS* getStoreFS(uint32_t store) {return sd_getStoreFS(store);}
   uint32_t openFileIndex(void) {return open_file_;}
