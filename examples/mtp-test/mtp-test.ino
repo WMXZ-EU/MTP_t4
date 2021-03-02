@@ -16,6 +16,7 @@
 #define USE_LFS_QSPI_NAND 0
 #define USE_LFS_FRAM 0
 #define USE_MSC_FAT 2     // set to > 0 experiment with MTP (USBHost.t36 + mscFS)
+#define USE_MSC_FAT_VOL 8 // Max MSC FAT Volumes. 
 
 extern "C" {
   extern uint8_t external_psram_size;
@@ -136,14 +137,23 @@ USBHost myusb;
 USBHub hub1(myusb);
 USBHub hub2(myusb);
 
+#ifndef USE_MSC_FAT_VOL 
+#define USE_MSC_FAT_VOL USE_MSC_FAT
+#endif
+
+
 // start off with one controller. 
 msController msDrive[USE_MSC_FAT](myusb);
+bool msDrive_previous[USE_MSC_FAT]; // Was this drive there the previous time through?
 MSCClass msc[USE_MSC_FAT];
-char *nmsc_str[USE_MSC_FAT] = {nullptr};
-uint32_t msc_storage_index[USE_MSC_FAT] = {(uint32_t)-1};
-char msc_volume_names[USE_MSC_FAT][20]= {"", ""};
-extern bool mbrDmp(UsbFs *myMsc);
+char  nmsc_str[USE_MSC_FAT_VOL][20];
+
+uint16_t msc_storage_index[USE_MSC_FAT_VOL];
+uint8_t msc_drive_index[USE_MSC_FAT_VOL]; // probably can find easy way not to need this.
+
+extern bool mbrDmp(msController *pdrv);
 extern bool getUSBPartitionVolumeLabel(UsbFs *myMsc, uint8_t part, char *pszVolName, uint16_t cb);
+extern void checkUSBandSDIOStatus(bool fInit);
 
 #else 
 // Only those Teensy support USB
@@ -311,36 +321,8 @@ void storage_configure()
 
 // Start USBHost_t36, HUB(s) and USB devices.
 #if USE_MSC_FAT > 0
-  char msc_drive_name[8];  // probably don't need more than 5 MSC1<cr>
-  myusb.begin();
-
   Serial.println("\nInitializing USB MSC drives...");
-
-  for (int ii = 0; ii < USE_MSC_FAT; ii++) {
-    int cb = snprintf(msc_drive_name, sizeof(msc_drive_name), "MSC%d", ii);
-    nmsc_str[ii] = (char*)malloc (cb+1);
-    strcpy(nmsc_str[ii], msc_drive_name);
-
-    msc_storage_index[ii] = (uint32_t)-1;
-    if (msDrive[ii]) 
-    {
-      if (!msc[ii].begin(&msDrive[ii]))
-        { Serial.printf("MSC Storage %s failed or missing", nmsc_str[ii]); Serial.println();
-        }
-        else
-        {
-          mbrDmp(&msc[ii].mscfs);
-          if (getUSBPartitionVolumeLabel(&msc[ii].mscfs,1, msc_volume_names[ii], sizeof(msc_volume_names[ii]))) {
-            Serial.printf(">> USB partition 0 valume ID: %s\n", msc_volume_names[ii]);
-          }
-
-          msc_storage_index[ii] = storage.addFilesystem(msc[ii], nmsc_str[ii], msc_volume_names[ii]);
-          uint64_t totalSize = msc[ii].totalSize();
-          uint64_t usedSize  = msc[ii].usedSize();
-          Serial.printf("Storage %i %s ", ii, nmsc_str[ii]); Serial.print(totalSize); Serial.print(" "); Serial.println(usedSize);
-        }
-      }
-  }
+  checkUSBandSDIOStatus(true);
 #endif
 
 // Test to add missing SDCard to end of list if the card is missing.  We will update it later... 
@@ -461,16 +443,22 @@ void dateTime(uint16_t* date, uint16_t* time, uint8_t* ms10)
 void setup()
 {
   // setup debug pins.
+#if USE_MSC_FAT > 0
+  // let msusb stuff startup as soon as possible
+  myusb.begin();
+#endif 
   for (uint8_t pin = 20; pin < 24; pin++) {
     pinMode(pin, OUTPUT);
     digitalWriteFast(pin, LOW);
   }
 
+
+
 #if defined(USB_MTPDISK_SERIAL)
   while (!Serial); // comment if you do not want to wait for terminal
 #else
   //while(!Serial.available()); // comment if you do not want to wait for terminal (otherwise press any key to continue)
-  while (!Serial.available() && millis() < 5000); // or third option to wait up to 5 seconds and then continue
+  while (!Serial && !Serial.available() && millis() < 5000) myusb.task(); // or third option to wait up to 5 seconds and then continue
 #endif
   Serial.println("MTP_test");
 
@@ -552,84 +540,52 @@ uint32_t last_storage_index = (uint32_t)-1;
 //Checks if a Card is present:
 //- only when it is not in use! - 
 #if USE_MSC_FAT > 0
-bool getUSBPartitionVolumeLabel(UsbFs *myMsc, uint8_t part, char *pszVolName, uint16_t cb) {
-  MbrSector_t mbr;
+bool getPartitionVolumeLabel(PFsVolume &partVol, uint8_t *pszVolName, uint16_t cb) {
   uint8_t buf[512];
   if (!pszVolName || (cb < 12)) return false; // don't want to deal with it
-  myMsc->usbDrive()->readSector(0, (uint8_t*)&mbr);
-  MbrPart_t *pt = &mbr.part[part - 1];
-  switch (pt->type) {
-    case 4:
-    case 6:
-    case 0xe:
+
+  PFsFile root;
+  if (!root.openRoot(&partVol)) return false;
+  root.read(buf, 32);
+  //print_hexbytes(buf, 32);
+
+  switch (partVol.fatType())
+  {
+    case FAT_TYPE_FAT12:
+    case FAT_TYPE_FAT16:
+    case FAT_TYPE_FAT32:
       {
-        FatVolume partVol;
-        Serial.print("FAT16:\t");
-
-        partVol.begin(myMsc->usbDrive(), true, part);
-        partVol.chvol();
-        myMsc->usbDrive()->readSector(partVol.rootDirStart(), buf);
-
+        DirFat_t *dir;
+        dir = reinterpret_cast<DirFat_t*>(buf);
+        if ((dir->attributes & 0x08) == 0) return false; // not a directory...
         size_t i;
         for (i = 0; i < 11; i++) {
-          pszVolName[i]  = buf[i];
+          pszVolName[i]  = dir->name[i];
         }
         while ((i > 0) && (pszVolName[i - 1] == ' ')) i--; // trim off trailing blanks
         pszVolName[i] = 0;
       }
       break;
-    case 11:
-    case 12:
+    case FAT_TYPE_EXFAT:
       {
-        FatVolume partVol;
-        Serial.print("FAT32:\t");
-        partVol.begin(myMsc->usbDrive(), true, part);
-        partVol.chvol();
-        myMsc->usbDrive()->readSector(partVol.dataStartSector(), buf);
-
-        size_t i;
-        for (i = 0; i < 11; i++) {
-          pszVolName[i]  = buf[i];
-        }
-        while ((i > 0) && (pszVolName[i - 1] == ' ')) i--; // trim off trailing blanks
-        pszVolName[i] = 0;
-      }
-      break;
-    case 7:
-      {
-        Serial.print("exFAT:\t");
-        ExFatFile root;
         DirLabel_t *dir;
-
-        ExFatVolume expartVol;
-
-        expartVol.begin(myMsc->usbDrive(), true, part);
-        expartVol.chvol();
-        if (!root.openRoot(&expartVol)) {
-          Serial.println("openRoot failed");
-          return false;
-        }
-        root.read(buf, 32);
         dir = reinterpret_cast<DirLabel_t*>(buf);
-
+        if (dir->type != EXFAT_TYPE_LABEL) return false; // not a label?
         size_t i;
         for (i = 0; i < dir->labelLength; i++) {
           pszVolName[i] = dir->unicode[2 * i];
         }
         pszVolName[i] = 0;
       }
-
       break;
-    default:
-      return false;
   }
   return true;
 }
 
-bool mbrDmp(UsbFs *myMsc) {
+bool mbrDmp(msController *pdrv) {
   MbrSector_t mbr;
   // bool valid = true;
-  if (!myMsc->usbDrive()->readSector(0, (uint8_t*)&mbr)) {
+  if (pdrv->msReadBlocks(0, 1, 512, (uint8_t*)&mbr)) {
     Serial.print("\nread MBR failed.\n");
     //errorPrint();
     return false;
@@ -696,48 +652,80 @@ bool driveAvailable(msController *pDrive,MSCClass *mscVol) {
 
 #endif
 
-void checkUSBandSDIOStatus() {
+void checkUSBandSDIOStatus(bool fInit) {
 #if USE_MSC_FAT > 0
   bool usb_drive_changed_state = false;
   myusb.Task(); // make sure we are up to date.
-  for (int ii = 0; ii < USE_MSC_FAT; ii++)
-  {
-    USBDriver *pdriver = &msDrive[ii];
-    if (*pdriver) 
-    {
-      if (msc_storage_index[ii] == (uint32_t)-1) 
-      {
-        // lets try to add this storage...
-        Serial.println("USB Drive Inserted");
-        if (msc[ii].begin(&msDrive[ii]))
-        {
-          // experiment to see if we can get some additional information. 
-          mbrDmp(&msc[ii].mscfs);
-          if (getUSBPartitionVolumeLabel(&msc[ii].mscfs,1, msc_volume_names[ii], sizeof(msc_volume_names[ii]))) {
-            Serial.printf(">> USB partition 0 valume ID: %s\n", msc_volume_names[ii]);
-          }
+  if (fInit) {
+    // make sure all of the indexes are -1..
+    for (int ii = 0; ii < USE_MSC_FAT_VOL; ii++) {msc_storage_index[ii] = (uint16_t)-1; msc_drive_index[ii] = -1;}
+    for (int ii = 0; ii < USE_MSC_FAT; ii++)  msDrive_previous[ii] = false;
+  }
 
-          msc_storage_index[ii] = storage.addFilesystem(msc[ii], nmsc_str[ii], msc_volume_names[ii]);
-          elapsedMicros emmicro = 0;
-          uint64_t totalSize = msc[ii].totalSize();
-          uint32_t elapsed_totalSize = emmicro;
-          uint64_t usedSize  = msc[ii].usedSize();
-          Serial.printf("new Storage %d %s %llu(%u) %llu(%u)\n", ii, nmsc_str[ii], totalSize, elapsed_totalSize, usedSize, (uint32_t)emmicro - elapsed_totalSize); 
-          usb_drive_changed_state = true;
-          mtpd.send_StoreAddedEvent(msc_storage_index[ii]);
+  for (int index_usb_drive = 0; index_usb_drive < USE_MSC_FAT; index_usb_drive++)
+  {
+    msController *pdriver = &msDrive[index_usb_drive];
+    if (*pdriver != msDrive_previous[index_usb_drive]) {
+      // Drive status changed.
+      msDrive_previous[index_usb_drive] = *pdriver;
+      usb_drive_changed_state = true; // something changed
+      if (*pdriver) 
+      {
+        Serial.println("USB Drive Inserted");
+        mbrDmp(pdriver);
+
+        // Now lets see if we can iterate over all of the possible parititions of this drive
+        for (int index_drive_partition=1; index_drive_partition < 5; index_drive_partition++) {
+          // lets see if we can find an available msc object to use... 
+          for (int index_msc = 0; index_msc < USE_MSC_FAT_VOL; index_msc++) {
+            if (msc_storage_index[index_msc] == (uint16_t)-1) 
+            {
+              // lets try to open a partition.
+              Serial.printf("  Try Partiton:%d on MSC Index:%d\n", index_drive_partition, index_msc);
+              if (msc[index_msc].begin(pdriver, false, index_drive_partition))
+              {
+                Serial.println("    ** SUCCEEDED **");
+                // now see if we can get the volume label.  
+                uint8_t volName[20];
+                if (getPartitionVolumeLabel(msc[index_msc].mscfs, volName, sizeof(volName))) {
+                  Serial.printf(">> USB partition %d valume ID: %s\n", index_drive_partition, volName);
+                  snprintf(nmsc_str[index_msc], sizeof(nmsc_str[index_msc]), "MSC%d-%s", index_usb_drive, volName);
+                } 
+                else snprintf(nmsc_str[index_msc], sizeof(nmsc_str[index_msc]), "MSC%d-%d", index_usb_drive, index_drive_partition);
+                msc_drive_index[index_msc] = index_usb_drive;
+                msc_storage_index[index_msc] = storage.addFilesystem(msc[index_msc], nmsc_str[index_msc]);
+#if 0
+                elapsedMicros emmicro = 0;
+                uint64_t totalSize = msc[index_usb_drive].totalSize();
+                uint32_t elapsed_totalSize = emmicro;
+                uint64_t usedSize  = msc[index_usb_drive].usedSize();
+                Serial.printf("new Storage %d %s %llu(%u) %llu(%u)\n", index_msc, nmsc_str[index_msc], totalSize, elapsed_totalSize, usedSize, (uint32_t)emmicro - elapsed_totalSize); 
+#endif                
+                if (!fInit) mtpd.send_StoreAddedEvent(msc_storage_index[index_msc]);
+              }
+              break;
+            }
+          }
         }
       }
-
-    } else if (msc_storage_index[ii] != (uint32_t)-1) {
-        mtpd.send_StoreRemovedEvent(msc_storage_index[ii]);
-        storage.removeFilesystem(msc_storage_index[ii]);
-        msc_storage_index[ii] = (uint32_t)-1;
-        usb_drive_changed_state = true;
-
+      else
+      {
+        // drive went away...
+        for (int index_msc = 0; index_msc < USE_MSC_FAT_VOL; index_msc++) {
+          // check for any indexes that were in use that were associated with that drive
+          // Don't need to check for fInit here as we wont be removing drives during init...
+          if (msc_drive_index[index_msc]== index_usb_drive) {
+            mtpd.send_StoreRemovedEvent(msc_storage_index[index_msc]);
+            storage.removeFilesystem(msc_storage_index[index_msc]);
+            msc_storage_index[index_msc] = (uint16_t)-1;
+            msc_drive_index[index_msc] = -1;
+        }
+        }
+      }
     }
   }
 
-  if (usb_drive_changed_state) {
+  if (usb_drive_changed_state && !fInit) {
     delay(10); // give some time to handle previous one
     mtpd.send_DeviceResetEvent();
   }
@@ -793,7 +781,7 @@ void loop()
 
   mtpd.loop();
 
-  checkUSBandSDIOStatus();
+  checkUSBandSDIOStatus(false);
 
   if (Serial.available())
   {
@@ -975,3 +963,23 @@ void loop()
       }
     }
   }
+  
+void dump_hexbytes(const void *ptr, int len)
+{
+  if (ptr == NULL || len <= 0) return;
+  const uint8_t *p = (const uint8_t *)ptr;
+  while (len) {
+    for (uint8_t i = 0; i < 32; i++) {
+      if (i > len) break;
+      Serial.printf("%02X ", p[i]);
+    }
+    Serial.print(":");
+    for (uint8_t i = 0; i < 32; i++) {
+      if (i > len) break;
+      Serial.printf("%c", ((p[i] >= ' ') && (p[i] <= '~')) ? p[i] : '.');
+    }
+    Serial.println();
+    p += 32;
+    len -= 32;
+  }
+}

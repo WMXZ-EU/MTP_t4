@@ -373,10 +373,13 @@ const uint16_t supported_events[] =
     write16(0x0000);   // access capability (read-write)
 
     uint64_t ntotal = storage_->totalSize(store) ; 
-    uint64_t nused = storage_->usedSize(store) ; 
 
     write64(ntotal);  // max capacity
-    write64((ntotal-nused));  // free space (100M)
+    // Quick test to see if not getting the used size on large disks helps us get them displayed...
+    if (ntotal < 3000000000UL) {
+      uint64_t nused = storage_->usedSize(store) ; 
+      write64((ntotal-nused));  // free space (100M)
+    } else write64(ntotal/2);  // free space - how about glass half empty or full
     //
     write32(0xFFFFFFFFUL);  // free space (objects)
     const char *name = storage_->get_FSName(store);
