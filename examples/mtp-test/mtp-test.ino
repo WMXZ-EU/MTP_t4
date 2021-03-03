@@ -15,7 +15,7 @@
 #define USE_LFS_NAND 1
 #define USE_LFS_QSPI_NAND 0
 #define USE_LFS_FRAM 0
-#define USE_MSC_FAT 2     // set to > 0 experiment with MTP (USBHost.t36 + mscFS)
+#define USE_MSC_FAT 3    // set to > 0 experiment with MTP (USBHost.t36 + mscFS)
 #define USE_MSC_FAT_VOL 8 // Max MSC FAT Volumes. 
 
 extern "C" {
@@ -145,7 +145,7 @@ USBHub hub2(myusb);
 // start off with one controller. 
 msController msDrive[USE_MSC_FAT](myusb);
 bool msDrive_previous[USE_MSC_FAT]; // Was this drive there the previous time through?
-MSCClass msc[USE_MSC_FAT];
+MSCClass msc[USE_MSC_FAT_VOL];
 char  nmsc_str[USE_MSC_FAT_VOL][20];
 
 uint16_t msc_storage_index[USE_MSC_FAT_VOL];
@@ -632,23 +632,6 @@ bool mbrDmp(msController *pdrv) {
   return true;
 }
 
-//------------------------------------------------------------------------------
-// Check for a connected USB drive and try to mount if not mounted.
-bool driveAvailable(msController *pDrive,MSCClass *mscVol) {
-  if(pDrive->checkConnectedInitialized()) {
-    return false; // No USB Drive connected, give up!
-  }
-  if(!mscVol->mscfs.fatType()) {  // USB drive present try mount it.
-    if (!mscVol->mscfs.begin(pDrive)) {
-      mscVol->mscfs.initErrorPrint(&Serial); // Could not mount it print reason.
-      return false;
-    }
-  }
-
-  return true;
-}
-
-
 
 #endif
 
@@ -688,7 +671,7 @@ void checkUSBandSDIOStatus(bool fInit) {
                 // now see if we can get the volume label.  
                 uint8_t volName[20];
                 if (getPartitionVolumeLabel(msc[index_msc].mscfs, volName, sizeof(volName))) {
-                  Serial.printf(">> USB partition %d valume ID: %s\n", index_drive_partition, volName);
+                  Serial.printf(">> USB partition %d volume ID: %s\n", index_drive_partition, volName);
                   snprintf(nmsc_str[index_msc], sizeof(nmsc_str[index_msc]), "MSC%d-%s", index_usb_drive, volName);
                 } 
                 else snprintf(nmsc_str[index_msc], sizeof(nmsc_str[index_msc]), "MSC%d-%d", index_usb_drive, index_drive_partition);
@@ -963,7 +946,7 @@ void loop()
       }
     }
   }
-  
+
 void dump_hexbytes(const void *ptr, int len)
 {
   if (ptr == NULL || len <= 0) return;

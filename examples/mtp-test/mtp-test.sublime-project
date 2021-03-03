@@ -1,0 +1,35 @@
+{
+	"folders":
+	[
+		{
+			"path": "."
+		},
+		{
+			"follow_symlinks": false,
+			"path": "C:\\Users\\kurte\\Documents\\Arduino\\libraries\\MTP_t4"
+		},
+		{
+			"follow_symlinks": false,
+			"path": "C:\\Users\\kurte\\Documents\\Arduino\\libraries\\LittleFS"
+		},
+		{
+			"follow_symlinks": false,
+			"path": "C:\\Users\\kurte\\Documents\\Arduino\\libraries\\USB2"
+		},
+		{
+			"follow_symlinks": false,
+			"path": "C:\\arduino-1.8.13\\hardware\\teensy\\avr\\libraries\\SD"
+		},
+		{
+			"path": "C:\\arduino-1.8.13\\hardware\\teensy\\avr\\libraries\\SdFat"
+		},
+		{
+			"follow_symlinks": false,
+			"path": "C:\\Users\\kurte\\Documents\\Arduino\\libraries\\USBHost_t36"
+		},
+		{
+			"follow_symlinks": false,
+			"path": "C:\\Users\\kurte\\Documents\\Arduino\\libraries\\UsbMscFat"
+		}
+	]
+}
