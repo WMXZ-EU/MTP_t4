@@ -458,7 +458,7 @@ void setup()
   while (!Serial); // comment if you do not want to wait for terminal
 #else
   //while(!Serial.available()); // comment if you do not want to wait for terminal (otherwise press any key to continue)
-  while (!Serial && !Serial.available() && millis() < 5000) myusb.task(); // or third option to wait up to 5 seconds and then continue
+  while (!Serial && !Serial.available() && millis() < 5000) myusb.Task(); // or third option to wait up to 5 seconds and then continue
 #endif
   Serial.println("MTP_test");
 
