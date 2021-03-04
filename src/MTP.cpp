@@ -296,8 +296,8 @@ const uint16_t supported_events[] =
   void MTPD::write32(uint32_t x) { write((char*)&x, sizeof(x)); }
   void MTPD::write64(uint64_t x) { write((char*)&x, sizeof(x)); }
 
-#define Store2Storage(x) (x+1)
-#define Storage2Store(x) (x-1)
+//#define Store2Storage(x) (x+1)
+//#define Storage2Store(x) (x-1)
 
   void MTPD::writestring(const char* str) {
     if (*str) 

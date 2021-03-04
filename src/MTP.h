@@ -180,6 +180,9 @@ public:
   void setFormatCB(formatCB_t formatCB) {formatCB_ = formatCB;}
   formatCB_t formatCB_ = nullptr;
 
+  static inline uint32_t Store2Storage(uint32_t store) {return ((store+1) << 16) | 1;}
+  static inline uint32_t Storage2Store(uint32_t storage) {return (storage >> 16) - 1;}
+
 #if USE_EVENTS==1
   int send_Event(uint16_t eventCode);
   int send_addObjectEvent(uint32_t p1);

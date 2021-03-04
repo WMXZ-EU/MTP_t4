@@ -828,7 +828,7 @@ void loop()
           uint32_t fsCount = storage.getFSCount();
           Serial.printf("\nDump Storage list(%u)\n", fsCount);
           for (uint32_t ii = 0; ii < fsCount; ii++) {
-            Serial.printf("store:%u name:%s fs:%x\n", ii, storage.getStoreName(ii), (uint32_t)storage.getStoreFS(ii));
+            Serial.printf("store:%u storage:%x name:%s fs:%x\n", ii, mtpd.Store2Storage(ii), storage.getStoreName(ii), (uint32_t)storage.getStoreFS(ii));
           }
           Serial.println("\nDump Index List");
           storage.dumpIndexList();
