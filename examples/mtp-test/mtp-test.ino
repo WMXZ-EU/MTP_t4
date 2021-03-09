@@ -152,7 +152,6 @@ uint16_t msc_storage_index[USE_MSC_FAT_VOL];
 uint8_t msc_drive_index[USE_MSC_FAT_VOL]; // probably can find easy way not to need this.
 
 extern bool mbrDmp(msController *pdrv);
-extern bool getUSBPartitionVolumeLabel(UsbFs *myMsc, uint8_t part, char *pszVolName, uint16_t cb);
 extern void checkUSBandSDIOStatus(bool fInit);
 
 #else 
@@ -540,48 +539,6 @@ uint32_t last_storage_index = (uint32_t)-1;
 //Checks if a Card is present:
 //- only when it is not in use! - 
 #if USE_MSC_FAT > 0
-bool getPartitionVolumeLabel(PFsVolume &partVol, uint8_t *pszVolName, uint16_t cb) {
-  uint8_t buf[512];
-  if (!pszVolName || (cb < 12)) return false; // don't want to deal with it
-
-  PFsFile root;
-  if (!root.openRoot(&partVol)) return false;
-  root.read(buf, 32);
-  //print_hexbytes(buf, 32);
-
-  switch (partVol.fatType())
-  {
-    case FAT_TYPE_FAT12:
-    case FAT_TYPE_FAT16:
-    case FAT_TYPE_FAT32:
-      {
-        DirFat_t *dir;
-        dir = reinterpret_cast<DirFat_t*>(buf);
-        if ((dir->attributes & 0x08) == 0) return false; // not a directory...
-        size_t i;
-        for (i = 0; i < 11; i++) {
-          pszVolName[i]  = dir->name[i];
-        }
-        while ((i > 0) && (pszVolName[i - 1] == ' ')) i--; // trim off trailing blanks
-        pszVolName[i] = 0;
-      }
-      break;
-    case FAT_TYPE_EXFAT:
-      {
-        DirLabel_t *dir;
-        dir = reinterpret_cast<DirLabel_t*>(buf);
-        if (dir->type != EXFAT_TYPE_LABEL) return false; // not a label?
-        size_t i;
-        for (i = 0; i < dir->labelLength; i++) {
-          pszVolName[i] = dir->unicode[2 * i];
-        }
-        pszVolName[i] = 0;
-      }
-      break;
-  }
-  return true;
-}
-
 bool mbrDmp(msController *pdrv) {
   MbrSector_t mbr;
   // bool valid = true;
@@ -669,8 +626,8 @@ void checkUSBandSDIOStatus(bool fInit) {
               {
                 Serial.println("    ** SUCCEEDED **");
                 // now see if we can get the volume label.  
-                uint8_t volName[20];
-                if (getPartitionVolumeLabel(msc[index_msc].mscfs, volName, sizeof(volName))) {
+                char volName[20];
+                if (msc[index_msc].mscfs.getVolumeLabel(volName, sizeof(volName))) {
                   Serial.printf(">> USB partition %d volume ID: %s\n", index_drive_partition, volName);
                   snprintf(nmsc_str[index_msc], sizeof(nmsc_str[index_msc]), "MSC%d-%s", index_usb_drive, volName);
                 } 
