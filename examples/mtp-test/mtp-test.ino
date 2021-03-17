@@ -160,6 +160,7 @@ extern bool mbrDmp(msController *pdrv);
 extern void checkUSBandSDIOStatus(bool fInit);
 
 class MSCMTPCB : public MTPStorageInterfaceCB {
+  uint8_t formatStore(MTPStorage_SD *mtpstorage, uint32_t store, uint32_t user_token, uint32_t p2, bool post_process);
   uint64_t usedSizeCB(MTPStorage_SD *mtpstorage, uint32_t store, uint32_t user_token) {
     Serial.printf("\n\n}}}}}}}}} MSCMTPCB::usedSizeCB called %x %u %u\n", (uint32_t)mtpstorage, store, user_token);
     if (msc[user_token].mscfs.fatType() == FAT_TYPE_FAT32) {
@@ -354,6 +355,7 @@ void storage_configure()
 
 //=============================================================================
 // try to get the right FS for this store and then call it's format if we have one...
+// Here is for LittleFS...
 uint8_t LittleFSMTPCB::formatStore(MTPStorage_SD *mtpstorage, uint32_t store, uint32_t user_token, uint32_t p2, bool post_process)
 {
   // Lets map the user_token back to oint to our object...
@@ -379,6 +381,40 @@ uint8_t LittleFSMTPCB::formatStore(MTPStorage_SD *mtpstorage, uint32_t store, ui
     Serial.println("littleFS not set in user_token");
   return MTPStorageInterfaceCB::FORMAT_NOT_SUPPORTED;
 }
+
+
+//=============================================================================
+// try to get the right FS for this store and then call it's format if we have one...
+// Here is for MSC Drives (SDFat)
+PFsFatFormatter FatFormatter;
+PFsExFatFormatter ExFatFormatter;
+uint8_t  sectorBuffer[512];
+
+
+uint8_t MSCMTPCB::formatStore(MTPStorage_SD *mtpstorage, uint32_t store, uint32_t user_token, uint32_t p2, bool post_process)
+{
+  // Lets map the user_token back to oint to our object...
+  Serial.printf("Format Callback: user_token:%x store: %u p2:%u post:%u \n", user_token, store, p2, post_process);
+
+
+  if (msc[user_token].mscfs.fatType() == FAT_TYPE_FAT12) {
+    Serial.printf("    Fat12 not supported\n");  
+    return MTPStorageInterfaceCB::FORMAT_NOT_SUPPORTED;
+  }
+
+  // For all of these the fat ones will do on post_process
+  if (!post_process) return MTPStorageInterfaceCB::FORMAT_NEEDS_CALLBACK;
+
+  if (msc[user_token].mscfs.fatType() == FAT_TYPE_EXFAT) {
+      Serial.println("ExFatFormatter - WIP");
+      ExFatFormatter.format(msc[user_token].mscfs.usbDrive(), msc[user_token].mscfs.part(), msc[user_token].mscfs, sectorBuffer, &Serial);
+  } else {
+      FatFormatter.format(msc[user_token].mscfs.usbDrive(), msc[user_token].mscfs.part(), msc[user_token].mscfs, sectorBuffer, &Serial);
+  }
+  return MTPStorageInterfaceCB::FORMAT_SUCCESSFUL;
+}
+
+
 
 
 /****  End of device specific change area  ****/
