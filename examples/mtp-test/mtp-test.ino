@@ -89,6 +89,11 @@ int  BUILTIN_SDCARD_missing_index = -1;
 //=============================================================================
 //LittleFS classes
 //=============================================================================
+// Setup a callback class for Littlefs storages..
+class LittleFSMTPCB : public MTPStorageInterfaceCB {
+  uint8_t formatStore(MTPStorage_SD *mtpstorage, uint32_t store, uint32_t user_token, uint32_t p2, bool post_process);
+};
+LittleFSMTPCB lfsmtpcb;
 
 #if USE_LFS_RAM==1
 const char *lfs_ram_str[] = {"RAM1", "RAM2"};  // edit to reflect your configuration
@@ -153,6 +158,19 @@ uint8_t msc_drive_index[USE_MSC_FAT_VOL]; // probably can find easy way not to n
 
 extern bool mbrDmp(msController *pdrv);
 extern void checkUSBandSDIOStatus(bool fInit);
+
+class MSCMTPCB : public MTPStorageInterfaceCB {
+  uint64_t usedSizeCB(MTPStorage_SD *mtpstorage, uint32_t store, uint32_t user_token) {
+    Serial.printf("\n\n}}}}}}}}} MSCMTPCB::usedSizeCB called %x %u %u\n", (uint32_t)mtpstorage, store, user_token);
+    if (msc[user_token].mscfs.fatType() == FAT_TYPE_FAT32) {
+        Serial.printf("MSCMTPCB::usedSizeCB called for Fat32\n");  
+    }
+    return msc[user_token].usedSize();
+
+  }
+};
+// start off with one of these...
+MSCMTPCB mscmtpcb;
 
 #else 
 // Only those Teensy support USB
@@ -231,7 +249,7 @@ void storage_configure()
     }
     else
     {
-      storage.addFilesystem(ramfs[ii], lfs_ram_str[ii]);
+      storage.addFilesystem(ramfs[ii], lfs_ram_str[ii], &lfsmtpcb, (uint32_t)(LittleFS*)&ramfs[ii]);
       uint64_t totalSize = ramfs[ii].totalSize();
       uint64_t usedSize  = ramfs[ii].usedSize();
       Serial.printf("RAM Storage %d %s ",ii,lfs_ram_str[ii]); Serial.print(totalSize); Serial.print(" "); Serial.println(usedSize);
@@ -247,7 +265,7 @@ void storage_configure()
     }
     else
     {
-      storage.addFilesystem(progmfs[ii], lfs_progm_str[ii]);
+      storage.addFilesystem(progmfs[ii], lfs_progm_str[ii], &lfsmtpcb, (uint32_t)(LittleFS*)&progmfs[ii]);
       uint64_t totalSize = progmfs[ii].totalSize();
       uint64_t usedSize  = progmfs[ii].usedSize();
       Serial.printf("Program Storage %d %s ",ii,lfs_progm_str[ii]); Serial.print(totalSize); Serial.print(" "); Serial.println(usedSize);
@@ -263,7 +281,7 @@ void storage_configure()
     }
     else
     {
-      storage.addFilesystem(qspifs[ii], lfs_qspi_str[ii]);
+      storage.addFilesystem(qspifs[ii], lfs_qspi_str[ii], &lfsmtpcb, (uint32_t)(LittleFS*)&qspifs[ii]);
       uint64_t totalSize = qspifs[ii].totalSize();
       uint64_t usedSize  = qspifs[ii].usedSize();
       Serial.printf("QSPI Storage %d %s ",ii,lfs_qspi_str[ii]); Serial.print(totalSize); Serial.print(" "); Serial.println(usedSize);
@@ -279,7 +297,7 @@ void storage_configure()
     }
     else
     {
-      storage.addFilesystem(spifs[ii], lfs_spi_str[ii]);
+      storage.addFilesystem(spifs[ii], lfs_spi_str[ii], &lfsmtpcb, (uint32_t)(LittleFS*)&spifs[ii]);
       uint64_t totalSize = spifs[ii].totalSize();
       uint64_t usedSize  = spifs[ii].usedSize();
       Serial.printf("SPIFlash Storage %d %d %s ",ii,lfs_cs[ii],lfs_spi_str[ii]); Serial.print(totalSize); Serial.print(" "); Serial.println(usedSize);
@@ -294,7 +312,7 @@ void storage_configure()
     }
     else
     {
-      storage.addFilesystem(nspifs[ii], nspi_str[ii]);
+      storage.addFilesystem(nspifs[ii], nspi_str[ii], &lfsmtpcb, (uint32_t)(LittleFS*)&nspifs[ii]);
 
       uint64_t totalSize = nspifs[ii].totalSize();
       uint64_t usedSize  = nspifs[ii].usedSize();
@@ -310,7 +328,7 @@ void storage_configure()
     }
     else
     {
-      storage.addFilesystem(qnspifs[ii], qnspi_str[ii]);
+      storage.addFilesystem(qnspifs[ii], qnspi_str[ii], &lfsmtpcb, (uint32_t)(LittleFS*)&qnspi_str[ii]);
 
       uint64_t totalSize = qnspifs[ii].totalSize();
       uint64_t usedSize  = qnspifs[ii].usedSize();
@@ -336,94 +354,30 @@ void storage_configure()
 
 //=============================================================================
 // try to get the right FS for this store and then call it's format if we have one...
-bool mtpd_format_cb(uint32_t store, uint32_t p2, bool post_process)
+uint8_t LittleFSMTPCB::formatStore(MTPStorage_SD *mtpstorage, uint32_t store, uint32_t user_token, uint32_t p2, bool post_process)
 {
-// lets try to map the store to the actual FS object.
-Serial.printf("Format Callback: store: %u p2:%u\n", store, p2);
-  FS *store_fs = storage.getStoreFS(store);
-  LittleFS *lfs = nullptr;
-  SDClass *sfs = nullptr;
-#if USE_SD==1
-  for (int ii = 0; ii < nsd; ii++)
-  {
-    if (store_fs == &sdx[ii] )
-    { sfs = &sdx[ii];
-      break;
-    }
-  }
-#endif
-
-#if USE_LFS_RAM==1
-  for (int ii = 0; ii < nfs_ram; ii++)
-  {
-    if (store_fs == &ramfs[ii] )
-    { lfs = &ramfs[ii];
-      break;
-    }
-  }
-#endif
-
-#if USE_LFS_PROGM==1
-  for (int ii = 0; ii < nfs_progm; ii++)
-  {
-    if (store_fs == &progmfs[ii] )
-    { lfs = &progmfs[ii];
-      break;
-    }
-  }
-#endif
-
-#if USE_LFS_QSPI==1
-  for (int ii = 0; ii < nfs_qspi; ii++)
-  {
-    if (store_fs == &qspifs[ii] )
-    { lfs = &qspifs[ii];
-      break;
-    }
-  }
-#endif
-
-#if USE_LFS_SPI==1
-  for (int ii = 0; ii < nfs_spi; ii++)
-  {
-    if (store_fs == &spifs[ii] )
-    { lfs = &spifs[ii];
-      break;
-    }
-  }
-#endif
-#if USE_LFS_NAND == 1
-  for (int ii = 0; ii < nspi_nsd; ii++)
-  {
-    if (store_fs == &nspifs[ii] )
-    { lfs = &nspifs[ii];
-      break;
-    }
-  }
-#endif
+  // Lets map the user_token back to oint to our object...
+  Serial.printf("Format Callback: user_token:%x store: %u p2:%u post:%u \n", user_token, store, p2, post_process);
+  LittleFS *lfs = (LittleFS*)user_token;
   // see if we have an lfs
   if (lfs)
   { 
     if (g_lowLevelFormat)
     {
       Serial.printf("Low Level Format: %s post: %u\n", storage.getStoreName(store), post_process);
-      if (post_process)return lfs->lowLevelFormat('.');
-      else return true; // do it on the post process
+      if (!post_process) return MTPStorageInterfaceCB::FORMAT_NEEDS_CALLBACK;
+      
+      if (lfs->lowLevelFormat('.')) return MTPStorageInterfaceCB::FORMAT_SUCCESSFUL;
     }
     else 
     {
       Serial.printf("Quick Format: %s\n", storage.getStoreName(store));
-      if (!post_process) return lfs->quickFormat();
-      return true; // 
+      if (lfs->quickFormat()) return MTPStorageInterfaceCB::FORMAT_SUCCESSFUL;
     }
   }
-  else if (sfs)
-  { Serial.printf("Format of SD types not implemented yet\n");
-
-  }
-  else Serial.println("Did not find Store in list???");
-  return false;
-
+  else 
+    Serial.println("littleFS not set in user_token");
+  return MTPStorageInterfaceCB::FORMAT_NOT_SUPPORTED;
 }
 
 
@@ -521,8 +475,6 @@ void setup()
 
 #endif
 
-  // WIP - try format callback code.
-  mtpd.setFormatCB(&mtpd_format_cb);
 
   Serial.println("\nSetup done");
 }
@@ -633,8 +585,9 @@ void checkUSBandSDIOStatus(bool fInit) {
                 } 
                 else snprintf(nmsc_str[index_msc], sizeof(nmsc_str[index_msc]), "MSC%d-%d", index_usb_drive, index_drive_partition);
                 msc_drive_index[index_msc] = index_usb_drive;
-                msc_storage_index[index_msc] = storage.addFilesystem(msc[index_msc], nmsc_str[index_msc]);
+                msc_storage_index[index_msc] = storage.addFilesystem(msc[index_msc], nmsc_str[index_msc], &mscmtpcb, index_msc);
 #if 0
+
                 elapsedMicros emmicro = 0;
                 uint64_t totalSize = msc[index_usb_drive].totalSize();
                 uint32_t elapsed_totalSize = emmicro;

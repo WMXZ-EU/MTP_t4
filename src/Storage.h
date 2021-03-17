@@ -41,19 +41,29 @@
   #define MAX_FILENAME_LEN 256
 #endif
 
+class MTPStorage_SD;
+
+class  MTPStorageInterfaceCB {
+  public:
+    enum {FORMAT_NOT_SUPPORTED=0, FORMAT_SUCCESSFUL, FORMAT_NEEDS_CALLBACK};
+    virtual uint8_t formatStore(MTPStorage_SD *mtpstorage, uint32_t store, uint32_t user_token, uint32_t p2, bool post_process) {return FORMAT_NOT_SUPPORTED;}  
+    virtual uint64_t totalSizeCB(MTPStorage_SD *mtpstorage, uint32_t store, uint32_t user_token);
+    virtual uint64_t usedSizeCB(MTPStorage_SD *mtpstorage, uint32_t store, uint32_t user_token) ;
+};
+
 class mSD_Base
 {
   public:
     mSD_Base() {
       fsCount = 0;
     }
-
-    uint32_t sd_addFilesystem(FS &fs, const char *name, const char *volumeID) {
+    uint32_t sd_addFilesystem(FS &fs, const char *name, MTPStorageInterfaceCB *callback, uint32_t user_token) {
       if (fsCount < MTPD_MAX_FILESYSTEMS) {
         sd_name[fsCount] = name;
-        sd_volumeID[fsCount] = volumeID;
         sdx[fsCount] = &fs;
-        Serial.printf("sd_addFilesystem: %d %x %s\n", fsCount, (uint32_t)&fs, name);
+        callbacks[fsCount] = callback;
+        user_tokens[fsCount] = user_token;
+        Serial.printf("sd_addFilesystem: %d %x %s %x %x\n", fsCount, (uint32_t)&fs, name, (uint32_t)callback, user_token);
         return fsCount++;
       }
       return 0xFFFFFFFFUL;  // no room left
@@ -63,7 +73,6 @@ class mSD_Base
     {
       if ((store < (uint32_t)fsCount) && (sd_name[store])) {
         sd_name[store] = nullptr;
-        sd_volumeID[store] = nullptr;
         sdx[store] = nullptr;
         return true;
       }
@@ -82,19 +91,22 @@ class mSD_Base
       if (store < (uint32_t)fsCount) return sd_name[store];
       return nullptr;
     } 
-    const char *sd_getVolumeID(uint32_t store)
-    {
-      if (store >= (uint32_t)fsCount) return nullptr;
-
-      return sd_volumeID[store]? sd_volumeID[store] : "";
-    }
-
     FS*  sd_getStoreFS(uint32_t store)
     {
       if (store < (uint32_t)fsCount) return sdx[store];
       return nullptr;
     } 
-
+    MTPStorageInterfaceCB *sd_getCallback(uint32_t store) 
+    { 
+      if (store < (uint32_t)fsCount) return callbacks[store];
+        return nullptr;
+    }
+    uint32_t sd_getUserToken(uint32_t store) 
+    { 
+      if (store < (uint32_t)fsCount) return user_tokens[store];
+        return 0;
+    }
+    
     uint32_t sd_getFSCount(void) {return fsCount;}
     const char *sd_getFSName(uint32_t store) { return sd_name[store];}
 
@@ -113,22 +125,23 @@ class mSD_Base
   private:
     int fsCount;
     const char *sd_name[MTPD_MAX_FILESYSTEMS];
-    const char *sd_volumeID[MTPD_MAX_FILESYSTEMS];
     FS *sdx[MTPD_MAX_FILESYSTEMS];
+    MTPStorageInterfaceCB *callbacks[MTPD_MAX_FILESYSTEMS];
+    uint32_t user_tokens[MTPD_MAX_FILESYSTEMS];
 };
 
 // This interface lets the MTP responder interface any storage.
 // We'll need to give the MTP responder a pointer to one of these.
 class MTPStorageInterface {
 public:
-  virtual uint32_t addFilesystem(FS &filesystem, const char *name, const char *volumeID=nullptr)=0;
+  virtual uint32_t addFilesystem(FS &filesystem, const char *name, MTPStorageInterfaceCB *callback, uint32_t user_token)=0;
   virtual bool removeFilesystem(uint32_t storage)=0;
   virtual uint32_t get_FSCount(void) = 0;
   virtual const char *get_FSName(uint32_t storage) = 0;
-  virtual const char *get_volumeID(uint32_t storage) = 0;
 
   virtual uint64_t totalSize(uint32_t storage) = 0;
   virtual uint64_t usedSize(uint32_t storage) = 0;
+  virtual uint8_t formatStore(uint32_t store, uint32_t p2, bool post_process) = 0;  
 
   // Return true if this storage is read-only
   virtual bool readonly(uint32_t storage) = 0;
@@ -179,12 +192,11 @@ public:
 class MTPStorage_SD : public MTPStorageInterface, mSD_Base
 { 
 public:
-  uint32_t addFilesystem(FS &fs, const char *name, const char *volumeID=nullptr) {return sd_addFilesystem(fs, name, volumeID);}
+  uint32_t addFilesystem(FS &fs, const char *name, MTPStorageInterfaceCB *callback = nullptr, uint32_t user_token = 0) {return sd_addFilesystem(fs, name, callback, user_token);}
   bool removeFilesystem(uint32_t storage) {return sd_removeFilesystem(storage);}
   void dumpIndexList(void);
   uint32_t getStoreID(const char *name) {return sd_getStoreID(name);}
   uint32_t getFSCount(void) {return sd_getFSCount();}
-  const char *get_volumeID(uint32_t store) {return sd_getVolumeID(store);}
   const char *getStoreName(uint32_t store) {return sd_getStoreName(store);} 
   FS* getStoreFS(uint32_t store) {return sd_getStoreFS(store);}
   uint32_t openFileIndex(void) {return open_file_;}
@@ -204,6 +216,7 @@ private:
   
   uint64_t totalSize(uint32_t storage) ;
   uint64_t usedSize(uint32_t storage) ;
+  uint8_t formatStore(uint32_t store, uint32_t p2, bool post_process) ;  
 
   void CloseIndex() ;
   void OpenIndex() ;
@@ -250,6 +263,8 @@ private:
   bool CopyFiles(uint32_t storage, uint32_t handle, uint32_t newHandle) override ;
   void ResetIndex() override ;
   uint32_t MapFileNameToIndex(uint32_t storage, const char *pathname, bool addLastNode=false, bool *node_added=nullptr) override; 
+
+  friend class MTPStorageInterfaceCB;
 };
 
 #endif

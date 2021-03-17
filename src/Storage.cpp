@@ -76,8 +76,44 @@ void mtp_lock_storage(bool lock) {}
   bool MTPStorage_SD::readonly(uint32_t store) { return false; }
   bool MTPStorage_SD::has_directories(uint32_t store) { return true; }
 
-  uint64_t MTPStorage_SD::totalSize(uint32_t store) { return sd_totalSize(store); }
-  uint64_t MTPStorage_SD::usedSize(uint32_t store) { return sd_usedSize(store); }
+  // default implementions...
+  uint64_t MTPStorageInterfaceCB::totalSizeCB(MTPStorage_SD *mtpstorage, uint32_t store, uint32_t user_token) 
+  {
+    return mtpstorage->sd_totalSize(store);
+  } 
+  uint64_t MTPStorageInterfaceCB::usedSizeCB(MTPStorage_SD *mtpstorage, uint32_t store, uint32_t user_token) {return mtpstorage->sd_usedSize(store);}
+
+
+  uint64_t MTPStorage_SD::totalSize(uint32_t store) 
+  { 
+    MTPStorageInterfaceCB *callbacks = sd_getCallback(store);
+    if (callbacks) {
+      uint32_t user_token = sd_getUserToken(store);
+      return callbacks->totalSizeCB(this, store, user_token);
+    }
+    return sd_totalSize(store);
+  }
+
+ uint8_t MTPStorage_SD::formatStore(uint32_t store, uint32_t p2, bool post_process)
+ {
+    MTPStorageInterfaceCB *callbacks = sd_getCallback(store);
+    if (callbacks) {
+      uint32_t user_token = sd_getUserToken(store);
+      return callbacks->formatStore(this, store, user_token, p2, post_process);
+    }
+    return MTPStorageInterfaceCB::FORMAT_NOT_SUPPORTED;
+ }
+
+  
+  uint64_t MTPStorage_SD::usedSize(uint32_t store)
+  { 
+    MTPStorageInterfaceCB *callback = sd_getCallback(store);
+    if (callback) {
+      uint32_t user_token = sd_getUserToken(store);
+      return callback->usedSizeCB(this, store, user_token);
+    }
+    return sd_usedSize(store);
+  }
 
   void MTPStorage_SD::CloseIndex()
   {

@@ -51,8 +51,6 @@ extern "C" {
 extern volatile uint8_t usb_configuration;
 }
 
-typedef bool (*formatCB_t)(uint32_t store, uint32_t p2, bool post_process);
-
 // MTP Responder.
 class MTPD {
 public:
@@ -77,6 +75,7 @@ private:
     uint32_t params[5];    // 12
   } __attribute__((__may_alias__)) ;
 
+  bool op_needs_callback_;
 #if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MK64FX512__) || defined(__MK66FX1M0__)
   usb_packet_t *data_buffer_ = NULL;
   void get_buffer() ;
@@ -176,9 +175,6 @@ public:
   operator bool() { return usb_configuration && (sessionID_ != 0); }
 
   void addSendObjectBuffer(char *pb, uint32_t cb);  // you can extend the send object buffer by this buffer
-  // BUGBUG need to cleanup maybe more Callback options...
-  void setFormatCB(formatCB_t formatCB) {formatCB_ = formatCB;}
-  formatCB_t formatCB_ = nullptr;
 
   static inline uint32_t Store2Storage(uint32_t store) {return ((store+1) << 16) | 1;}
   static inline uint32_t Storage2Store(uint32_t storage) {return (storage >> 16) - 1;}

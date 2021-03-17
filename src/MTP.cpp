@@ -376,19 +376,20 @@ const uint16_t supported_events[] =
 
     write64(ntotal);  // max capacity
     // Quick test to see if not getting the used size on large disks helps us get them displayed...
-    if (ntotal < 3000000000UL) {
+//    if (ntotal < 3000000000UL) {
       uint64_t nused = storage_->usedSize(store) ; 
       write64((ntotal-nused));  // free space (100M)
-    } else write64(ntotal/2);  // free space - how about glass half empty or full
+//    } else write64(ntotal/2);  // free space - how about glass half empty or full
     //
     write32(0xFFFFFFFFUL);  // free space (objects)
     const char *name = storage_->get_FSName(store);
     writestring(name);  // storage descriptor
-    const char *volumeID = storage_->get_volumeID(store);
+    //const char *volumeID = storage_->get_volumeID(store);
+    static const char _volumeID[] = "";
 
-    writestring(volumeID);  // volume identifier
+    writestring(_volumeID);  // volume identifier
 
-    printf("%d %d name:%s vol:%s\n",storage,store, name, volumeID);
+    printf("%d %d name:%s\n",storage,store, name);
   }
 
   uint32_t MTPD::GetNumObjects(uint32_t storage, uint32_t parent) 
@@ -913,24 +914,33 @@ const uint16_t supported_events[] =
     {
       printf(" MTPD::formatStore called post:%u\n", post_process);
       uint32_t store = Storage2Store(storage);
-      if (formatCB_ )
+      if (post_process)
       {
-        if (post_process)
-        {
-          g_pmtpd_interval = this;
-          printf("*** Start Interval Timer ***\n");
-          g_intervaltimer.begin(&_interval_timer_handler, 50000); // try maybe 20 times per second...
-        }
-        bool format_ok = (*formatCB_)(store, p2, post_process); 
-        if (post_process)
-        {
-          g_pmtpd_interval = nullptr;
-          g_intervaltimer.end(); // try maybe 20 times per second...
-          printf("*** end Interval Timer ***\n");
-          storage_->ResetIndex();  // maybe should add a less of sledge hammer here. 
-        }
-        return format_ok? MTP_RESPONSE_OK : MTP_RESPONSE_OPERATION_NOT_SUPPORTED;
+        g_pmtpd_interval = this;
+        printf("*** Start Interval Timer ***\n");
+        g_intervaltimer.begin(&_interval_timer_handler, 50000); // try maybe 20 times per second...
       }
+
+      uint8_t format_status =  storage_->formatStore(store, p2, post_process);  
+
+      if (post_process)
+      {
+        g_pmtpd_interval = nullptr;
+        g_intervaltimer.end(); // try maybe 20 times per second...
+        printf("*** end Interval Timer ***\n");
+      }
+      switch (format_status) {
+        case  MTPStorageInterfaceCB::FORMAT_SUCCESSFUL:
+          storage_->ResetIndex();  // maybe should add a less of sledge hammer here. 
+          return MTP_RESPONSE_OK;
+
+        case  MTPStorageInterfaceCB::FORMAT_NEEDS_CALLBACK:
+          op_needs_callback_ = true;
+          return MTP_RESPONSE_OK;
+
+        default:
+          break;
+      }        
       return MTP_RESPONSE_OPERATION_NOT_SUPPORTED; // 0x2005
     }
 
@@ -954,7 +964,7 @@ const uint16_t supported_events[] =
       if (receive_buffer->len >= 12) {
         return_code = 0x2001;  // Ok
         receive_buffer->len = 12;
-        
+        op_needs_callback_ = false;
         if (typ == 1) { // command
           switch (op) {
             case 0x1001: // GetDescription
@@ -1080,15 +1090,16 @@ const uint16_t supported_events[] =
       }
       // Some operations may want to do some additional work after they send back a response
       // so give them a chance here...
-      switch (op)
-      {
-        default:
-           break;
-        case 0x100F: // FormatStore
-            return_code = formatStore(p1, p2, true);
-            break;
+      if (op_needs_callback_) {
+        switch (op)
+        {
+          default:
+             break;
+          case 0x100F: // FormatStore
+              return_code = formatStore(p1, p2, true);
+              break;
+        }
       }
-
     }
     // Maybe put event handling inside mtp_yield()?
     if ((receive_buffer = usb_rx(MTP_EVENT_ENDPOINT))) {
@@ -1673,26 +1684,37 @@ const uint16_t supported_events[] =
     {
       printf(" MTPD::formatStore called post:%u\n", post_process);
       uint32_t store = Storage2Store(storage);
-      if (formatCB_ )
+      if (post_process)
       {
-        if (post_process)
-        {
-          g_pmtpd_interval = this;
-          printf("*** Start Interval Timer ***\n");
-          g_intervaltimer.begin(&_interval_timer_handler, 50000); // try maybe 20 times per second...
-        }
-        bool format_ok = (*formatCB_)(store, p2, post_process); 
-        if (post_process)
-        {
-          g_pmtpd_interval = nullptr;
-          g_intervaltimer.end(); // try maybe 20 times per second...
-          printf("*** end Interval Timer ***\n");
-          storage_->ResetIndex();  // maybe should add a less of sledge hammer here. 
-        }
-        return format_ok? MTP_RESPONSE_OK : MTP_RESPONSE_OPERATION_NOT_SUPPORTED;
+        g_pmtpd_interval = this;
+        printf("*** Start Interval Timer ***\n");
+        g_intervaltimer.begin(&_interval_timer_handler, 50000); // try maybe 20 times per second...
       }
+
+      uint8_t format_status =  storage_->formatStore(store, p2, post_process);  
+
+      if (post_process)
+      {
+        g_pmtpd_interval = nullptr;
+        g_intervaltimer.end(); // try maybe 20 times per second...
+        printf("*** end Interval Timer ***\n");
+      }
+      switch (format_status) {
+        case  MTPStorageInterfaceCB::FORMAT_SUCCESSFUL:
+          storage_->ResetIndex();  // maybe should add a less of sledge hammer here. 
+          return MTP_RESPONSE_OK;
+
+        case  MTPStorageInterfaceCB::FORMAT_NEEDS_CALLBACK:
+          op_needs_callback_ = true;
+          return MTP_RESPONSE_OK;
+
+        default:
+          break;
+      }        
       return MTP_RESPONSE_OPERATION_NOT_SUPPORTED; // 0x2005
     }
+
+
 
     void MTPD::loop(void)
     { if(usb_mtp_available())
