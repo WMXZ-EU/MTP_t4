@@ -407,9 +407,9 @@ uint8_t MSCMTPCB::formatStore(MTPStorage_SD *mtpstorage, uint32_t store, uint32_
 
   if (msc[user_token].mscfs.fatType() == FAT_TYPE_EXFAT) {
       Serial.println("ExFatFormatter - WIP");
-      ExFatFormatter.format(msc[user_token].mscfs.usbDrive(), msc[user_token].mscfs.part(), msc[user_token].mscfs, sectorBuffer, &Serial);
+      ExFatFormatter.format(msc[user_token].mscfs, sectorBuffer, &Serial);
   } else {
-      FatFormatter.format(msc[user_token].mscfs.usbDrive(), msc[user_token].mscfs.part(), msc[user_token].mscfs, sectorBuffer, &Serial);
+      FatFormatter.format(msc[user_token].mscfs, sectorBuffer, &Serial);
   }
   return MTPStorageInterfaceCB::FORMAT_SUCCESSFUL;
 }
