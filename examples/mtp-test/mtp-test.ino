@@ -530,6 +530,10 @@ uint32_t last_storage_index = (uint32_t)-1;
 bool mbrDmp(msController *pdrv) {
   MbrSector_t mbr;
   // bool valid = true;
+  UsbFs msc;
+  if (!msc.begin(pdrv)) return false;
+  
+  //Serial.printf("mbrDMP called %x\n", (uint32_t)pdrv); Serial.flush();
   if (pdrv->msReadBlocks(0, 1, 512, (uint8_t*)&mbr)) {
     Serial.print("\nread MBR failed.\n");
     //errorPrint();
