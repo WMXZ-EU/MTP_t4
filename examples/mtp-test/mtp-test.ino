@@ -405,11 +405,12 @@ uint8_t MSCMTPCB::formatStore(MTPStorage_SD *mtpstorage, uint32_t store, uint32_
   // For all of these the fat ones will do on post_process
   if (!post_process) return MTPStorageInterfaceCB::FORMAT_NEEDS_CALLBACK;
 
-  if (msc[user_token].mscfs.fatType() == FAT_TYPE_EXFAT) {
+  uint8_t fat_type = msc[user_token].mscfs.fatType();
+  if (fat_type == FAT_TYPE_EXFAT) {
       Serial.println("ExFatFormatter - WIP");
       ExFatFormatter.format(msc[user_token].mscfs, sectorBuffer, &Serial);
   } else {
-      FatFormatter.format(msc[user_token].mscfs, sectorBuffer, &Serial);
+      FatFormatter.format(msc[user_token].mscfs, fat_type, sectorBuffer, &Serial);
   }
   return MTPStorageInterfaceCB::FORMAT_SUCCESSFUL;
 }
