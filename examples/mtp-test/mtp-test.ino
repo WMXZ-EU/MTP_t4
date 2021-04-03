@@ -4,10 +4,10 @@
 #include "MTP.h"
 
 #define USE_SD  1         // SDFAT based SDIO and SPI
-#define USE_LFS_RAM 1     // T4.1 PSRAM (or RAM)
-#define USE_LFS_QSPI 1    // T4.1 QSPI
-#define USE_LFS_PROGM 1   // T4.4 Progam Flash
-#define USE_LFS_SPI 1     // SPI Flash
+#define USE_LFS_RAM 0     // T4.1 PSRAM (or RAM)
+#define USE_LFS_QSPI 0    // T4.1 QSPI
+#define USE_LFS_PROGM 0   // T4.4 Progam Flash
+#define USE_LFS_SPI 0     // SPI Flash
 
 #if USE_EVENTS==1
   extern "C" int usb_init_events(void);
@@ -233,8 +233,8 @@ void setup()
   // Set Time callback // needed for SDFat
   FsDateTime::callback = dateTime;
 
-  {
-    const char *str = "test1.txt";
+  if(1){
+    const char *str = "/test1.txt";
     if(sdx[0].exists(str)) sdx[0].remove(str);
     File file=sdx[0].open(str,FILE_WRITE_BEGIN);
         file.println("This is a test line");

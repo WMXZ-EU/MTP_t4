@@ -10,6 +10,7 @@
         "utility": "cpp",
         "type_traits": "cpp",
         "typeinfo": "cpp",
-        "cstdio": "cpp"
+        "cstdio": "cpp",
+        "sstream": "cpp"
     }
 }

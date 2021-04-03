@@ -837,6 +837,7 @@ const uint16_t supported_events[] =
                 }
               }
               break;
+            case 0x100C:  // SendObjectInfo
               p3 =  SendObjectInfo(p1, // storage
                                    p2); // parent
               CONTAINER->params[1]=p2;
