@@ -21,7 +21,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-// modified for SDFS by WMXZ
+// modified for SD by WMXZ
 
 #if defined(USB_MTPDISK) || defined(USB_MTPDISK_SERIAL)
 
