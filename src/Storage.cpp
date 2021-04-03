@@ -226,6 +226,14 @@ void mtp_lock_storage(bool lock) {}
       r.child = 0;
       r.isdir = true;
       r.scanned = false;
+#ifdef MTP_SUPPORT_MODIFY_DATE
+      r.modifyDate = 0;
+      r.modifyTime = 0;
+#endif
+#ifdef MTP_SUPPORT_CREATE_DATE
+      r.createDate = 0;
+      r.createTime = 0;
+#endif
       strcpy(r.name, "/");
       AppendIndexRecord(r);
     }
@@ -254,9 +262,18 @@ void mtp_lock_storage(bool lock) {}
         r.child = r.isdir ? 0 : (uint32_t) child_.size();
         r.scanned = false;
         sd_getName(child_,r.name, MAX_FILENAME_LEN);
+#ifdef MTP_SUPPORT_MODIFY_DATE
+        bool success = child_.getModifyDateTime(&r.modifyDate, &r.modifyTime);
+        Serial.printf("~~~ScanDir Mod: %s %u %x %x\n", r.name, success, r.modifyDate, r.modifyTime);
+#endif
+#ifdef MTP_SUPPORT_CREATE_DATE
+        success = child_.getCreateDateTime(&r.createDate, &r.createTime);
+        Serial.printf("~~~ScanDir Cre: %s %u %x %x\n", r.name, success, r.createDate, r.createTime);
+#endif
         sibling = AppendIndexRecord(r);
         child_.close();
       }
+
       record.scanned = true;
       record.child = sibling;
       WriteIndexRecord(i, record);
@@ -321,6 +338,88 @@ void mtp_lock_storage(bool lock) {}
   {
     return ReadIndexRecord(handle).child;
   }
+
+#ifdef MTP_SUPPORT_MODIFY_DATE
+  bool MTPStorage_SD::getModifyDateTime(uint32_t handle, uint16_t *pdate, uint16_t *ptime)
+  {
+    Record r = ReadIndexRecord(handle);
+    *pdate = r.modifyDate;    
+    *ptime = r.modifyTime; 
+    return (r.modifyDate || r.modifyTime)? true : false;   
+  }
+#endif
+
+#ifdef MTP_SUPPORT_CREATE_DATE
+  bool MTPStorage_SD::getCreateDateTime(uint32_t handle, uint16_t *pdate, uint16_t *ptime)
+  {
+    Record r = ReadIndexRecord(handle);
+    *pdate = r.createDate;    
+    *ptime = r.createTime; 
+    return (r.createDate || r.createTime)? true : false;   
+  }
+#endif
+
+    static inline uint16_t MTPFS_DATE(uint16_t year, uint8_t month, uint8_t day) {
+      year -= 1980;
+      return year > 127 || month > 12 || day > 31 ? 0 :
+             year << 9 | month << 5 | day;
+    }
+    static inline uint16_t MTPFS_YEAR(uint16_t fatDate) {
+      return 1980 + (fatDate >> 9);
+    }
+    static inline uint8_t MTPFS_MONTH(uint16_t fatDate) {
+      return (fatDate >> 5) & 0XF;
+    }
+    static inline uint8_t MTPFS_DAY(uint16_t fatDate) {
+      return fatDate & 0X1F;
+    }
+    static inline uint16_t MTPFS_TIME(uint8_t hour, uint8_t minute, uint8_t second) {
+      return hour > 23 || minute > 59 || second > 59 ? 0 :
+             hour << 11 | minute << 5 | second >> 1;
+    }
+    static inline uint8_t MTPFS_HOUR(uint16_t fatTime) {
+      return fatTime >> 11;
+    }
+    static inline uint8_t MTPFS_MINUTE(uint16_t fatTime) {
+      return (fatTime >> 5) & 0X3F;
+    }
+    static inline uint8_t MTPFS_SECOND(uint16_t fatTime) {
+      return 2*(fatTime & 0X1F);
+    }
+
+bool MTPStorage_SD::updateDateTimeStamps (uint32_t handle, uint16_t dateCreated, uint16_t timeCreated, uint16_t dateModified, uint16_t timeModified) 
+{
+#if defined(MTP_SUPPORT_MODIFY_DATE) || defined(MTP_SUPPORT_CREATE_DATE)
+    Record r = ReadIndexRecord(handle);
+  OpenFileByIndex(handle, FILE_WRITE);
+  if(!sd_isOpen(file_)) {
+    Serial.printf("MTPStorage_SD::updateDateTimeStamps failed to open file\n");
+    return false;
+  }
+  mtp_lock_storage(true);
+  
+  #if defined(MTP_SUPPORT_MODIFY_DATE)
+  r.modifyDate = dateModified;    
+  r.modifyTime = timeModified; 
+  file_.timestamp(T_WRITE, MTPFS_YEAR(dateModified), MTPFS_MONTH(dateModified), MTPFS_DAY(dateModified), 
+        MTPFS_HOUR(timeModified), MTPFS_MINUTE(timeModified), MTPFS_SECOND(timeModified));
+
+  #endif
+  #if defined(MTP_SUPPORT_CREATE_DATE)
+  r.createDate = dateCreated;    
+  r.createTime = timeCreated; 
+  file_.timestamp(T_CREATE, MTPFS_YEAR(dateCreated), MTPFS_MONTH(dateCreated), MTPFS_DAY(dateCreated), 
+        MTPFS_HOUR(timeCreated), MTPFS_MINUTE(timeCreated), MTPFS_SECOND(timeCreated));
+  #endif
+
+    WriteIndexRecord(handle, r);
+    // save away the datea. 
+    file_.close();
+    mtp_lock_storage(false);
+#endif  
+    return true;
+}  
+
 
   void MTPStorage_SD::read(uint32_t handle, uint32_t pos, char* out, uint32_t bytes)
   {
@@ -404,6 +503,14 @@ void MTPStorage_SD::removeFile(uint32_t store, char *file)
     // New folder is empty, scanned = true.
     r.scanned = 1;
     ret = p.child = AppendIndexRecord(r);
+#ifdef MTP_SUPPORT_MODIFY_DATE
+      r.modifyDate = 0;
+      r.modifyTime = 0;
+#endif
+#ifdef MTP_SUPPORT_CREATE_DATE
+      r.createDate = 0;
+      r.createTime = 0;
+#endif
     WriteIndexRecord(parent, p);
     if (folder) 
     {
@@ -422,8 +529,14 @@ void MTPStorage_SD::removeFile(uint32_t store, char *file)
         Serial.printf("MTPStorage_SD::Create %s failed to create file\n", filename);
         DeleteObject(ret);  // note this will mark that new item as deleted...
         ret = 0xFFFFFFFFUL; // return an error code...
+      } else {
+#ifdef MTP_SUPPORT_MODIFY_DATE
+        file_.getModifyDateTime(&r.modifyDate, &r.modifyTime);
+#endif
+#ifdef MTP_SUPPORT_CREATE_DATE
+        file_.getCreateDateTime(&r.createDate, &r.createTime);
+#endif
       }
-
     }
     #if DEBUG>1
     Serial.print("Create "); 

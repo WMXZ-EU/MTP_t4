@@ -35,6 +35,10 @@
   #define FILE_WRITE_BEGIN 2
 #endif
 
+#ifdef FS_FILE_SUPPORT_DATES
+#define MTP_SUPPORT_MODIFY_DATE
+#define MTP_SUPPORT_CREATE_DATE
+#endif
 
 #define MTPD_MAX_FILESYSTEMS  20
 #ifndef MAX_FILENAME_LEN
@@ -154,6 +158,13 @@ public:
 
   virtual void GetObjectInfo(uint32_t handle, char* name, uint32_t* size, uint32_t* parent, uint16_t *store) = 0;
   virtual uint32_t GetSize(uint32_t handle) = 0;
+#ifdef MTP_SUPPORT_MODIFY_DATE
+  virtual bool getModifyDateTime(uint32_t handle, uint16_t *pdate, uint16_t *ptime) = 0;
+#endif
+#ifdef MTP_SUPPORT_CREATE_DATE
+  virtual bool getCreateDateTime(uint32_t handle, uint16_t *pdate, uint16_t *ptime) = 0;
+#endif
+  virtual bool updateDateTimeStamps (uint32_t handle, uint16_t dateCreated, uint16_t timeCreated, uint16_t dateModified, uint16_t timeModified) = 0;    
 
   virtual uint32_t Create(uint32_t storage, uint32_t parent, bool folder, const char* filename) = 0;
   virtual void read(uint32_t handle, uint32_t pos, char* buffer, uint32_t bytes) = 0;
@@ -177,6 +188,15 @@ public:
   { uint32_t parent;
     uint32_t child;  // size stored here for files
     uint32_t sibling;
+#ifdef MTP_SUPPORT_MODIFY_DATE
+    uint16_t modifyDate;
+    uint16_t modifyTime;
+#endif
+#ifdef MTP_SUPPORT_CREATE_DATE
+    uint16_t createDate;
+    uint16_t createTime;
+#endif
+
     uint8_t isdir;
     uint8_t scanned;
     uint16_t store;  // index int physical storage (0 ... num_storages-1)
@@ -200,6 +220,14 @@ public:
   const char *getStoreName(uint32_t store) {return sd_getStoreName(store);} 
   FS* getStoreFS(uint32_t store) {return sd_getStoreFS(store);}
   uint32_t openFileIndex(void) {return open_file_;}
+
+  /** set the file's last access date */
+const uint8_t T_ACCESS = 1;
+/** set the file's creation date and time */
+const uint8_t T_CREATE = 2;
+/** Set the file's write date and time */
+const uint8_t T_WRITE = 4;
+
 private:
   File index_;
   File file_;
@@ -248,6 +276,14 @@ private:
   uint32_t GetNextObjectHandle(uint32_t  storage) override ;
   void GetObjectInfo(uint32_t handle, char* name, uint32_t* size, uint32_t* parent, uint16_t *store) override ;
   uint32_t GetSize(uint32_t handle) override;
+#ifdef MTP_SUPPORT_MODIFY_DATE
+  bool getModifyDateTime(uint32_t handle, uint16_t *pdate, uint16_t *ptime) override;
+#endif
+#ifdef MTP_SUPPORT_CREATE_DATE
+  bool getCreateDateTime(uint32_t handle, uint16_t *pdate, uint16_t *ptime) override;
+#endif
+  virtual bool updateDateTimeStamps (uint32_t handle, uint16_t dateCreated, uint16_t timeCreated, uint16_t dateModified, uint16_t timeModified) override;    
+
   void read(uint32_t handle, uint32_t pos, char* out, uint32_t bytes) override ;
   bool DeleteObject(uint32_t object) override ;
 

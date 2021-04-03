@@ -135,7 +135,8 @@ private:
   uint8_t read8() ;
   uint16_t read16() ;
   uint32_t read32() ;
-  void readstring(char* buffer) ;
+  int readstring(char* buffer) ;
+  int readDateTimeString(uint16_t *pdate, uint16_t *ptime);
 
 //  void read_until_short_packet() ;
 
@@ -196,6 +197,13 @@ public:
   void _printContainer(MTPContainer *c, const char *msg = nullptr);
   #endif
 #endif
+  // Support for SendObject, holding parameters from SendObjectInfo.
+  int     object_id_;
+  uint16_t dateCreated_;
+  uint16_t timeCreated_;
+  uint16_t dateModified_;
+  uint16_t timeModified_;
+
 };
 
 #endif

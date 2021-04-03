@@ -26,7 +26,6 @@
 #if defined(USB_MTPDISK) || defined(USB_MTPDISK_SERIAL)
 
 #include "MTP.h"
-
 #undef USB_DESC_LIST_DEFINE
 #include "usb_desc.h"
 
@@ -172,8 +171,12 @@ extern struct usb_string_descriptor_struct usb_string_serial_number;
     MTP_PROPERTY_PROTECTION_STATUS                      ,//0xDC03
     MTP_PROPERTY_OBJECT_SIZE                            ,//0xDC04
     MTP_PROPERTY_OBJECT_FILE_NAME                       ,//0xDC07
-//    MTP_PROPERTY_DATE_CREATED                           ,//0xDC08
-//    MTP_PROPERTY_DATE_MODIFIED                          ,//0xDC09
+#ifdef MTP_SUPPORT_CREATE_DATE
+    MTP_PROPERTY_DATE_CREATED                           ,//0xDC08
+#endif
+#ifdef MTP_SUPPORT_MODIFY_DATE
+    MTP_PROPERTY_DATE_MODIFIED                          ,//0xDC09
+#endif
     MTP_PROPERTY_PARENT_OBJECT                          ,//0xDC0B
     MTP_PROPERTY_PERSISTENT_UID                         ,//0xDC41
     MTP_PROPERTY_NAME                                    //0xDC44
@@ -271,6 +274,73 @@ const uint16_t supported_events[] =
     #define MTP_RESPONSE_OBJECT_TOO_LARGE                           0xA809
     #define MTP_RESPONSE_OBJECT_PROP_NOT_SUPPORTED                  0xA80A
 
+    // Date time helpers
+    static inline uint16_t MTPFS_DATE(uint16_t year, uint8_t month, uint8_t day) {
+      year -= 1980;
+      return year > 127 || month > 12 || day > 31 ? 0 :
+             year << 9 | month << 5 | day;
+    }
+    /** year part of FAT directory date field
+     * \param[in] fatDate Date in packed dir format.
+     *
+     * \return Extracted year [1980,2107]
+     */
+    static inline uint16_t MTPFS_YEAR(uint16_t fatDate) {
+      return 1980 + (fatDate >> 9);
+    }
+    /** month part of FAT directory date field
+     * \param[in] fatDate Date in packed dir format.
+     *
+     * \return Extracted month [1,12]
+     */
+    static inline uint8_t MTPFS_MONTH(uint16_t fatDate) {
+      return (fatDate >> 5) & 0XF;
+    }
+    /** day part of FAT directory date field
+     * \param[in] fatDate Date in packed dir format.
+     *
+     * \return Extracted day [1,31]
+     */
+    static inline uint8_t MTPFS_DAY(uint16_t fatDate) {
+      return fatDate & 0X1F;
+    }
+    /** time field for directory entry
+     * \param[in] hour [0,23]
+     * \param[in] minute [0,59]
+     * \param[in] second [0,59]
+     *
+     * \return Packed time for directory entry.
+     */
+    static inline uint16_t MTPFS_TIME(uint8_t hour, uint8_t minute, uint8_t second) {
+      return hour > 23 || minute > 59 || second > 59 ? 0 :
+             hour << 11 | minute << 5 | second >> 1;
+    }
+    /** hour part of FAT directory time field
+     * \param[in] fatTime Time in packed dir format.
+     *
+     * \return Extracted hour [0,23]
+     */
+    static inline uint8_t MTPFS_HOUR(uint16_t fatTime) {
+      return fatTime >> 11;
+    }
+    /** minute part of FAT directory time field
+     * \param[in] fatTime Time in packed dir format.
+     *
+     * \return Extracted minute [0,59]
+     */
+    static inline uint8_t MTPFS_MINUTE(uint16_t fatTime) {
+      return (fatTime >> 5) & 0X3F;
+    }
+    /** second part of FAT directory time field
+     * N\note second/2 is stored in packed time.
+     *
+     * \param[in] fatTime Time in packed dir format.
+     *
+     * \return Extracted second [0,58]
+     */
+    static inline uint8_t MTPFS_SECOND(uint16_t fatTime) {
+      return 2*(fatTime & 0X1F);
+    }
 
 
 // MTP Responder.
@@ -459,7 +529,7 @@ const uint16_t supported_events[] =
   uint16_t MTPD::read16() { uint16_t ret; read((char*)&ret, sizeof(ret)); return ret; }
   uint32_t MTPD::read32() { uint32_t ret; read((char*)&ret, sizeof(ret)); return ret; }
 
-  void MTPD::readstring(char* buffer) {
+  int MTPD::readstring(char* buffer) {
     int len = read8();
     if (!buffer) {
       read(NULL, len * 2);
@@ -469,6 +539,30 @@ const uint16_t supported_events[] =
         *(buffer++) = c2 = read16();
       }
     }
+    return len * 2 + 1;
+  }
+
+  int MTPD::readDateTimeString(uint16_t *pdate, uint16_t *ptime) {
+    char dtb[20]; // let it take care of the conversions.
+    //                            01234567890123456
+    // format of expected String: YYYYMMDDThhmmss.s
+    int cb = readstring(dtb);
+    if (cb > 1) {
+      printf("Read DateTime string: %s\n", dtb);
+      // Quick and dirty!
+      uint16_t year = ((dtb[0]-'0') * 1000) + ((dtb[1]-'0') * 100) + ((dtb[2]-'0') * 10) + (dtb[3]-'0');
+      uint8_t month = ((dtb[4]-'0') * 10) + (dtb[5]-'0');
+      uint8_t day =   ((dtb[6]-'0') * 10) + (dtb[7]-'0');
+      *pdate = MTPFS_DATE(year, month, day);
+      printf(">> date: %x %u %u %u\n", *pdate, year, month, day);
+
+      uint8_t hour = ((dtb[9]-'0') * 10) + (dtb[10]-'0');
+      uint8_t min =  ((dtb[11]-'0') * 10) + (dtb[12]-'0');
+      uint8_t sec =  ((dtb[13]-'0') * 10) + (dtb[14]-'0');
+      *ptime = MTPFS_TIME(hour, min, sec);
+      printf(">> time: %x %u %u %u\n", *ptime, hour, min, sec);
+    }
+    return cb;
   }
 
   void MTPD::GetDevicePropValue(uint32_t prop) {
@@ -546,7 +640,7 @@ const uint16_t supported_events[] =
         case MTP_PROPERTY_DATE_CREATED:       //0xDC08:
           write16(0xDC08);
           write16(0xFFFF);
-          write8(0); //get
+          write8(1); //get
           write8(0);
           write32(0);
           write8(0);
@@ -554,7 +648,7 @@ const uint16_t supported_events[] =
         case MTP_PROPERTY_DATE_MODIFIED:      //0xDC09:
           write16(0xDC09);
           write16(0xFFFF);
-          write8(0); //get
+          write8(1); //may be both get set?
           write8(0);
           write32(0);
           write8(0);
@@ -617,9 +711,41 @@ const uint16_t supported_events[] =
           writestring(name);
           break;
         case MTP_PROPERTY_DATE_CREATED:       //0xDC08:
+            #ifdef MTP_SUPPORT_CREATE_DATE
+              // String is like: YYYYMMDDThhmmss.s
+              uint16_t dateCreated;
+              uint16_t timeCreated;
+
+              if (storage_->getCreateDateTime(p1, &dateCreated, &timeCreated)) {
+                // going to use the buffer name to output
+                snprintf(name, MAX_FILENAME_LEN, "%04u%02u%02uT%02u%02u%02u", 
+                      MTPFS_YEAR(dateCreated), MTPFS_MONTH(dateCreated), MTPFS_DAY(dateCreated), 
+                      MTPFS_HOUR(timeCreated), MTPFS_MINUTE(timeCreated), MTPFS_SECOND(timeCreated));
+                writestring(name);
+                printf("Create (%x %x)Date/time:%s\n", dateCreated, timeCreated, name);
+                break;
+              }
+            #endif
           writestring("");
           break;
         case MTP_PROPERTY_DATE_MODIFIED:      //0xDC09:
+          {
+            #ifdef MTP_SUPPORT_MODIFY_DATE
+              // String is like: YYYYMMDDThhmmss.s
+              uint16_t dateModified;
+              uint16_t timeModified;
+
+              if (storage_->getModifyDateTime(p1, &dateModified, &timeModified)) {
+                // going to use the buffer name to output
+                snprintf(name, MAX_FILENAME_LEN, "%04u%02u%02uT%02u%02u%02u", 
+                      MTPFS_YEAR(dateModified), MTPFS_MONTH(dateModified), MTPFS_DAY(dateModified), 
+                      MTPFS_HOUR(timeModified), MTPFS_MINUTE(timeModified), MTPFS_SECOND(timeModified));
+                writestring(name);
+                printf("Modify (%x %x)Date/time:%s\n", dateModified, timeModified, name);
+                break;
+              }
+            #endif
+          }
           writestring("");
           break;
         case MTP_PROPERTY_PARENT_OBJECT:      //0xDC0B:
@@ -1479,6 +1605,10 @@ const uint16_t supported_events[] =
 
       int len=ReadMTPHeader();
       char filename[MAX_FILENAME_LEN];
+      dateCreated_ = 0;
+      timeCreated_ = 0;
+      dateModified_ = 0;
+      timeModified_ = 0;
 
       printf("%x ",read32()); len-=4; // storage
       uint16_t oformat = read16();  len-=2; // format
@@ -1499,8 +1629,20 @@ const uint16_t supported_events[] =
       printf("%x ",read32()); len-=4; // association description
       printf("%x ",read32()); len-=4; // sequence number
 
-      readstring(filename); len -= (2*(strlen(filename)+1)+1); 
+      len -= readstring(filename);
       printf(": %s\n", filename);
+
+      // Next is DateCreated followed by DateModified
+      if (len) {
+        len -= readDateTimeString(&dateCreated_, &timeCreated_);
+        printf("Created: %x %x\n", dateCreated_, timeCreated_);
+      }
+      if (len) {
+        len -= readDateTimeString(&dateModified_, &timeModified_);
+        printf("Modified: %x %x\n", dateModified_, timeModified_);
+      }
+
+
       // ignore rest of ObjectInfo
       while(len>=4) { read32(); len-=4;}
       while(len) {read8(); len--;}
@@ -1513,7 +1655,7 @@ const uint16_t supported_events[] =
         return MTP_RESPONSE_STORAGE_FULL;
       }
 
-      object_id = storage_->Create(store, parent, dir, filename);
+      object_id_ = object_id = storage_->Create(store, parent, dir, filename);
       if ((uint32_t)object_id == 0xFFFFFFFFUL) return MTP_RESPONSE_SPECIFICATION_OF_DESTINATION_UNSUPPORTED; 
 
       return MTP_RESPONSE_OK;
@@ -1598,6 +1740,10 @@ const uint16_t supported_events[] =
         disk_pos =0;
       }
       storage_->close();
+
+      // lets see if we should update the date and time stamps. 
+      storage_->updateDateTimeStamps(object_id_, dateCreated_, timeCreated_, dateModified_, timeModified_);
+
       if (c_read_em) printf(" # USB Packets: %u total: %u avg ms: %u max: %u\n", c_read_em, sum_read_em, sum_read_em / c_read_em, read_em_max);
       if (c_write_em) printf(" # Write: %u total:%u avg ms: %u max: %u\n", c_write_em, sum_write_em, sum_write_em / c_write_em, write_em_max);
       printf(">>>Total Time: %u\n", (uint32_t)em_total);
