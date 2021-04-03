@@ -6,7 +6,7 @@
 #define USE_SD  1         // SDFAT based SDIO and SPI
 #define USE_LFS_RAM 0     // T4.1 PSRAM (or RAM)
 #define USE_LFS_QSPI 0    // T4.1 QSPI
-#define USE_LFS_PROGM 0   // T4.4 Progam Flash
+#define USE_LFS_PROGM 0   // T4.1 Progam Flash
 #define USE_LFS_SPI 0     // SPI Flash
 
 #if USE_EVENTS==1
