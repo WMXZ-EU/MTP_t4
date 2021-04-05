@@ -9,12 +9,21 @@
 #else
 #define USE_LFS_RAM 0     // T4.1 PSRAM (or RAM)
 #endif
+#ifdef ARDUINO_TEENSY_MICROMOD
+#define USE_LFS_QSPI 0    // T4.1 QSPI
+#define USE_LFS_PROGM 1   // T4.4 Progam Flash
+#define USE_LFS_SPI 0     // SPI Flash
+#define USE_LFS_NAND 0
+#define USE_LFS_QSPI_NAND 0
+#define USE_LFS_FRAM 0
+#else
 #define USE_LFS_QSPI 1    // T4.1 QSPI
 #define USE_LFS_PROGM 1   // T4.4 Progam Flash
 #define USE_LFS_SPI 1     // SPI Flash
 #define USE_LFS_NAND 1
 #define USE_LFS_QSPI_NAND 0
 #define USE_LFS_FRAM 0
+#endif
 #define USE_MSC_FAT 3    // set to > 0 experiment with MTP (USBHost.t36 + mscFS)
 #define USE_MSC_FAT_VOL 8 // Max MSC FAT Volumes. 
 
@@ -84,6 +93,12 @@ int  BUILTIN_SDCARD_missing_index = -1;
 #elif defined(ARDUINO_TEENSY35) || defined(ARDUINO_TEENSY36)
   #define _SD_DAT3 62
 #endif
+
+class SDMTPCB : public MTPStorageInterfaceCB {
+  uint8_t formatStore(MTPStorage_SD *mtpstorage, uint32_t store, uint32_t user_token, uint32_t p2, bool post_process);
+};
+SDMTPCB sdsmtpcb;
+
 #endif
 
 //=============================================================================
@@ -141,6 +156,7 @@ const int lfs_ram_size[] = {200'000,4'000'000}; // edit to reflect your configur
 USBHost myusb;
 USBHub hub1(myusb);
 USBHub hub2(myusb);
+
 
 #ifndef USE_MSC_FAT_VOL 
 #define USE_MSC_FAT_VOL USE_MSC_FAT
@@ -216,7 +232,7 @@ void storage_configure()
     }
     else
     {
-      storage.addFilesystem(sdx[ii], sd_str[ii]);
+      storage.addFilesystem(sdx[ii], sd_str[ii], &sdsmtpcb, ii);
       uint64_t totalSize = sdx[ii].totalSize();
       uint64_t usedSize  = sdx[ii].usedSize();
       Serial.printf("SDIO Storage %d %d %s ",ii,cs[ii],sd_str[ii]);
@@ -232,7 +248,7 @@ void storage_configure()
     }
     else
     {
-      storage.addFilesystem(sdx[ii], sd_str[ii]);
+      storage.addFilesystem(sdx[ii], sd_str[ii], &sdsmtpcb, ii);
       uint64_t totalSize = sdx[ii].totalSize();
       uint64_t usedSize  = sdx[ii].usedSize();
       Serial.printf("SD Storage %d %d %s ",ii,cs[ii],sd_str[ii]);
@@ -347,7 +363,7 @@ void storage_configure()
 #if defined(BUILTIN_SDCARD) && defined(_SD_DAT3)
   if (BUILTIN_SDCARD_missing_index != -1)
   {
-      storage.addFilesystem(sdx[BUILTIN_SDCARD_missing_index], sd_str[BUILTIN_SDCARD_missing_index]);
+      storage.addFilesystem(sdx[BUILTIN_SDCARD_missing_index], sd_str[BUILTIN_SDCARD_missing_index], &sdsmtpcb, BUILTIN_SDCARD_missing_index);
   }
 #endif
 
@@ -356,6 +372,7 @@ void storage_configure()
 //=============================================================================
 // try to get the right FS for this store and then call it's format if we have one...
 // Here is for LittleFS...
+#if USE_LFS_RAM==1 ||  USE_LFS_PROGM==1 || USE_LFS_QSPI==1 || USE_LFS_SPI==1
 uint8_t LittleFSMTPCB::formatStore(MTPStorage_SD *mtpstorage, uint32_t store, uint32_t user_token, uint32_t p2, bool post_process)
 {
   // Lets map the user_token back to oint to our object...
@@ -381,14 +398,16 @@ uint8_t LittleFSMTPCB::formatStore(MTPStorage_SD *mtpstorage, uint32_t store, ui
     Serial.println("littleFS not set in user_token");
   return MTPStorageInterfaceCB::FORMAT_NOT_SUPPORTED;
 }
-
+#endif
 
 //=============================================================================
 // try to get the right FS for this store and then call it's format if we have one...
 // Here is for MSC Drives (SDFat)
-PFsFatFormatter FatFormatter;
-PFsExFatFormatter ExFatFormatter;
+#if USE_MSC_FAT > 0
+PFsLib pfsLIB;
+
 uint8_t  sectorBuffer[512];
+uint8_t volName[32];
 
 
 uint8_t MSCMTPCB::formatStore(MTPStorage_SD *mtpstorage, uint32_t store, uint32_t user_token, uint32_t p2, bool post_process)
@@ -405,22 +424,45 @@ uint8_t MSCMTPCB::formatStore(MTPStorage_SD *mtpstorage, uint32_t store, uint32_
   // For all of these the fat ones will do on post_process
   if (!post_process) return MTPStorageInterfaceCB::FORMAT_NEEDS_CALLBACK;
 
-  uint8_t fat_type = msc[user_token].mscfs.fatType();
-  if (fat_type == FAT_TYPE_EXFAT) {
-      Serial.println("ExFatFormatter - WIP");
-      ExFatFormatter.format(msc[user_token].mscfs, sectorBuffer, &Serial);
-  } else {
-      FatFormatter.format(msc[user_token].mscfs, fat_type, sectorBuffer, &Serial);
-  }
-  return MTPStorageInterfaceCB::FORMAT_SUCCESSFUL;
+  bool success = pfsLIB.formatter(msc[user_token].mscfs); 
+
+  return success ? MTPStorageInterfaceCB::FORMAT_SUCCESSFUL : MTPStorageInterfaceCB::FORMAT_NOT_SUPPORTED;
 }
+#endif
 
+#if USE_SD==1
 
+// Callbacks for SD 
+uint8_t SDMTPCB::formatStore(MTPStorage_SD *mtpstorage, uint32_t store, uint32_t user_token, uint32_t p2, bool post_process)
+{
+  // Lets map the user_token back to oint to our object...
+  Serial.printf("Format Callback: user_token:%x store: %u p2:%u post:%u \n", user_token, store, p2, post_process);
+
+  // note the code for the pfs... is currently in the MSC library...
+#if USE_MSC_FAT > 0
+
+  if (sdx[user_token].sdfs.fatType() == FAT_TYPE_FAT12) {
+    Serial.printf("    Fat12 not supported\n");  
+    return MTPStorageInterfaceCB::FORMAT_NOT_SUPPORTED;
+  }
+
+  // For all of these the fat ones will do on post_process
+  if (!post_process) return MTPStorageInterfaceCB::FORMAT_NEEDS_CALLBACK;
+
+  PFsVolume partVol;
+  if (!partVol.begin(sdx[user_token].sdfs.card(), true, 1)) return MTPStorageInterfaceCB::FORMAT_NOT_SUPPORTED;
+  bool success = pfsLIB.formatter(partVol); 
+  return success ? MTPStorageInterfaceCB::FORMAT_SUCCESSFUL : MTPStorageInterfaceCB::FORMAT_NOT_SUPPORTED;
+#else
+  return MTPStorageInterfaceCB::FORMAT_NOT_SUPPORTED;
+#endif
+}
+#endif
 
 
 /****  End of device specific change area  ****/
 
-#if USE_SD==1
+//#if USE_SD==1
 // Call back for file timestamps.  Only called for file create and sync(). needed by SDFat-beta
 #include "TimeLib.h"
 void dateTime(uint16_t* date, uint16_t* time, uint8_t* ms10)
@@ -428,7 +470,7 @@ void dateTime(uint16_t* date, uint16_t* time, uint8_t* ms10)
   *time = FS_TIME(hour(), minute(), second());
   *ms10 = second() & 1 ? 100 : 0;
 }
-#endif
+//#endif
 
 void setup()
 {
