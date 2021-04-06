@@ -88,7 +88,7 @@ SDClass sdx[nsd];
 int  BUILTIN_SDCARD_missing_index = -1;
 #if defined(ARDUINO_TEENSY41)
   #define _SD_DAT3 46
-#elif defined(ARDUINO_TEENSY40)
+#elif defined(ARDUINO_TEENSY40) || defined(ARDUINO_TEENSY_MICROMOD)
   #define _SD_DAT3 38
 #elif defined(ARDUINO_TEENSY35) || defined(ARDUINO_TEENSY36)
   #define _SD_DAT3 62
