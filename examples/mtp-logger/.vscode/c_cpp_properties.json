@@ -1,7 +1,7 @@
 {
   "env": {
     "ROOT": "C:/Users/zimme/Documents",
-    "ROOT0": "${ROOT}/arduino-1.8.12/hardware/teensy/avr",
+    "ROOT0": "${ROOT}/arduino-1.8.15/hardware/teensy/avr",
     "LOCAL_LIBRARIES": "${ROOT}/Arduino/libraries",
     "COMMON_LIBS": [  "**",
                       "${ROOT0}/libraries/SPI/**",
@@ -20,6 +20,22 @@
                       ]
   },
   "configurations": [
+    {
+      "name": "Teensy 35",
+      "includePath": [
+        "${COMMON_LIBS}",
+        "${ROOT0}/cores/teensy3"
+      ],
+      "forcedInclude": [],
+      "defines": [
+        "__MK64FX512__",
+        "ARDUINO_T35",
+        "F_CPU=96000000",
+        "${COMMON_DEFINES}"
+      ],
+      "compilerPath": "${ROOT0}/../../tools/arm/bin/arm-none-eabi-gcc.exe",
+      "intelliSenseMode": "gcc-arm"
+    },
     {
       "name": "Teensy 36",
       "includePath": [

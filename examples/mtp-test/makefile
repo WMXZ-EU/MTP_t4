@@ -12,12 +12,25 @@
 SHELL            := cmd.exe
 export SHELL
 
-BOARD_ID         := T36
+BOARD_ID         := T35
+#BOARD_ID         := T36
 #BOARD_ID         := T40
 #BOARD_ID         := T41
 TARGET_NAME      := mtp-test_$(BOARD_ID)
 
 USB_DEVICE		:= USB_MTPDISK_SERIAL
+
+ifeq ($(BOARD_ID),T35)
+	MCU			:= mk64fx512
+	lvs			:=
+	Family 		:= teensy3
+	FLAGS_CPU   := -mthumb -mcpu=cortex-m4 -mfloat-abi=hard -mfpu=fpv4-sp-d16 -fsingle-precision-constant
+	LIBS        := -larm_cortexM4lf_math
+	DEFINES     := -D__MK64FX512__ -DARDUINO_TEENSY35
+
+	DEFINES     += -DF_CPU=96000000
+	DEFINES		+= -DUSE_SDIO=1
+endif
 
 ifeq ($(BOARD_ID),T36)
 	MCU			:= mk66fx1m0
@@ -58,7 +71,7 @@ $(info $(DEFINES))
 DEFINES     += -DTEENSYDUINO=154 -DARDUINO=10813 -DLAYOUT_US_ENGLISH
 
 ROOT0		:= C:\Users\zimme\Documents
-ARDUINO		:= $(ROOT0)\arduino-1.8.13\hardware
+ARDUINO		:= $(ROOT0)\arduino-1.8.15\hardware
 
 LIBS_SHARED_BASE := $(ROOT0)\Arduino\libraries
 LIBS_SHARED      := MTP_t4

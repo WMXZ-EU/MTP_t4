@@ -67,8 +67,7 @@ class mSD_Base
     File sd_open(uint32_t store, const char *filename, uint32_t mode) { return sdx[store]->open(filename,mode);  }
     bool sd_mkdir(uint32_t store, char *filename) {  return sdx[store]->mkdir(filename);  }
     bool sd_rename(uint32_t store, char *oldfilename, char *newfilename) { return sdx[store]->rename(oldfilename,newfilename);  }
-    bool sd_remove(uint32_t store, const char *filename) {    Serial.println(filename);
-return sdx[store]->remove(filename);  }
+    bool sd_remove(uint32_t store, const char *filename) {    Serial.println(filename); return sdx[store]->remove(filename);  }
     bool sd_rmdir(uint32_t store, char *filename) { return sdx[store]->rmdir(filename);  }
 
     uint64_t sd_totalSize(uint32_t store) { return sdx[store]->totalSize();  }

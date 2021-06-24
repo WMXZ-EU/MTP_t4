@@ -11093,7 +11093,7 @@ private:
     37bc:	ldr	r3, [r0, #0]
     37be:	ldr	r3, [r3, #76]	; 0x4c
     37c0:	blx	r3
-      if(f2.isDirectory()) removeFile(store,tname); else  sd_remove(store,tname);
+      if(f2.isDirectory()) removeFile(store,tname); else sd_remove(store,tname);
     37c2:	cmp	r0, #0
     37c4:	beq.w	3abe <MTPStorage_SD::removeFile(unsigned long, char*)+0x69a>
     37c8:	ldr	r1, [sp, #12]
@@ -11374,10 +11374,10 @@ private:
     3946:	mov	r0, r4
     3948:	movs	r1, #20
     394a:	bl	119b0 <operator delete(void*, unsigned int)>
-    sd_rmdir(store,file);
   }
   else
-  { sd_remove(store,file);
+  {
+    sd_remove(store,file);
   }
 }
     394e:	add	sp, #340	; 0x154
@@ -11744,10 +11744,10 @@ private:
     3b56:	b.n	3694 <MTPStorage_SD::removeFile(unsigned long, char*)+0x270>
     3b58:	mov	r0, r4
     3b5a:	blx	r3
-    sd_rmdir(store,file);
   }
   else
-  { sd_remove(store,file);
+  {
+    sd_remove(store,file);
   }
 }
     3b5c:	b.n	394e <MTPStorage_SD::removeFile(unsigned long, char*)+0x52a>
@@ -11968,7 +11968,7 @@ private:
     if(object==0xFFFFFFFFUL) return true; // don't do anything if trying to delete a root directory see below
     3c8c:	adds	r2, r1, #1
     3c8e:	beq.n	3c9a <MTPStorage_SD::DeleteObject(unsigned long)+0xe>
-  { sd_remove(store,file);
+    sd_remove(store,file);
   }
 }
 

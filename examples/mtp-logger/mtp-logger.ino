@@ -20,7 +20,7 @@
 
 #if defined(__IMXRT1062__)
   // following only while usb_mtp is not included in cores
-  #if __has_include("usb_mtp.h") && WMXZ_TEST
+  #if __has_include("usb_mtp.h") 
     #include "usb_mtp.h"
   #else
     #include "usb1_mtp.h"
@@ -28,7 +28,7 @@
 #endif
 
 #define USE_SD  1
-#define USE_LITTLEFS 1 // set to zero if no LtttleFS is existing or to be used
+#define USE_LITTLEFS 0 // set to zero if no LtttleFS is existing or is to be used
 
 /****  Start device specific change area  ****/
 #if USE_SD==1
@@ -163,7 +163,7 @@ void logg(uint32_t del, const char *txt)
 }
 
 /*************************** Circular Buffer ********************/
-#if defined ARDUINO_TEENSY41
+#if defined(ARDUINO_TEENSY41)
   #define HAVE_PSRAM 1
 #else
   #define HAVE_PSRAM 0
@@ -178,6 +178,7 @@ void logg(uint32_t del, const char *txt)
 //    uint32_t *data_buffer = memory_begin;
 
     uint32_t *data_buffer = (uint32_t *)extmem_malloc(MAXBUF*128*sizeof(uint32_t));
+
   #else
     #if defined(ARDUINO_TEENSY41)
       #define MAXBUF (46)           // 138 kB
@@ -459,7 +460,7 @@ int16_t check_filing(int16_t state)
 /****************** Data Acquisition *******************************************/
 #define DO_TEST 1
 #define DO_I2S 2
-#define DO_ACQ DO_TEST
+#define DO_ACQ DO_I2S
 
 #if DO_ACQ==DO_TEST
   /****************** Intervall timer(dummy example) *****************************/
@@ -723,6 +724,18 @@ P38 PTC11                   I2S0_RXD1 (4)
           CCM_ANALOG_PLL_AUDIO &= ~CCM_ANALOG_PLL_AUDIO_BYPASS;   //Disable Bypass
       }
 
+      void acq_start(void)
+      {
+          //DMA_SERQ = dma.channel;
+          I2S1_RCSR |= (I2S_RCSR_RE | I2S_RCSR_BCE);
+      }
+
+      void acq_stop(void)
+      {
+          I2S1_RCSR &= ~(I2S_RCSR_RE | I2S_RCSR_BCE);
+          //DMA_CERQ = dma.channel;     
+      }
+
       void acq_init(int32_t fsamp)
       {
           CCM_CCGR5 |= CCM_CCGR5_SAI1(CCM_CCGR_ON);
@@ -803,17 +816,9 @@ P38 PTC11                   I2S0_RXD1 (4)
           dma.triggerAtHardwareEvent(DMAMUX_SOURCE_SAI1_RX);
           dma.enable();
 
-          I2S1_RCSR = I2S_RCSR_RE | I2S_RCSR_BCE | I2S_RCSR_FRDE | I2S_RCSR_FR;
+          I2S1_RCSR =  I2S_RCSR_FRDE | I2S_RCSR_FR;
           dma.attachInterrupt(acq_isr,I2S_DMA_PRIO*16);	
-      }
-
-      void acq_start(void)
-      {
-
-      }
-      void acq_stop(void)
-      {
-          
+          acq_start();
       }
   #endif
 
