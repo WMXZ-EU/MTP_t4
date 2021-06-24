@@ -19,12 +19,21 @@
 #include "MTP.h"
 
 #if defined(__IMXRT1062__)
-  // following only while usb_mtp is not included in cores
-  #if __has_include("usb_mtp.h") 
-    #include "usb_mtp.h"
-  #else
+  // following only as long usb_mtp is not included in cores
+  #if !__has_include("usb_mtp.h")
     #include "usb1_mtp.h"
   #endif
+#else
+  #ifndef BUILTIN_SCCARD 
+    #define BUILTIN_SDCARD 254
+  #endif
+  void usb_mtp_configure(void) {}
+#endif
+
+#if USE_EVENTS==1
+  extern "C" int usb_init_events(void);
+#else
+  int usb_init_events(void) {}
 #endif
 
 #define USE_SD  1
@@ -39,10 +48,14 @@
 
   #define SPI_SPEED SD_SCK_MHZ(16)  // adjust to sd card 
 
-// SDClasses
-  const char *sd_str[]={"sdio","sd6"}; // edit to reflect your configuration
-  const int cs[] = {BUILTIN_SDCARD,38}; // edit to reflect your configuration
-  const int nsd = sizeof(cs)/sizeof(int);
+  #if defined (BUILTIN_SDCARD)
+    const char *sd_str[]={"sdio","sd1"}; // edit to reflect your configuration
+    const int cs[] = {BUILTIN_SDCARD,10}; // edit to reflect your configuration
+  #else
+    const char *sd_str[]={"sd1"}; // edit to reflect your configuration
+    const int cs[] = {10}; // edit to reflect your configuration
+  #endif
+  const int nsd = sizeof(sd_str)/sizeof(const char *);
 
 SDClass sdx[nsd];
 #endif
@@ -71,20 +84,38 @@ void storage_configure()
     #endif
 
     for(int ii=0; ii<nsd; ii++)
-    { if(cs[ii] == BUILTIN_SDCARD)
-      {
-        if(!sdx[ii].sdfs.begin(SdioConfig(FIFO_SDIO))) {Serial.println("No storage"); while(1);};
-        storage.addFilesystem(sdx[ii], sd_str[ii]);
-      }
-      else if(cs[ii]<BUILTIN_SDCARD)
+    { 
+      #if defined(BUILTIN_SDCARD)
+        if(cs[ii] == BUILTIN_SDCARD)
+        {
+          if(!sdx[ii].sdfs.begin(SdioConfig(FIFO_SDIO))) 
+          { Serial.printf("SDIO Storage %d %d %s failed or missing",ii,cs[ii],sd_str[ii]);  Serial.println();
+          }
+          else
+          {
+            storage.addFilesystem(sdx[ii], sd_str[ii]);
+            uint64_t totalSize = sdx[ii].totalSize();
+            uint64_t usedSize  = sdx[ii].usedSize();
+            Serial.printf("SDIO Storage %d %d %s ",ii,cs[ii],sd_str[ii]); 
+            Serial.print(totalSize); Serial.print(" "); Serial.println(usedSize);
+          }
+        }
+        else if(cs[ii]<BUILTIN_SDCARD)
+      #endif
       {
         pinMode(cs[ii],OUTPUT); digitalWriteFast(cs[ii],HIGH);
-        if(!sdx[ii].sdfs.begin(SdSpiConfig(cs[ii], SHARED_SPI, SPI_SPEED))) {Serial.println("No storage"); while(1);}
-        storage.addFilesystem(sdx[ii], sd_str[ii]);
+        if(!sdx[ii].sdfs.begin(SdSpiConfig(cs[ii], SHARED_SPI, SPI_SPEED))) 
+        { Serial.printf("SD Storage %d %d %s failed or missing",ii,cs[ii],sd_str[ii]);  Serial.println();
+        }
+        else
+        {
+          storage.addFilesystem(sdx[ii], sd_str[ii]);
+          uint64_t totalSize = sdx[ii].totalSize();
+          uint64_t usedSize  = sdx[ii].usedSize();
+          Serial.printf("SD Storage %d %d %s ",ii,cs[ii],sd_str[ii]); 
+          Serial.print(totalSize); Serial.print(" "); Serial.println(usedSize);
+        }
       }
-        uint64_t totalSize = sdx[ii].totalSize();
-        uint64_t usedSize  = sdx[ii].usedSize();
-        Serial.printf("Storage %d %d %s ",ii,cs[ii],sd_str[ii]); Serial.print(totalSize); Serial.print(" "); Serial.println(usedSize);
     }
     #endif
 
@@ -110,21 +141,40 @@ int16_t do_logger(uint16_t store, int16_t state);
 int16_t do_menu(int16_t state);
 int16_t check_filing(int16_t state);
 
+void dateTime(uint16_t* date, uint16_t* time, uint8_t* ms10) ;
+
 void acq_init(int32_t fsamp);
 int16_t acq_check(int16_t state);
+
+#include "TimeLib.h"
+void printTimestamp(uint32_t tt);
 
 void setup()
 { while(!Serial && millis()<3000); 
   Serial.println("MTP logger");
+  setSyncProvider(rtc_get);
 
-  usb_mtp_configure();
+  printTimestamp(rtc_get());
+
+  #if USE_EVENTS==1
+    usb_init_events();
+  #endif
+
+  #if !__has_include("usb_mtp.h")
+    usb_mtp_configure();
+  #endif
   storage_configure();
+
+  #if USE_SD==1
+  // Set Time callback // needed for SDFat
+  FsDateTime::callback = dateTime;
+  #endif
 
   acq_init(93750); // is fixed for this example, to be modified below
   state=-1;
 
   Serial.println("Setup done");
-  Serial.println(" Enter s to start acquisition and q to stop acquisition");
+  Serial.println(" Enter 's' to start, 'q' to stop acquisition and 'r' to restart MTP");
   Serial.flush();
 }
 
@@ -186,6 +236,8 @@ void logg(uint32_t del, const char *txt)
       #define MAXBUF (46)           // 138 kB
     #elif defined(__MK66FX1M0__)
       #define MAXBUF (46)           // 138 kB
+    #elif defined(__MK64FX512__)
+      #define MAXBUF (22)           // 138 kB
     #elif defined(__MK20DX256__)
       #define MAXBUF (12)           // 36 kB
     #endif
@@ -294,6 +346,12 @@ int16_t do_menu(int16_t state)
       state=4;
       Serial.println("\nStop");
       break;
+#if USE_EVENTS==1
+    case 'r': 
+      Serial.println("Reset");
+      mtpd.send_DeviceResetEvent();
+      break;
+#endif
     case '?': // get parameters
       do_menu1();
       break;
@@ -352,6 +410,15 @@ int16_t file_close(void)
  * Custom Implementation
  * 
  */
+/****************** Time Utilities *****************************/
+void printTimestamp(uint32_t tt)
+{
+  tmElements_t tm;
+  breakTime(tt, tm);
+  Serial.printf("Now: %04d-%02d-%02d_%02d:%02d:%02d\r\n", 
+                      tmYearToCalendar(tm.Year), tm.Month, tm.Day, tm.Hour, tm.Minute, tm.Second);
+}
+
 /************************ some utilities modified from time.cpp ************************/
 // leap year calculator expects year argument as years offset from 1970
 #define LEAP_YEAR(Y) ( ((1970+(Y))>0) && !((1970+(Y))%4) && ( ((1970+(Y))%100) || !((1970+(Y))%400) ) )
@@ -407,7 +474,18 @@ void do_menu3(void)
 {  // misc commands
 }
 
+
 /****************** File Utilities *****************************/
+  #if USE_SD==1
+    // Call back for file timestamps.  Only called for file create and sync()
+    void dateTime(uint16_t* date, uint16_t* time, uint8_t* ms10) 
+    { *date = FS_DATE(year(), month(), day());
+      *time = FS_TIME(hour(), minute(), second());
+      *ms10 = second() & 1 ? 100 : 0;
+    }
+  #endif
+
+
 void makeHeader(char *header)
 {
   memset(header,0,512);
@@ -529,8 +607,8 @@ int16_t check_filing(int16_t state)
 
   void acq_isr(void);
 
-  #if defined(__MK66FX1M0__)
-  //Teensy 3.6
+  #if defined(__MK66FX1M0__) || defined(__MK64FX512__)
+  //Teensy 3.6 or 3.5
       #define MCLK_SRC  3
       #define MCLK_SCALE 1
 

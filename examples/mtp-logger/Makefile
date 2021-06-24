@@ -12,6 +12,9 @@
 SHELL            := cmd.exe
 export SHELL
 
+NOW = $(shell powershell [int](Get-Date -UFormat +%s))
+$(info Now = $(NOW))
+
 BOARD_ID         := T35
 #BOARD_ID         := T36
 #BOARD_ID         := T40
@@ -25,6 +28,7 @@ ifeq ($(BOARD_ID),T35)
 	MCU			:= mk64fx512
 	lvs			:=
 	Family 		:= teensy3
+	LDFILE		:= mk64fx512.ld
 	FLAGS_CPU   := -mthumb -mcpu=cortex-m4 -mfloat-abi=hard -mfpu=fpv4-sp-d16 -fsingle-precision-constant
 	LIBS        := -larm_cortexM4lf_math
 	DEFINES     := -D__MK64FX512__ -DARDUINO_TEENSY35
@@ -37,6 +41,7 @@ ifeq ($(BOARD_ID),T36)
 	MCU			:= mk66fx1m0
 	lvs			:=
 	Family 		:= teensy3
+	LDFILE		:= mk66fx1m0.ld
 	FLAGS_CPU   := -mthumb -mcpu=cortex-m4 -mfloat-abi=hard -mfpu=fpv4-sp-d16 -fsingle-precision-constant
 	LIBS        := -larm_cortexM4lf_math
 	DEFINES     := -D__MK66FX1M0__ -DARDUINO_TEENSY36
@@ -99,7 +104,7 @@ FLAGS_LSP   :=
 FLAGS_CPP   := -std=gnu++14 -fno-exceptions -fpermissive -fno-rtti -fno-threadsafe-statics -felide-constructors -Wno-error=narrowing
 FLAGS_C     := 
 FLAGS_S     := -x assembler-with-cpp
-FLAGS_LD    := -Wl,--gc-sections,--relax,--defsym=__rtc_localtime=$(shell powershell [int](Get-Date -UFormat +%s)[0]) -T$(CORE_BASE)/$(LDFILE)
+FLAGS_LD    := -Wl,--gc-sections,--relax,--defsym=__rtc_localtime=$(NOW) -T$(CORE_BASE)/$(LDFILE)
 
 #LIBS        := -larm_cortexM7lfsp_math -lm -lstdc++
 LIBS		+= -lm -lstdc++
