@@ -46,6 +46,7 @@ Session may be reset from Teensy by sending a reset event. This is shown in mtp-
    - edit teensy/avr/boards.txt with content of 'modifications_for_teensy_avr' (copy to end of file)
  - install also USB2 from WMXZ github if cores does not have "usb_mtp.h"
  - install LittleFS from https://github.com/PaulStoffregen/LittleFS for use of LittleFS basd filesystems
+ - remove "Time.h" in "libraries/Time" to eliminate compiler warnings
 
  ## Known Issues
    - copying of files and directories work but are not displayed in file explorer, manual unmount/mount sequence required
