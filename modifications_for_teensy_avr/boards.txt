@@ -11,5 +11,5 @@ teensy36.menu.usb.mtpserial.build.usbtype=USB_MTPDISK_SERIAL
 teensy35.menu.usb.mtpserial=MTP Disk SERIAL (Experimental)
 teensy35.menu.usb.mtpserial.build.usbtype=USB_MTPDISK_SERIAL
 
-teensy32.menu.usb.mtpserial=MTP Disk SERIAL (Experimental)
-teensy32.menu.usb.mtpserial.build.usbtype=USB_MTPDISK_SERIAL
+teensy31.menu.usb.mtpserial=MTP Disk SERIAL (Experimental)
+teensy31.menu.usb.mtpserial.build.usbtype=USB_MTPDISK_SERIAL
