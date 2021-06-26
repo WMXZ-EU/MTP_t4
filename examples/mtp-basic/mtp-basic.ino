@@ -23,7 +23,7 @@
     #include "usb1_mtp.h"
   #endif
 #else
-  #ifndef BUILTIN_SCCARD 
+  #ifndef BUILTIN_SDCARD 
     #define BUILTIN_SDCARD 254
   #endif
   void usb_mtp_configure(void) {}
