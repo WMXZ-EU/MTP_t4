@@ -10,7 +10,7 @@ if ([string]::IsNullOrEmpty($Path)) {
 	powershell -noexit -file $MyInvocation.MyCommand.Path -Path "Teensy"
 	return
 }
-echo "Command is ./MTPdiir -Path $Path"
+echo "Command is ./MTPdir -Path $Path"
 
 $pathParts = @( $Path.Split('/'))
 
