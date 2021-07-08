@@ -1,12 +1,21 @@
 #include "Arduino.h"
 
+#define DO_TEST 1
+#define DO_I2S 2
+#define DO_ACQ DO_I2S
+
 #define NDAT 128L
-#define NCH_ACQ 1
-#define NCH_I2S 4
+#define NCH_I2S 2 // number of total I2S channels
+#define N_ADC 1   // number of I2S data ports
+#define FRAME_I2S (NCH_I2S/N_ADC) // framse size for each I2S data port
+
+const int ichan[]= {0,1}; // channels to store, must be less or equal than NCH_I2S
+const int NCH_ACQ = sizeof(ichan)/4;
+
 #define NBUF_ACQ (NCH_ACQ*NDAT)
 #define NBUF_I2S (NCH_I2S*NDAT)
-#define N_ADC 2
-#define FRAME_I2S (NCH_I2S/N_ADC)
+
+#define NDBL 4 // number of buffers for disk-write (multiple of NBUF_ACQ)
 
 #define I2S_CONFIG 1
 // CONFIG 1 (PURE RX)
@@ -22,6 +31,9 @@
   // following only as long usb_mtp is not included in cores
   #if !__has_include("usb_mtp.h")
     #include "usb1_mtp.h"
+  #endif
+  #if defined(ARDUINO_TEENSY40) && defined(BUILTIN_SDCARD) // needed untin not corrected in SD.h
+    #undef BUILTIN_SDCARD 
   #endif
 #else
   #ifndef BUILTIN_SDCARD 
@@ -41,12 +53,12 @@
 
 /****  Start device specific change area  ****/
 #if USE_SD==1
-  // edit SPI to reflect your configuration (following is for T4.1)
+  // edit SPI to reflect your configuration (following is for T4.x)
   #define SD_MOSI 11
   #define SD_MISO 12
   #define SD_SCK  13
 
-  #define SPI_SPEED SD_SCK_MHZ(16)  // adjust to sd card 
+  #define SPI_SPEED SD_SCK_MHZ(33)  // adjust to sd card 
 
   #if defined (BUILTIN_SDCARD)
     const char *sd_str[]={"sdio","sd1"}; // edit to reflect your configuration
@@ -201,8 +213,8 @@ void logg(uint32_t del, const char *txt)
 { static uint32_t to;
   if(millis()-to > del)
   {
-    Serial.printf("%s: %6d %4d %4d %4d %4d %d\n",
-            txt,loop_count, acq_count, acq_miss,maxCount, maxDel,state); 
+    Serial.printf("%s: %6d %4d; %4d %4d; %4d\n",
+            txt,loop_count, acq_count, acq_miss,maxCount, maxDel); 
     loop_count=0;
     acq_count=0;
     acq_miss=0;
@@ -231,15 +243,15 @@ void logg(uint32_t del, const char *txt)
 
   #else
     #if defined(ARDUINO_TEENSY41)
-      #define MAXBUF (46)           // 138 kB
+      #define MAXBUF (((500/NCH_ACQ)/NDBL)*NDBL)           // 256 kB (4*500*128)
     #elif defined(ARDUINO_TEENSY40)
-      #define MAXBUF (46)           // 138 kB
+      #define MAXBUF (((500/NCH_ACQ)/NDBL)*NDBL)           // 256 kB (4*500*128)
     #elif defined(__MK66FX1M0__)
-      #define MAXBUF (46)           // 138 kB
+      #define MAXBUF (((150/NCH_ACQ)/NDBL)*NDBL)           // 128 kB (4*250*128)
     #elif defined(__MK64FX512__)
-      #define MAXBUF (22)           // 138 kB
+      #define MAXBUF (((100/NCH_ACQ)/NDBL)*NDBL)           // 51.2 kB (4*100*128)
     #elif defined(__MK20DX256__)
-      #define MAXBUF (12)           // 36 kB
+      #define MAXBUF (((50/NCH_ACQ)/NBL)*NBL)            // 25.6 kB (4*50*128)
     #endif
     uint32_t data_buffer[MAXBUF*NBUF_ACQ];
   #endif
@@ -281,7 +293,7 @@ int16_t file_open(uint16_t store);
 int16_t file_writeHeader(void);
 int16_t file_writeData(void *diskBuffer, uint32_t ndbl);
 int16_t file_close(void);
-#define NDBL 1
+
 #define NBUF_DISK (NDBL*NBUF_ACQ)
 uint32_t diskBuffer[NBUF_DISK];
 uint32_t maxDel=0;
@@ -489,6 +501,7 @@ void do_menu3(void)
 void makeHeader(char *header)
 {
   memset(header,0,512);
+  sprintf(header,"WMXZ");
 }
 
 int16_t makeFilename(char *filename)
@@ -536,9 +549,6 @@ int16_t check_filing(int16_t state)
 }
 
 /****************** Data Acquisition *******************************************/
-#define DO_TEST 1
-#define DO_I2S 2
-#define DO_ACQ DO_I2S
 
 #if DO_ACQ==DO_TEST
   /****************** Intervall timer(dummy example) *****************************/
@@ -668,6 +678,14 @@ int16_t check_filing(int16_t state)
 
     const int32_t fsamp0=(((F_PLL*MCLK_MULT)/MCLK_DIV)/(2*BIT_DIV)/(NCH_I2S*32/N_ADC));
 
+    void acq_start(void)
+    {
+          I2S0_RCSR |= (I2S_RCSR_RE | I2S_RCSR_BCE);
+    }
+    void acq_stop(void)
+    {
+          I2S0_RCSR &= ~(I2S_RCSR_RE | I2S_RCSR_BCE);
+    }
 
     void acq_init(int32_t fsamp)
     {
@@ -761,18 +779,11 @@ P38 PTC11                   I2S0_RXD1 (4)
           dma.triggerAtHardwareEvent(DMAMUX_SOURCE_I2S0_RX);
           dma.enable();
 
-          I2S0_RCSR = I2S_RCSR_RE | I2S_RCSR_BCE | I2S_RCSR_FRDE | I2S_RCSR_FR;
+          I2S0_RCSR = I2S_RCSR_FRDE | I2S_RCSR_FR;
           dma.attachInterrupt(acq_isr,I2S_DMA_PRIO*16);	
+          acq_start();
     }
 
-    void acq_start(void)
-    {
-
-    }
-    void acq_stop(void)
-    {
-        
-    }
 
   #elif defined(__IMXRT1062__)
   //Teensy 4.x
@@ -887,9 +898,8 @@ P38 PTC11                   I2S0_RXD1 (4)
 #endif
           dma.TCD->DADDR = tdm_rx_buffer;
           dma.TCD->DOFF = 4;
-          dma.TCD->CITER_ELINKNO = NBUF_I2S;
+          dma.TCD->CITER_ELINKNO = dma.TCD->BITER_ELINKNO = NDAT*FRAME_I2S*2;
           dma.TCD->DLASTSGA = -sizeof(tdm_rx_buffer);
-          dma.TCD->BITER_ELINKNO = NBUF_I2S;
           dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
           dma.triggerAtHardwareEvent(DMAMUX_SOURCE_SAI1_RX);
           dma.enable();
@@ -928,9 +938,9 @@ P38 PTC11                   I2S0_RXD1 (4)
 
         for(int jj=0;jj<NCH_ACQ;jj++)
         {
-          for(int ii=0; ii<NBUF_ACQ;ii++)
+          for(int ii=0; ii<NDAT;ii++)
           {
-            acq_rx_buffer[jj+ii*NCH_ACQ]=src[jj+ii*NCH_I2S];
+            acq_rx_buffer[ichan[jj]+ii*NCH_ACQ]=src[ichan[jj]+ii*NCH_I2S];
           }
         }
 

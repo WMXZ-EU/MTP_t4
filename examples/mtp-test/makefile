@@ -12,9 +12,9 @@
 SHELL            := cmd.exe
 export SHELL
 
-BOARD_ID         := T35
+#BOARD_ID         := T35
 #BOARD_ID         := T36
-#BOARD_ID         := T40
+BOARD_ID         := T40
 #BOARD_ID         := T41
 TARGET_NAME      := mtp-test_$(BOARD_ID)
 

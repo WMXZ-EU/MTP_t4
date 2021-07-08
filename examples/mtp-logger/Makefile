@@ -15,9 +15,9 @@ export SHELL
 NOW = $(shell powershell [int](Get-Date -UFormat +%s))
 $(info Now = $(NOW))
 
-BOARD_ID         := T35
+#BOARD_ID         := T35
 #BOARD_ID         := T36
-#BOARD_ID         := T40
+BOARD_ID         := T40
 #BOARD_ID         := T41
 #
 TARGET_NAME      := mtp-logger_$(BOARD_ID)
@@ -52,31 +52,29 @@ endif
 
 ifeq ($(BOARD_ID),T40)
 	MCU			:= imxrt1062
-	lvs			:=
 	Family		:= teensy4
 	LDFILE		:= imxrt1062.ld
 	FLAGS_CPU   := -mthumb -mcpu=cortex-m7 -mfloat-abi=hard -mfpu=fpv5-d16 -fsingle-precision-constant
 	LIBS        := -larm_cortexM7lfsp_math	
 	DEFINES     := -D__IMXRT1062__  -DARDUINO_TEENSY40
-	DEFINES     += -DF_CPU=150000000
+	DEFINES     += -DF_CPU=600000000
 	DEFINES		+= -DUSE_SDIO=0
 endif
 
 ifeq ($(BOARD_ID),T41)
 	MCU			:= imxrt1062
-	lvs			:= _t41
 	Family		:= teensy4
 	LDFILE		:= imxrt1062_t41.ld
 	FLAGS_CPU   := -mthumb -mcpu=cortex-m7 -mfloat-abi=hard -mfpu=fpv5-d16 -fsingle-precision-constant
 	LIBS        := -larm_cortexM7lfsp_math	
 	DEFINES     := -D__IMXRT1062__  -DARDUINO_TEENSY41
-	DEFINES     += -DF_CPU=150000000
-	DEFINES		+= -DUSE_SDIO=0
+	DEFINES     += -DF_CPU=600000000
+	DEFINES		+= -DUSE_SDIO=1
 endif
 
 DEFINES     += -D$(USB_DEVICE)
 $(info $(DEFINES))
-DEFINES     += -DTEENSYDUINO=151 -DARDUINO=10812 -DLAYOUT_US_ENGLISH
+DEFINES     += -DTEENSYDUINO=154 -DARDUINO=10815 -DLAYOUT_US_ENGLISH
 
 ROOT0		:= C:\Users\zimme\Documents
 ARDUINO		:= $(ROOT0)\arduino-1.8.15\hardware
@@ -321,7 +319,6 @@ $(TARGET_ELF): $(CORE_LIB) $(LIB_OBJ) $(USR_OBJ)
 	@echo $(COL_LINK)[HEX] $@ 
 	@$(SIZE) "$<"
 	@$(OBJCOPY) -O ihex -R.eeprom "$<" "$@"
-	
 	
 # Cleaning --------------------------------------------------------------------
 cleanUser:

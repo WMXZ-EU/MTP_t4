@@ -7,16 +7,15 @@
                       "${ROOT0}/libraries/SPI/**",
                       "${ROOT0}/libraries/Time/**",
                       "${ROOT0}/libraries/SD/**",
+                      "${ROOT0}/libraries/SdFat/**",
                       "${ROOT0}/libraries/LittleFS/**",
-                      "${ROOT0}/libraries/SdFat-beta/**",
                       "${LOCAL_LIBRARIES}/MTP_t4/**",
                       "${LOCAL_LIBRARIES}/USB2/**"
                     ],
     "COMMON_DEFINES": [ "TEENSYDUINO=154",
                         "USB_MTPDISK_SERIAL",
                         "LAYOUT_US_ENGLISH",
-                        "ARDUINO",
-                        "USE_SDIO=1"
+                        "ARDUINO"
                       ]
   },
   "configurations": [
@@ -31,9 +30,12 @@
         "__MK64FX512__",
         "ARDUINO_T35",
         "F_CPU=96000000",
-        "${COMMON_DEFINES}"
+        "${COMMON_DEFINES}",
+        "USE_SDIO=1"
       ],
       "compilerPath": "${ROOT0}/../../tools/arm/bin/arm-none-eabi-gcc.exe",
+      "cStandard": "c11",
+      "cppStandard": "gnu++14",
       "intelliSenseMode": "gcc-arm"
     },
     {
@@ -47,25 +49,31 @@
         "__MK66FX1M0__",
         "ARDUINO_TEENSY36",
         "F_CPU=96000000",
-        "${COMMON_DEFINES}"
+        "${COMMON_DEFINES}",
+        "USE_SDIO=1"
       ],
       "compilerPath": "${ROOT0}/../../tools/arm/bin/arm-none-eabi-gcc.exe",
+      "cStandard": "c11",
+      "cppStandard": "gnu++14",
       "intelliSenseMode": "gcc-arm"
     },
     {
       "name": "Teensy 40",
       "includePath": [
-        "${COMMON_LIBS}",
-        "${ROOT0}/cores/teensy4"
+        "${ROOT0}/cores/teensy4",
+        "${COMMON_LIBS}"
       ],
       "forcedInclude": [],
       "defines": [
         "__IMXRT1062__",
         "ARDUINO_TEENSY40",
         "F_CPU=150000000",
-        "${COMMON_DEFINES}"
+        "${COMMON_DEFINES}",
+        "USE_SDIO=0"
       ],
       "compilerPath": "${ROOT0}/../../tools/arm/bin/arm-none-eabi-gcc.exe",
+      "cStandard": "c11",
+      "cppStandard": "gnu++14",
       "intelliSenseMode": "gcc-arm"
     },
     {
@@ -79,9 +87,12 @@
         "__IMXRT1062__",
         "ARDUINO_TEENSY41",
         "F_CPU=150000000",
-        "${COMMON_DEFINES}"
+        "${COMMON_DEFINES}",
+        "USE_SDIO=1"
       ],
       "compilerPath": "${ROOT0}/../../tools/arm/bin/arm-none-eabi-gcc.exe",
+      "cStandard": "c11",
+      "cppStandard": "gnu++14",
       "intelliSenseMode": "gcc-arm"
     }
   ],
