@@ -35,7 +35,10 @@ Modification of disk content (directories and Files) by Teensy is only be visibl
 
 Session may be reset from Teensy by sending a reset event. This is shown in mtp-test example where sending the character 'r' from PC to Teensy generates a reset event. It is suggested to close file explorer before reseting mtp
 
+In scipts directory is a powershell script that unmounts/mounts the Teensy portable device
+
 ## Examples
+ - mtp-basic:  basic MTP program
  - mtp-test:   basic MTP test program
  - mtp-logger: basic data logger with MTP access
  
