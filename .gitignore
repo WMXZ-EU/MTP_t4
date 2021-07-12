@@ -1,2 +1,5 @@
 examples/mtp-logger/.vsteensy/**
 examples/mtp-test/.vsteensy/**
+*.d
+*.o
+*.a
