@@ -11,8 +11,9 @@
 #******************************************************************************
 # modified by WMXZ
 
+BOARD_ID         := T32
 #BOARD_ID         := T35
-BOARD_ID         := T36
+#BOARD_ID         := T36
 #BOARD_ID         := T40
 #BOARD_ID         := T41
 
@@ -39,9 +40,20 @@ PROJECT := $(notdir $(shell cd))
 TARGET_NAME     := $(PROJECT)_$(BOARD_ID)
 $(info Target is : $(TARGET_NAME))
 
+ifeq ($(BOARD_ID),T32)
+	MCU			:= mk20dx256
+	Family 		:= teensy3
+	LDFILE		:= mk20dx256.ld
+	FLAGS_CPU   := -mthumb -mcpu=cortex-m4
+	LIBS        := -larm_cortexM4l_math
+	DEFINES     := -D__MK20DX256__ -DARDUINO_TEENSY32
+
+	DEFINES     += -DF_CPU=96000000
+	DEFINES		+= -DHAVE_SDIO=0
+endif
+
 ifeq ($(BOARD_ID),T35)
 	MCU			:= mk64fx512
-	lvs			:=
 	Family 		:= teensy3
 	LDFILE		:= mk64fx512.ld
 	FLAGS_CPU   := -mthumb -mcpu=cortex-m4 -mfloat-abi=hard -mfpu=fpv4-sp-d16 -fsingle-precision-constant
@@ -54,7 +66,6 @@ endif
 
 ifeq ($(BOARD_ID),T36)
 	MCU			:= mk66fx1m0
-	lvs			:=
 	Family 		:= teensy3
 	LDFILE		:= mk66fx1m0.ld
 	FLAGS_CPU   := -mthumb -mcpu=cortex-m4 -mfloat-abi=hard -mfpu=fpv4-sp-d16 -fsingle-precision-constant

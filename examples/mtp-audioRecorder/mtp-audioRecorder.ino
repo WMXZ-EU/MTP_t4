@@ -321,7 +321,7 @@ void logg(uint32_t del, const char *txt)
     #elif defined(__MK64FX512__)
       #define MAXBUF (((100/NCH_ACQ)/NDBL)*NDBL)           // 51.2 kB (4*100*128)
     #elif defined(__MK20DX256__)
-      #define MAXBUF (((50/NCH_ACQ)/NBL)*NBL)              // 25.6 kB (4*50*128)
+      #define MAXBUF (((50/NCH_ACQ)/NDBL)*NDBL)              // 25.6 kB (4*50*128)
     #endif
     uint32_t data_buffer[MAXBUF*NBUF_ACQ];
   #endif
@@ -636,7 +636,7 @@ int16_t check_filing(int16_t state)
   void acq_isr(void);
 
   #if defined(KINETISK)
-  //Teensy 3.3, 3.6 or 3.5
+  //Teensy 3.2, 3.6 or 3.5
       #define MCLK_SRC  3
 
     // estimate MCLK to generate precise sampling frequency (typically equal or greater desired frequency)
