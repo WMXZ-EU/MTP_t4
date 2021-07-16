@@ -251,7 +251,7 @@ void logg(uint32_t del, const char *txt)
     #elif defined(__MK64FX512__)
       #define MAXBUF (((100/NCH_ACQ)/NDBL)*NDBL)           // 51.2 kB (4*100*128)
     #elif defined(__MK20DX256__)
-      #define MAXBUF (((50/NCH_ACQ)/NBL)*NBL)            // 25.6 kB (4*50*128)
+      #define MAXBUF (((50/NCH_ACQ)/NDBL)*NDBL)            // 25.6 kB (4*50*128)
     #endif
     uint32_t data_buffer[MAXBUF*NBUF_ACQ];
   #endif
@@ -617,8 +617,8 @@ int16_t check_filing(int16_t state)
 
   void acq_isr(void);
 
-  #if defined(__MK66FX1M0__) || defined(__MK64FX512__)
-  //Teensy 3.6 or 3.5
+  #if defined(__MK20DX256__) || defined(__MK66FX1M0__) || defined(__MK64FX512__)
+  //Teensy 3.2, 3.6 or 3.5
       #define MCLK_SRC  3
       #define MCLK_SCALE 1
 
@@ -711,9 +711,16 @@ P38 PTC11                   I2S0_RXD1 (4)
 //            CORE_PIN12_CONFIG = PORT_PCR_MUX(4);  //pin12, PTC7,  I2S0_RX_FS
 //            CORE_PIN13_CONFIG = PORT_PCR_MUX(4);  //pin13, PTC5,  I2S0_RXD0
         #elif I2S_CONFIG==1
+        #if defined(__MK20DX256__)
+            CORE_PIN28_CONFIG = PORT_PCR_MUX(4);  //pin28, PTA??, I2S0_MCLK
+            CORE_PIN11_CONFIG = PORT_PCR_MUX(4);  //pin11, PTC6,  I2S0_RX_BCLK
+            CORE_PIN12_CONFIG = PORT_PCR_MUX(4);  //pin12, PTC7,  I2S0_RX_FS
+            CORE_PIN13_CONFIG = PORT_PCR_MUX(4);  //pin13, PTC5,  I2S0_RXD0
+        #else
             CORE_PIN35_CONFIG = PORT_PCR_MUX(4);   // PTC8,  I2S0_MCLK
             CORE_PIN36_CONFIG = PORT_PCR_MUX(4);   // PTC9,  I2S0_RX_BCLK
             CORE_PIN37_CONFIG = PORT_PCR_MUX(4);   // PTC10, I2S0_RX_FS 
+        #endif
         #elif I2S_CONFIG==2
 //            CORE_PIN35_CONFIG = PORT_PCR_MUX(4) | PORT_PCR_SRE | PORT_PCR_DSE;  //pin35, PTC8,   I2S0_MCLK (SLEW rate (SRE)?)
 //            CORE_PIN36_CONFIG = PORT_PCR_MUX(4);  //pin36, PTC9,   I2S0_RX_BCLK

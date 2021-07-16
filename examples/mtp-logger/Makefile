@@ -15,14 +15,28 @@ export SHELL
 NOW = $(shell powershell [int](Get-Date -UFormat +%s))
 $(info Now = $(NOW))
 
+BOARD_ID         := T32
 #BOARD_ID         := T35
 #BOARD_ID         := T36
-BOARD_ID         := T40
+#BOARD_ID         := T40
 #BOARD_ID         := T41
 #
 TARGET_NAME      := mtp-logger_$(BOARD_ID)
 
 USB_DEVICE		:= USB_MTPDISK_SERIAL
+
+ifeq ($(BOARD_ID),T32)
+	MCU			:= mk20dx256
+	lvs			:=
+	Family 		:= teensy3
+	LDFILE		:= mk20dx256.ld
+	FLAGS_CPU   := -mthumb -mcpu=cortex-m4 
+	LIBS        := -larm_cortexM4l_math
+	DEFINES     := -D__MK20DX256__ -DARDUINO_TEENSY32
+
+	DEFINES     += -DF_CPU=96000000
+	DEFINES		+= -DUSE_SDIO=1
+endif
 
 ifeq ($(BOARD_ID),T35)
 	MCU			:= mk64fx512
