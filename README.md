@@ -41,6 +41,7 @@ In scipts directory is a powershell script that unmounts/mounts the Teensy porta
  - mtp-basic:  basic MTP program
  - mtp-test:   basic MTP test program
  - mtp-logger: basic data logger with MTP access
+ - mtp-audioRecorder: example about using mtp-logger as sgtl5000 audioRecorder
  
 ## Installation:
  - If you wanted to use USB_MTP_SERIAL  
