@@ -360,7 +360,7 @@ const uint16_t supported_events[] =
     uint32_t params[5];    // 12
   };
 */
-
+  int MTPD::begin() { return usb_init_events(); }
   void MTPD::write8 (uint8_t  x) { write((char*)&x, sizeof(x)); }
   void MTPD::write16(uint16_t x) { write((char*)&x, sizeof(x)); }
   void MTPD::write32(uint32_t x) { write((char*)&x, sizeof(x)); }

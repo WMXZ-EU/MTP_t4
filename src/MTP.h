@@ -33,6 +33,7 @@
 #include "core_pins.h"
 #include "usb_dev.h"
 extern "C" 	int usb_mtp_sendEvent(const void *buffer, uint32_t len, uint32_t timeout);
+extern "C" int usb_init_events(void);
 
 #include "Storage.h"
 // modify strings if needed (see MTP.cpp how they are used)
@@ -56,7 +57,8 @@ class MTPD {
 public:
 
   explicit MTPD(MTPStorageInterface* storage): storage_(storage) {}
-
+  int begin();
+  
 private:
   MTPStorageInterface* storage_;
 
