@@ -1,7 +1,5 @@
 #include <LFS_MTP_Callback.h>
 
-bool g_lowLevelFormat = false;
-
 
 //=============================================================================
 // try to get the right FS for this store and then call it's format if we have one...
@@ -30,4 +28,9 @@ uint8_t LittleFSMTPCB::formatStore(MTPStorage_SD *mtpstorage, uint32_t store, ui
   else 
     Serial.println("littleFS not set in user_token");
   return MTPStorageInterfaceCB::FORMAT_NOT_SUPPORTED;
+}
+
+void LittleFSMTPCB::set_formatLevel(bool level)
+{
+	g_lowLevelFormat = level;
 }

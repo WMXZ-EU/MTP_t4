@@ -8,6 +8,8 @@
 */
 #include <LittleFS.h>
 #include <MTP.h>
+#include <LFS_MTP_Callback.h>
+
 #if defined(__IMXRT1062__)
 #if defined(ARDUINO_TEENSY40) && defined(BUILTIN_SDCARD) // needed untin not corrected in SD.h
 #undef BUILTIN_SDCARD
@@ -24,6 +26,8 @@ void usb_mtp_configure(void) {}
 // memory type you want to use you would uncomment one of the following constructors
 
 LittleFS_Program myfs;  // Used to create FS on QSPI NAND flash chips located on the bottom of the T4.1 such as the W25N01G. for the full list of supported NAND flash see  https://github.com/PaulStoffregen/LittleFS#nand-flash
+
+LittleFSMTPCB lfsmtpcb;
 
 File dataFile;  // Specifes that dataFile is of File type
 
@@ -76,7 +80,8 @@ void setup()
   }
 
   mtpd.begin();
-  storage.addFilesystem(myfs, "Program");
+  lfsmtpcb.set_formatLevel(true);  //sets formating to lowLevelFormat
+  storage.addFilesystem(myfs, "Program", &lfsmtpcb, (uint32_t)(LittleFS*)&myfs);
 
   Serial.println("LittleFS initialized.");
 
