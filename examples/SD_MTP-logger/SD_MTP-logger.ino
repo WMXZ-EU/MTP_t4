@@ -10,8 +10,8 @@
 #include <MTP.h>
 #include <SD_MTP_Callback.h>
 
-
-#if defined(BUILTIN_SDCARD)
+#define USE_BUILTIN_SDCARD
+#if defined(USE_BUILTIN_SDCARD) && defined(BUILTIN_SDCARD)
 #define CS_SD  BUILTIN_SDCARD
 #else
 #define CS_SD 10
@@ -36,7 +36,6 @@ static const uint32_t file_system_size = 1024 * 512;
 // Add in MTPD objects
 MTPStorage_SD storage;
 MTPD       mtpd(&storage);
-
 void setup()
 {
 
@@ -55,10 +54,12 @@ void setup()
   if (!myfs.sdfs.begin(SdioConfig(FIFO_SDIO))) {
     Serial.println("SDIO Storage failed or missing");
     // BUGBUG Add the detect insertion?
-    pinMode(13, OUTPUT);
-    while (1) {
-      digitalToggleFast(13);
-      delay(250);
+    if (!SDSetupDetectsInsertions()) {
+      pinMode(13, OUTPUT);
+      while (1) {
+        digitalToggleFast(13);
+        delay(250);
+      }
     }
   }
 #else
@@ -77,7 +78,8 @@ void setup()
   storage.addFilesystem(myfs, "SD", &sd_mtp_cb, (uint32_t)(void*)&myfs);
   uint64_t totalSize = myfs.totalSize();
   uint64_t usedSize  = myfs.usedSize();
-  Serial.print(totalSize); Serial.print(" "); Serial.println(usedSize);
+  Serial.print("Total Size: ");Serial.print(totalSize); 
+  Serial.print(" Used Size: "); Serial.println(usedSize);
 
   Serial.println("SD initialized.");
 
@@ -113,7 +115,7 @@ void loop()
     while (Serial.read() != -1) ; // remove rest of characters.
   }
   else mtpd.loop();
-
+  checkSDIOStatus();
   if (write_data) logData();
 }
 
@@ -245,3 +247,73 @@ void printSpaces(int num) {
     Serial.print(" ");
   }
 }
+
+#if CS_SD == BUILTIN_SDCARD
+#if defined(ARDUINO_TEENSY41)
+  #define _SD_DAT3 46
+#elif defined(ARDUINO_TEENSY40) || defined(ARDUINO_TEENSY_MICROMOD)
+  #define _SD_DAT3 38
+#elif defined(ARDUINO_TEENSY35) || defined(ARDUINO_TEENSY36)
+  #define _SD_DAT3 62
+#endif
+#endif
+
+#ifdef _SD_DAT3
+static bool s_checkSDInsertion = false;
+bool SDSetupDetectsInsertions() {
+  pinMode(_SD_DAT3, INPUT_PULLDOWN);
+  s_checkSDInsertion = true;
+  return true;    
+}
+
+void checkSDIOStatus() {
+
+  if (s_checkSDInsertion)
+  {
+   // delayMicroseconds(5);
+    bool r = digitalReadFast(_SD_DAT3);
+    if (r)
+    {
+      // looks like SD Inserted. so disable the pin for now...
+      pinMode(_SD_DAT3, INPUT_DISABLE);
+
+      delay(1);
+      Serial.printf("\n*** SDIO Card Inserted ***");
+      if(!myfs.sdfs.begin(SdioConfig(FIFO_SDIO)))
+      { 
+        Serial.println("SDIO Storage, inserted card failed or missing"); 
+      }
+      else
+      {
+        // The SD is valid now... 
+        uint32_t store = storage.getStoreID("SD");
+        if (store != 0xFFFFFFFFUL) 
+        {
+          mtpd.send_StoreRemovedEvent(store);
+          delay(50);
+          //mtpd.send_StorageInfoChangedEvent(store);
+          mtpd.send_StoreAddedEvent(store);
+
+        } else {
+          // not in our list, try adding it
+          store = storage.addFilesystem(myfs, "SD", &sd_mtp_cb, (uint32_t)(void*)&myfs);
+          mtpd.send_StoreAddedEvent(store);
+        }
+
+
+        uint64_t totalSize = myfs.totalSize();
+        uint64_t usedSize  = myfs.usedSize();
+        Serial.print("Total Size: ");Serial.print(totalSize); 
+        Serial.print(" Used Size: "); Serial.println(usedSize);
+
+      }
+      s_checkSDInsertion = false; // only try this once
+    }
+  }
+}
+#else 
+bool SDSetupDetectsInsertions() {return false;}
+
+void checkUSBandSDIOStatus() {};
+
+#endif  
