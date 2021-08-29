@@ -10,9 +10,9 @@
 #define USE_LFS_RAM 0     // T4.1 PSRAM (or RAM)
 #endif
 #ifdef ARDUINO_TEENSY_MICROMOD
-#define USE_LFS_QSPI 1    // T4.1 QSPI
+#define USE_LFS_QSPI 0    // T4.1 QSPI
 #define USE_LFS_PROGM 1   // T4.4 Progam Flash
-#define USE_LFS_SPI 1     // SPI Flash
+#define USE_LFS_SPI 0     // SPI Flash
 #define USE_LFS_NAND 0
 #define USE_LFS_QSPI_NAND 0
 #define USE_LFS_FRAM 0
@@ -159,7 +159,7 @@ const int lfs_ram_size[] = {200'000,4'000'000}; // edit to reflect your configur
 //=============================================================================
 #if USE_MSC > 0
 #include <USB_MSC_MTP.h>
-USB_MSC_MTP usbmsc;
+USB_MSC_MTP usbmsc(mtpd, storage);
 #endif
 
 //=============================================================================
@@ -313,7 +313,7 @@ void storage_configure()
 // Start USBHost_t36, HUB(s) and USB devices.
 #if USE_MSC > 0
   Serial.println("\nInitializing USB MSC drives...");
-  usbmsc.checkUSB(&storage, true);
+  usbmsc.checkUSB(true);
 #endif
 
 // Test to add missing SDCard to end of list if the card is missing.  We will update it later... 
@@ -462,7 +462,7 @@ void loop()
 
   mtpd.loop();
 
-  usbmsc.checkUSB(&storage, false);
+  usbmsc.checkUSB(false);
 
   if (Serial.available())
   {

@@ -10,15 +10,18 @@
 #define USE_MSC_FAT_VOL 8 // Max MSC FAT Volumes. 
 
 
-class USB_MSC_MTP : public MTPStorageInterfaceCB, public MTPStorage_SD
+class USB_MSC_MTP : public MTPStorageInterfaceCB
 {
 public:
+  USB_MSC_MTP(MTPD &mtpd, MTPStorage_SD &storage) : mtpd_(mtpd), storage_(storage) {};
    void begin();
    bool mbrDmp(msController *pdrv);
-   void checkUSB(MTPStorage_SD *mtpstorage, bool fInit);
+   void checkUSB(bool fInit);
    void dump_hexbytes(const void *ptr, int len);
 
 private:
+  MTPD &mtpd_;
+  MTPStorage_SD &storage_;
 
   #define DEFAULT_FILESIZE 1024
   

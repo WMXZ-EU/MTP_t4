@@ -79,8 +79,7 @@ bool USB_MSC_MTP::mbrDmp(msController *pdrv) {
   return true;
 }
 
-void USB_MSC_MTP::checkUSB(MTPStorage_SD *mtpstorage, bool fInit) {
-  MTPD    mtpd(mtpstorage);
+void USB_MSC_MTP::checkUSB(bool fInit) {
 	
   bool usb_drive_changed_state = false;
   myusb.Task(); // make sure we are up to date.
@@ -121,7 +120,7 @@ void USB_MSC_MTP::checkUSB(MTPStorage_SD *mtpstorage, bool fInit) {
                 } 
                 else snprintf(nmsc_str[index_msc], sizeof(nmsc_str[index_msc]), "MSC%d-%d", index_usb_drive, index_drive_partition);
                 msc_drive_index[index_msc] = index_usb_drive;
-                msc_storage_index[index_msc] = mtpstorage->addFilesystem(msc[index_msc], nmsc_str[index_msc], &mscmtpcb, (uint32_t)(void*)&msc[index_msc]);
+                msc_storage_index[index_msc] = storage_.addFilesystem(msc[index_msc], nmsc_str[index_msc], &mscmtpcb, (uint32_t)(void*)&msc[index_msc]);
 #if 0
 
                 elapsedMicros emmicro = 0;
@@ -130,7 +129,7 @@ void USB_MSC_MTP::checkUSB(MTPStorage_SD *mtpstorage, bool fInit) {
                 uint64_t usedSize  = msc[index_usb_drive].usedSize();
                 Serial.printf("new Storage %d %s %llu(%u) %llu(%u)\n", index_msc, nmsc_str[index_msc], totalSize, elapsed_totalSize, usedSize, (uint32_t)emmicro - elapsed_totalSize); 
 #endif                
-                if (!fInit) mtpd.send_StoreAddedEvent(msc_storage_index[index_msc]);
+                if (!fInit) mtpd_.send_StoreAddedEvent(msc_storage_index[index_msc]);
               }
               break;
             }
@@ -144,8 +143,8 @@ void USB_MSC_MTP::checkUSB(MTPStorage_SD *mtpstorage, bool fInit) {
           // check for any indexes that were in use that were associated with that drive
           // Don't need to check for fInit here as we wont be removing drives during init...
           if (msc_drive_index[index_msc]== index_usb_drive) {
-            mtpd.send_StoreRemovedEvent(msc_storage_index[index_msc]);
-            mtpstorage->removeFilesystem(msc_storage_index[index_msc]);
+            mtpd_.send_StoreRemovedEvent(msc_storage_index[index_msc]);
+            storage_.removeFilesystem(msc_storage_index[index_msc]);
             msc_storage_index[index_msc] = (uint16_t)-1;
             msc_drive_index[index_msc] = -1;
         }
@@ -156,7 +155,7 @@ void USB_MSC_MTP::checkUSB(MTPStorage_SD *mtpstorage, bool fInit) {
 
   if (usb_drive_changed_state && !fInit) {
     delay(10); // give some time to handle previous one
-    mtpd.send_DeviceResetEvent();
+    mtpd_.send_DeviceResetEvent();
   }
 }
 
