@@ -1,3 +1,6 @@
+#include <USB_MSC_MTP.h>
+
+
 //Checks if a Card is present:
 //- only when it is not in use! - 
 bool USB_MSC_MTP::mbrDmp(msController *pdrv) {
