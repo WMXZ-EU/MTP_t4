@@ -1,5 +1,27 @@
 #include <USB_MSC_MTP.h>
+USBHost myusb;
+USBHub hub1(myusb);
+USBHub hub2(myusb);
 
+
+
+// start off with one of these...
+#include <MSC_MTP_Callback.h>
+MSC_MTP_CB mscmtpcb;
+
+// start off with one controller. 
+msController msDrive[USE_MSC_FAT](myusb);
+bool msDrive_previous[USE_MSC_FAT]; // Was this drive there the previous time through?
+MSCClass msc[USE_MSC_FAT_VOL];
+char  nmsc_str[USE_MSC_FAT_VOL][20];
+
+uint16_t msc_storage_index[USE_MSC_FAT_VOL];
+uint8_t msc_drive_index[USE_MSC_FAT_VOL]; // probably can find easy way not to need this.
+
+
+void USB_MSC_MTP::begin() {
+	myusb.begin();
+}
 
 //Checks if a Card is present:
 //- only when it is not in use! - 
@@ -57,7 +79,9 @@ bool USB_MSC_MTP::mbrDmp(msController *pdrv) {
   return true;
 }
 
-void USB_MSC_MTP::checkUSB(bool fInit) {
+void USB_MSC_MTP::checkUSB(MTPStorage_SD *mtpstorage, bool fInit) {
+  MTPD    mtpd(mtpstorage);
+	
   bool usb_drive_changed_state = false;
   myusb.Task(); // make sure we are up to date.
   if (fInit) {
@@ -97,7 +121,7 @@ void USB_MSC_MTP::checkUSB(bool fInit) {
                 } 
                 else snprintf(nmsc_str[index_msc], sizeof(nmsc_str[index_msc]), "MSC%d-%d", index_usb_drive, index_drive_partition);
                 msc_drive_index[index_msc] = index_usb_drive;
-                msc_storage_index[index_msc] = storage.addFilesystem(msc[index_msc], nmsc_str[index_msc], &mscmtpcb, (uint32_t)(void*)&msc[index_msc]);
+                msc_storage_index[index_msc] = mtpstorage->addFilesystem(msc[index_msc], nmsc_str[index_msc], &mscmtpcb, (uint32_t)(void*)&msc[index_msc]);
 #if 0
 
                 elapsedMicros emmicro = 0;
@@ -121,7 +145,7 @@ void USB_MSC_MTP::checkUSB(bool fInit) {
           // Don't need to check for fInit here as we wont be removing drives during init...
           if (msc_drive_index[index_msc]== index_usb_drive) {
             mtpd.send_StoreRemovedEvent(msc_storage_index[index_msc]);
-            storage.removeFilesystem(msc_storage_index[index_msc]);
+            mtpstorage->removeFilesystem(msc_storage_index[index_msc]);
             msc_storage_index[index_msc] = (uint16_t)-1;
             msc_drive_index[index_msc] = -1;
         }

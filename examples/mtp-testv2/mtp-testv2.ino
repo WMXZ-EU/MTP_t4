@@ -143,13 +143,7 @@ const int lfs_ram_size[] = {200'000,4'000'000}; // edit to reflect your configur
                             LittleFS_SPINAND nspifs[nspi_nsd]; // needs to be declared if LittleFS is used in storage.h
 #endif
 
-//=============================================================================
-// MSC FAT classes
-//=============================================================================
-#if USE_MSC > 0
-#include <USB_MSC_MTP.h>
-USB_MSC_MTP usbmsc;
-#endif
+
 
 //=============================================================================
 // Global defines
@@ -160,6 +154,13 @@ USB_MSC_MTP usbmsc;
                             MTPD    mtpd(&storage);
 
 
+//=============================================================================
+// MSC FAT classes
+//=============================================================================
+#if USE_MSC > 0
+#include <USB_MSC_MTP.h>
+USB_MSC_MTP usbmsc;
+#endif
 
 //=============================================================================
 void storage_configure()
@@ -312,7 +313,7 @@ void storage_configure()
 // Start USBHost_t36, HUB(s) and USB devices.
 #if USE_MSC > 0
   Serial.println("\nInitializing USB MSC drives...");
-  usbmsc.checkUSB(true);
+  usbmsc.checkUSB(&storage, true);
 #endif
 
 // Test to add missing SDCard to end of list if the card is missing.  We will update it later... 
@@ -361,7 +362,7 @@ void setup()
   // setup debug pins.
 #if USE_MSC_FAT > 0
   // let msusb stuff startup as soon as possible
-  myusb.begin();
+  usbmsc.begin();
 #endif 
   for (uint8_t pin = 20; pin < 24; pin++) {
     pinMode(pin, OUTPUT);
@@ -461,7 +462,7 @@ void loop()
 
   mtpd.loop();
 
-  usbmsc.checkUSB(false);
+  usbmsc.checkUSB(&storage, false);
 
   if (Serial.available())
   {
