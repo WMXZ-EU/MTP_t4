@@ -44,16 +44,9 @@ bool g_lowLevelFormat = true;
 LittleFSMTPCB lfsmtpcb;
 #endif
 
-#if defined(__IMXRT1062__)
-// following only as long usb_mtp is not included in cores
-#if !__has_include("usb_mtp.h")
-#include "usb1_mtp.h"
-#endif
-#else
-#ifndef BUILTIN_SCCARD
+
+#ifndef BUILTIN_SDCARD
 #define BUILTIN_SDCARD 254
-#endif
-void usb_mtp_configure(void) {}
 #endif
 
 
@@ -62,9 +55,6 @@ void usb_mtp_configure(void) {}
 // SDClasses
 //=============================================================================
 #if USE_SD==1
-
-#include <SD_MTP_Callback.h>
-SD_MTP_CB sd_mtp_cb;
 
 // edit SPI to reflect your configuration (following is for T4.1)
 #define SD_MOSI 11
@@ -84,9 +74,6 @@ const int nsd = sizeof(sd_str) / sizeof(const char *);
 
 SDClass sdx[nsd];
 
-#include <SD_MTP_Callback.h>
-
-
 // Code to detect if SD Card is inserted. 
 int  BUILTIN_SDCARD_missing_index = -1;
 #if defined(ARDUINO_TEENSY41)
@@ -96,11 +83,6 @@ int  BUILTIN_SDCARD_missing_index = -1;
 #elif defined(ARDUINO_TEENSY35) || defined(ARDUINO_TEENSY36)
   #define _SD_DAT3 62
 #endif
-/*
-class SDMTPCB : public MTPStorageInterfaceCB {
-  uint8_t formatStore(MTPStorage_SD *mtpstorage, uint32_t store, uint32_t user_token, uint32_t p2, bool post_process);
-};
-*/
 
 #endif
 
@@ -155,8 +137,13 @@ const int lfs_ram_size[] = {200'000,4'000'000}; // edit to reflect your configur
 
 
 //=============================================================================
-// MSC FAT classes
+// MSC & SD classes
 //=============================================================================
+#if USE_SD==1
+#include <SD_MTP_Callback.h>
+SD_MTP_CB sd_mtp_cb(mtpd, storage);
+#endif
+
 #if USE_MSC > 0
 #include <USB_MSC_MTP.h>
 USB_MSC_MTP usbmsc(mtpd, storage);
@@ -178,14 +165,15 @@ void storage_configure()
   if(cs[ii] == BUILTIN_SDCARD)
   {
     if(!sdx[ii].sdfs.begin(SdioConfig(FIFO_SDIO)))
-    { Serial.printf("SDIO Storage %d %d %s failed or missing",ii,cs[ii],sd_str[ii]);  Serial.println();
-      BUILTIN_SDCARD_missing_index = ii;
-      #ifdef _SD_DAT3
-      // for now lets leave it in PULLDOWN state...
-      pinMode(_SD_DAT3, INPUT_PULLDOWN);
-      // What happens if we add it and it failed to open?
-      //storage.addFilesystem(sdx[ii], sd_str[ii]);
-      #endif
+    { Serial.println("SDIO Storage failed or missing");
+      // BUGBUG Add the detect insertion?
+      if (!sd_mtp_cb.installSDIOInsertionDetection(&sdx[ii], "SD", 0)) {
+        pinMode(13, OUTPUT);
+        while (1) {
+          digitalToggleFast(13);
+          delay(250);
+        }
+      }
     }
     else
     {
@@ -385,11 +373,10 @@ void setup()
   Serial.println("\n" __FILE__ " " __DATE__ " " __TIME__);
   Serial.println("MTP_test");
 
-#if USE_EVENTS==1
-  usb_init_events();
-#endif
-
   mtpd.begin();
+  
+  delay(3000);
+  
   storage_configure();
 
 
@@ -461,9 +448,15 @@ void loop()
 {
 
   mtpd.loop();
-
+  // Call code to detect if MSC status changed
+  #if USE_MSC > 0
   usbmsc.checkUSB(false);
-
+  #endif
+  // Call code to detect if SD status changed
+  #if USE_SD==1
+  sd_mtp_cb.checkSDStatus();
+  #endif
+  
   if (Serial.available())
   {
     char pathname[MAX_FILENAME_LEN]; 
