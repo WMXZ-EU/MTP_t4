@@ -27,7 +27,7 @@ public:
 
 private:
   // helper functions
-  void addFSToStorage();  
+  void addFSToStorage(bool send_events);  
 
   // local variables. 
   MTPD &mtpd_;

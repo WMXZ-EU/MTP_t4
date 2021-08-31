@@ -16,6 +16,7 @@
 #else
 #define CS_SD 10
 #endif
+#define SPI_SPEED SD_SCK_MHZ(20)  // adjust to sd card 
 
 
 // LittleFS supports creating file systems (FS) in multiple memory types.  Depending on the
@@ -34,6 +35,7 @@ MTPStorage_SD storage;
 MTPD       mtpd(&storage);
 
 SDMTPClass myfs(mtpd, storage, "SDIO", CS_SD);
+SDMTPClass myfs2(mtpd, storage, "SD10", 10, 9, SHARED_SPI, SPI_SPEED);
 
 void setup()
 {
@@ -53,7 +55,7 @@ void setup()
   // See if we can initialize SD FS
   mtpd.begin();
 
-  if (!myfs.init(true)) { // init the object and add it to the list 
+  if (!myfs.init(true)) { // init the object and add it to the list
     Serial.printf("SDIO Storage failed or missing on SD Pin: %u\n", CS_SD);
     // BUGBUG Add the detect insertion?
     pinMode(13, OUTPUT);
@@ -62,6 +64,10 @@ void setup()
       delay(250);
     }
   }
+
+  Serial.println("*** before myfs2.init ***");
+  myfs2.init(true);
+  Serial.println("*** after ***");
 
   Serial.println("SD initialized.");
 
@@ -97,9 +103,10 @@ void loop()
     while (Serial.read() != -1) ; // remove rest of characters.
   }
   else mtpd.loop();
-  
+
   // Call code to detect if SD status changed
   myfs.loop();
+  myfs2.loop();
 
   if (write_data) logData();
 }
