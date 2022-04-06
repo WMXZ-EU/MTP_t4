@@ -1,3 +1,4 @@
+#include "SPI.h"
 #include "SD.h"
 #include "MTP.h"
 
