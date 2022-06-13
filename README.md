@@ -10,6 +10,8 @@ see also https://forum.pjrc.com/threads/43050-MTP-Responder-Contribution for dis
 
 files in different copy-to directories contain modifications of cores and need to be copied to cores/teensy4, cores/teensy3 and hardware/avr, respectively. These files are only necessary until Teensyduino has integrated full MTP into cores functionality
 
+as of TD 1.57/beta-3 these copy-to directories can be ignored
+
 (before TD 1.54 final) needs USB2 https://github.com/WMXZ-EU/USB2 for T4.x. (uses here usb1.h and usb1.c)
 
 
@@ -44,11 +46,11 @@ In scipts directory is a powershell script that unmounts/mounts the Teensy porta
  - mtp-audioRecorder: example about using mtp-logger as sgtl5000 audioRecorder
  
 ## Installation:
- - As of TeensyDuino 1.57 beta 2, the following step is not required for T4.1
-  - If you wanted to use USB_MTP_SERIAL
+ - As of TeensyDuino 1.57 beta 3, the following steps are not required
+  - ~~If you wanted to use USB_MTP_SERIAL~~
    - ~~T4.x edit teensy/avr/cores/teensy4/usb_desc.h with content of 'modifications_for_cores_teensy4' (insert after USB_MTPDISK)~~
-   - T3.x edit teensy/avr/cores/teensy3/usb_desc.h with content of 'modifications_for_cores_teensy3' (insert after USB_MTPDISK)
-   - edit teensy/avr/boards.txt with content of 'modifications_for_teensy_avr' (copy to end of file)
+   - ~~T3.x edit teensy/avr/cores/teensy3/usb_desc.h with content of 'modifications_for_cores_teensy3' (insert after USB_MTPDISK)~~
+   - ~~edit teensy/avr/boards.txt with content of 'modifications_for_teensy_avr' (copy to end of file)~~
  - As of TeensyDuino 1.54 the following step is not required
  - ~~install also USB2 from WMXZ github if cores does not have "usb_mtp.h"~~
  - install LittleFS from https://github.com/PaulStoffregen/LittleFS for use of LittleFS basd filesystems
