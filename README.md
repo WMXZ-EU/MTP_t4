@@ -10,7 +10,7 @@ see also https://forum.pjrc.com/threads/43050-MTP-Responder-Contribution for dis
 
 files in different copy-to directories contain modifications of cores and need to be copied to cores/teensy4, cores/teensy3 and hardware/avr, respectively. These files are only necessary until Teensyduino has integrated full MTP into cores functionality
 
-as of TD 1.57/beta-3 these copy-to directories can be ignored
+as of TD 1.57/beta-4 these copy-to directories can be ignored
 
 (before TD 1.54 final) needs USB2 https://github.com/WMXZ-EU/USB2 for T4.x. (uses here usb1.h and usb1.c)
 
@@ -32,6 +32,26 @@ as of TD 1.57/beta-3 these copy-to directories can be ignored
  - creation of files using file explorer is not supported, but directories can be created
  - No creation and modification timestamps are shown
  
+## Comments on Logging
+Assume following sequence of operation:
+ - you start MTP
+ - you start Logger
+ - You stop Logger
+ - You do not see files added by Logger.
+
+This is how MTP works.
+
+The PC has under normal circumstances complete control over the actions. The Teensy only responds to commands by PC.
+
+As the PC does not know what you are doing with Teensy, it will not act an inquire.
+
+Solutions:
+1) Only start MTP after logging
+2) Reset MTP connection from PC (unmount/mount MTP disk on PC; disconnect/reconnect PC) after logging
+3) Reset MPT from Teensy (using reset event)
+
+Note, these work arounds are experimental, so feedback would be appreciated.
+
 ## Reset of Session
 Modification of disk content (directories and Files) by Teensy is only be visible on PC when done before mounting the MTP device. To refresh disk content it is necessary to unmount and remount Teensy MTP device. AFAIK: On Windows this can be done by using device manager and disable and reanable Teensy (found under portable Device). On Linux this is done with standard muount/unmount commands.
 
