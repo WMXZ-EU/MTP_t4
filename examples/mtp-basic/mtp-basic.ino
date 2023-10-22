@@ -39,8 +39,6 @@
   #define SD_MISO 12
   #define SD_SCK  13
 
-  #define SPI_SPEED SD_SCK_MHZ(33)  // adjust to sd card 
-
   #if defined (BUILTIN_SDCARD)
     const char *sd_str[]={"sdio","sd1"}; // edit to reflect your configuration
     const int cs[] = {BUILTIN_SDCARD,10}; // edit to reflect your configuration
@@ -91,6 +89,7 @@ MTPD    mtpd(&storage);
 
 void storage_configure()
 {
+  // Using SD card for storage
   #if USE_SD==1
     #if defined SD_SCK
       SPI.setMOSI(SD_MOSI);
@@ -100,107 +99,100 @@ void storage_configure()
 
     for(int ii=0; ii<nsd; ii++)
     { 
-      #if defined(BUILTIN_SDCARD)
-        if(cs[ii] == BUILTIN_SDCARD)
-        {
-          if(!sdx[ii].sdfs.begin(SdioConfig(FIFO_SDIO))) 
-          { Serial.printf("SDIO Storage %d %d %s failed or missing",ii,cs[ii],sd_str[ii]);  Serial.println();
-          }
-          else
-          {
-            storage.addFilesystem(sdx[ii], sd_str[ii]);
-            uint64_t totalSize = sdx[ii].totalSize();
-            uint64_t usedSize  = sdx[ii].usedSize();
-            Serial.printf("SDIO Storage %d %d %s ",ii,cs[ii],sd_str[ii]); 
-            Serial.print(totalSize); Serial.print(" "); Serial.println(usedSize);
-          }
-        }
-        else if(cs[ii]<BUILTIN_SDCARD)
-      #endif
+      if(cs[ii]<BUILTIN_SDCARD)
       {
-        pinMode(cs[ii],OUTPUT); digitalWriteFast(cs[ii],HIGH);
-        if(!sdx[ii].sdfs.begin(SdSpiConfig(cs[ii], SHARED_SPI, SPI_SPEED))) 
-        { Serial.printf("SD Storage %d %d %s failed or missing",ii,cs[ii],sd_str[ii]);  Serial.println();
-        }
-        else
-        {
-          storage.addFilesystem(sdx[ii], sd_str[ii]);
-          uint64_t totalSize = sdx[ii].totalSize();
-          uint64_t usedSize  = sdx[ii].usedSize();
-          Serial.printf("SD Storage %d %d %s ",ii,cs[ii],sd_str[ii]); 
+        pinMode(cs[ii],OUTPUT); digitalWriteFast(cs[ii],HIGH); 
+      }
+      if(!sdx[ii].begin(cs[ii])) 
+      { Serial.printf("SD/SDIO Storage %d %d %s failed or missing",ii,cs[ii],sd_str[ii]);  Serial.println();
+      }
+      else
+      {
+        storage.addFilesystem(sdx[ii], sd_str[ii]);
+        uint64_t totalSize = sdx[ii].totalSize();
+        uint64_t usedSize  = sdx[ii].usedSize();
+        Serial.printf("SDIO Storage %d %d %s ",ii,cs[ii],sd_str[ii]); 
+          Serial.print("; total "); Serial.print(totalSize); Serial.print(" used: "); Serial.println(usedSize);
+      }
+    }
+  #endif
+
+  // Using Little FS in RAM for storage
+  #if USE_LFS_RAM==1
+  for(int ii=0; ii<nfs_ram;ii++)
+  {
+    if(!ramfs[ii].begin(lfs_ram_size[ii])) 
+    { Serial.printf("Ram Storage %d %s failed or missing",ii,lfs_ram_str[ii]); Serial.println();
+    }
+    else
+    {
+      storage.addFilesystem(ramfs[ii], lfs_ram_str[ii]);
+      uint64_t totalSize = ramfs[ii].totalSize();
+      uint64_t usedSize  = ramfs[ii].usedSize();
+      Serial.printf("RAM Storage %d %s ",ii,lfs_ram_str[ii]); 
           Serial.print(totalSize); Serial.print(" "); Serial.println(usedSize);
-        }
-      }
     }
-    #endif
+  }
+  #endif
 
-    #if USE_LFS_RAM==1
-    for(int ii=0; ii<nfs_ram;ii++)
-    {
-      if(!ramfs[ii].begin(lfs_ram_size[ii])) 
-      { Serial.printf("Ram Storage %d %s failed or missing",ii,lfs_ram_str[ii]); Serial.println();
-      }
-      else
-      {
-        storage.addFilesystem(ramfs[ii], lfs_ram_str[ii]);
-        uint64_t totalSize = ramfs[ii].totalSize();
-        uint64_t usedSize  = ramfs[ii].usedSize();
-        Serial.printf("RAM Storage %d %s ",ii,lfs_ram_str[ii]); Serial.print(totalSize); Serial.print(" "); Serial.println(usedSize);
-      }
+  // Using Little FS in FLASH memory for storage
+  #if USE_LFS_PROGM==1
+  for(int ii=0; ii<nfs_progm;ii++)
+  {
+    if(!progmfs[ii].begin(lfs_progm_size[ii])) 
+    { Serial.printf("Program Storage %d %s failed or missing",ii,lfs_progm_str[ii]); Serial.println();
     }
-    #endif
+    else
+    {
+      storage.addFilesystem(progmfs[ii], lfs_progm_str[ii]);
+      uint64_t totalSize = progmfs[ii].totalSize();
+      uint64_t usedSize  = progmfs[ii].usedSize();
+      Serial.printf("Program Storage %d %s ",ii,lfs_progm_str[ii]); 
+          Serial.print(totalSize); Serial.print(" "); Serial.println(usedSize);
+    }
+  }
+  #endif
 
-    #if USE_LFS_PROGM==1
-    for(int ii=0; ii<nfs_progm;ii++)
-    {
-      if(!progmfs[ii].begin(lfs_progm_size[ii])) 
-      { Serial.printf("Program Storage %d %s failed or missing",ii,lfs_progm_str[ii]); Serial.println();
-      }
-      else
-      {
-        storage.addFilesystem(progmfs[ii], lfs_progm_str[ii]);
-        uint64_t totalSize = progmfs[ii].totalSize();
-        uint64_t usedSize  = progmfs[ii].usedSize();
-        Serial.printf("Program Storage %d %s ",ii,lfs_progm_str[ii]); Serial.print(totalSize); Serial.print(" "); Serial.println(usedSize);
-      }
+  // Using Little FS in QSPI for storage
+  #if USE_LFS_QSPI==1
+  for(int ii=0; ii<nfs_qspi;ii++)
+  {
+    if(!qspifs[ii].begin()) 
+    { Serial.printf("QSPI Storage %d %s failed or missing",ii,lfs_qspi_str[ii]); Serial.println();
     }
-    #endif
+    else
+    {
+      storage.addFilesystem(qspifs[ii], lfs_qspi_str[ii]);
+      uint64_t totalSize = qspifs[ii].totalSize();
+      uint64_t usedSize  = qspifs[ii].usedSize();
+      Serial.printf("QSPI Storage %d %s ",ii,lfs_qspi_str[ii]); 
+          Serial.print(totalSize); Serial.print(" "); Serial.println(usedSize);
+    }
+  }
+  #endif
 
-    #if USE_LFS_QSPI==1
-    for(int ii=0; ii<nfs_qspi;ii++)
-    {
-      if(!qspifs[ii].begin()) 
-      { Serial.printf("QSPI Storage %d %s failed or missing",ii,lfs_qspi_str[ii]); Serial.println();
-      }
-      else
-      {
-        storage.addFilesystem(qspifs[ii], lfs_qspi_str[ii]);
-        uint64_t totalSize = qspifs[ii].totalSize();
-        uint64_t usedSize  = qspifs[ii].usedSize();
-        Serial.printf("QSPI Storage %d %s ",ii,lfs_qspi_str[ii]); Serial.print(totalSize); Serial.print(" "); Serial.println(usedSize);
-      }
+  // Using Little FS in SPI for storage
+  #if USE_LFS_SPI==1
+  for(int ii=0; ii<nfs_spi;ii++)
+  {
+    if(!spifs[ii].begin(lfs_cs[ii])) 
+    { Serial.printf("SPIFlash Storage %d %d %s failed or missing",ii,lfs_cs[ii],lfs_spi_str[ii]); Serial.println();
     }
-    #endif
-
-    #if USE_LFS_SPI==1
-    for(int ii=0; ii<nfs_spi;ii++)
+    else
     {
-      if(!spifs[ii].begin(lfs_cs[ii])) 
-      { Serial.printf("SPIFlash Storage %d %d %s failed or missing",ii,lfs_cs[ii],lfs_spi_str[ii]); Serial.println();
-      }
-      else
-      {
-        storage.addFilesystem(spifs[ii], lfs_spi_str[ii]);
-        uint64_t totalSize = spifs[ii].totalSize();
-        uint64_t usedSize  = spifs[ii].usedSize();
-        Serial.printf("SPIFlash Storage %d %d %s ",ii,lfs_cs[ii],lfs_spi_str[ii]); Serial.print(totalSize); Serial.print(" "); Serial.println(usedSize);
-      }
+      storage.addFilesystem(spifs[ii], lfs_spi_str[ii]);
+      uint64_t totalSize = spifs[ii].totalSize();
+      uint64_t usedSize  = spifs[ii].usedSize();
+      Serial.printf("SPIFlash Storage %d %d %s ",ii,lfs_cs[ii],lfs_spi_str[ii]); 
+          Serial.print(totalSize); Serial.print(" "); Serial.println(usedSize);
     }
-    #endif
+  }
+  #endif
 }
 
 void setup()
 { 
+  while(!Serial);
   Serial.println("MTP_test");
 
   #if USE_EVENTS==1

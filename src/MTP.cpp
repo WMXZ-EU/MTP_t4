@@ -312,6 +312,8 @@ const uint16_t supported_events[] =
 
     uint64_t ntotal = storage_->totalSize(store) ; 
     uint64_t nused = storage_->usedSize(store) ; 
+    Serial.print("size ");Serial.println(ntotal);
+    Serial.print("used ");Serial.println(nused);
 
     write64(ntotal);  // max capacity
     write64((ntotal-nused));  // free space (100M)

@@ -24,41 +24,25 @@ const int NCH_ACQ = sizeof(ichan)/4;
 //PIN  13 RXD0
 //PIN  38 RXD1
 
-#include "SD.h"
-#include "MTP.h"
-
-#if defined(__IMXRT1062__)
-  // following only as long usb_mtp is not included in cores
-  #if !__has_include("usb_mtp.h")
-    #include "usb1_mtp.h"
-  #endif
-  #if defined(ARDUINO_TEENSY40) && defined(BUILTIN_SDCARD) // needed untin not corrected in SD.h
-    #undef BUILTIN_SDCARD 
-  #endif
+#if defined(ARDUINO_TEENSY41)
+  #define HAVE_PSRAM 0 // set to 1 if PSRAM is soldered
 #else
-  #ifndef BUILTIN_SDCARD 
-    #define BUILTIN_SDCARD 254
-  #endif
-  void usb_mtp_configure(void) {}
-#endif
-
-#if USE_EVENTS==1
-  extern "C" int usb_init_events(void);
-#else
-  int usb_init_events(void) {}
+  #define HAVE_PSRAM 0
 #endif
 
 #define USE_SD  1
 #define USE_LITTLEFS 0 // set to zero if no LtttleFS is existing or is to be used
 
+#include "SD.h"
+#include "MTP.h"
+
 /****  Start device specific change area  ****/
 #if USE_SD==1
+
   // edit SPI to reflect your configuration (following is for T4.x)
   #define SD_MOSI 11
   #define SD_MISO 12
   #define SD_SCK  13
-
-  #define SPI_SPEED SD_SCK_MHZ(33)  // adjust to sd card 
 
   #if defined (BUILTIN_SDCARD)
     const char *sd_str[]={"sdio","sd1"}; // edit to reflect your configuration
@@ -81,13 +65,37 @@ SDClass sdx[nsd];
 
   LittleFS_RAM ramfs[nfs]; // needs to be declared if LittleFS is used in storage.h
 #endif
+// end if configuration part
+//
+/************************************************************************************************/
+
+#if defined(__IMXRT1062__)
+  // following only as long usb_mtp is not included in cores
+  #if !__has_include("usb_mtp.h")
+    #include "usb1_mtp.h"
+  #endif
+  #if defined(ARDUINO_TEENSY40) && defined(BUILTIN_SDCARD) // needed untin not corrected in SD.h
+    #undef BUILTIN_SDCARD 
+  #endif
+#else
+  #ifndef BUILTIN_SDCARD 
+    #define BUILTIN_SDCARD 254
+  #endif
+  void usb_mtp_configure(void) {}
+#endif
+
+#if USE_EVENTS==1
+  extern "C" int usb_init_events(void);
+#else
+  int usb_init_events(void) {}
+#endif
 
 MTPStorage_SD storage;
 MTPD       mtpd(&storage);
 
-
 void storage_configure()
 {
+  // Using SD card for storage
   #if USE_SD==1
     #if defined SD_SCK
       SPI.setMOSI(SD_MOSI);
@@ -97,52 +105,36 @@ void storage_configure()
 
     for(int ii=0; ii<nsd; ii++)
     { 
-      #if defined(BUILTIN_SDCARD)
-        if(cs[ii] == BUILTIN_SDCARD)
-        {
-          if(!sdx[ii].sdfs.begin(SdioConfig(FIFO_SDIO))) 
-          { Serial.printf("SDIO Storage %d %d %s failed or missing",ii,cs[ii],sd_str[ii]);  Serial.println();
-          }
-          else
-          {
-            storage.addFilesystem(sdx[ii], sd_str[ii]);
-            uint64_t totalSize = sdx[ii].totalSize();
-            uint64_t usedSize  = sdx[ii].usedSize();
-            Serial.printf("SDIO Storage %d %d %s ",ii,cs[ii],sd_str[ii]); 
-            Serial.print(totalSize); Serial.print(" "); Serial.println(usedSize);
-          }
-        }
-        else if(cs[ii]<BUILTIN_SDCARD)
-      #endif
+      if(cs[ii]<BUILTIN_SDCARD)
       {
-        pinMode(cs[ii],OUTPUT); digitalWriteFast(cs[ii],HIGH);
-        if(!sdx[ii].sdfs.begin(SdSpiConfig(cs[ii], SHARED_SPI, SPI_SPEED))) 
-        { Serial.printf("SD Storage %d %d %s failed or missing",ii,cs[ii],sd_str[ii]);  Serial.println();
-        }
-        else
-        {
-          storage.addFilesystem(sdx[ii], sd_str[ii]);
-          uint64_t totalSize = sdx[ii].totalSize();
-          uint64_t usedSize  = sdx[ii].usedSize();
-          Serial.printf("SD Storage %d %d %s ",ii,cs[ii],sd_str[ii]); 
-          Serial.print(totalSize); Serial.print(" "); Serial.println(usedSize);
-        }
+        pinMode(cs[ii],OUTPUT); digitalWriteFast(cs[ii],HIGH); 
+      }
+      if(!sdx[ii].begin(cs[ii])) 
+      { Serial.printf("SD/SDIO Storage %d %d %s failed or missing",ii,cs[ii],sd_str[ii]);  Serial.println();
+      }
+      else
+      {
+        storage.addFilesystem(sdx[ii], sd_str[ii]);
+        uint64_t totalSize = sdx[ii].totalSize();
+        uint64_t usedSize  = sdx[ii].usedSize();
+        Serial.printf("SDIO Storage %d %d %s ",ii,cs[ii],sd_str[ii]); 
+          Serial.print("; total "); Serial.print(totalSize); Serial.print(" used: "); Serial.println(usedSize);
       }
     }
-    #endif
+  #endif
 
-    #if USE_LITTLEFS==1
-    for(int ii=0; ii<nfs;ii++)
-    {
-      { if(!ramfs[ii].begin(lfs_size[ii])) { Serial.println("No storage"); while(1);}
-        storage.addFilesystem(ramfs[ii], lfs_str[ii]);
-      }
-      uint64_t totalSize = ramfs[ii].totalSize();
-      uint64_t usedSize  = ramfs[ii].usedSize();
-      Serial.printf("Storage %d %s ",ii,lfs_str[ii]); Serial.print(totalSize); Serial.print(" "); Serial.println(usedSize);
-
+  #if USE_LITTLEFS==1
+  for(int ii=0; ii<nfs;ii++)
+  {
+    { if(!ramfs[ii].begin(lfs_size[ii])) { Serial.println("No storage"); while(1);}
+      storage.addFilesystem(ramfs[ii], lfs_str[ii]);
     }
-    #endif
+    uint64_t totalSize = ramfs[ii].totalSize();
+    uint64_t usedSize  = ramfs[ii].usedSize();
+    Serial.printf("Storage %d %s ",ii,lfs_str[ii]); Serial.print(totalSize); Serial.print(" "); Serial.println(usedSize);
+
+  }
+  #endif
 }
 /****  End of device specific change area  ****/
 
@@ -162,7 +154,8 @@ int16_t acq_check(int16_t state);
 void printTimestamp(uint32_t tt);
 
 void setup()
-{ while(!Serial && millis()<3000); 
+{ while(!Serial); 
+  //while(!Serial && millis()<3000); 
   Serial.println("MTP logger");
   setSyncProvider(rtc_get);
 
@@ -225,12 +218,6 @@ void logg(uint32_t del, const char *txt)
 }
 
 /*************************** Circular Buffer ********************/
-#if defined(ARDUINO_TEENSY41)
-  #define HAVE_PSRAM 1
-#else
-  #define HAVE_PSRAM 0
-#endif
-
   #if HAVE_PSRAM==1
     #define MAXBUF (1000) // 3000 kB   // < 5461 for 16 MByte PSRAM
 
@@ -833,7 +820,7 @@ P38 PTC11                   I2S0_RXD1 (4)
       }
 
       void acq_init(int32_t fsamp)
-      {
+      { Serial.println(fsamp);
           CCM_CCGR5 |= CCM_CCGR5_SAI1(CCM_CCGR_ON);
 
           // if either transmitter or receiver is enabled, do nothing
@@ -878,6 +865,7 @@ P38 PTC11                   I2S0_RXD1 (4)
         	CORE_PIN23_CONFIG = 3;  //1:MCLK 
           CORE_PIN21_CONFIG = 3;  //1:RX_BCLK
           CORE_PIN20_CONFIG = 3;  //1:RX_SYNC
+          Serial.println(N_ADC);
 #if N_ADC==1
           I2S1_RCR3 = I2S_RCR3_RCE;
           CORE_PIN8_CONFIG  = 3;  //RX_DATA0
@@ -911,8 +899,10 @@ P38 PTC11                   I2S0_RXD1 (4)
           dma.triggerAtHardwareEvent(DMAMUX_SOURCE_SAI1_RX);
           dma.enable();
 
+        Serial.println("dma");
           I2S1_RCSR =  I2S_RCSR_FRDE | I2S_RCSR_FR;
           dma.attachInterrupt(acq_isr,I2S_DMA_PRIO*16);	
+        Serial.println("start");
           acq_start();
       }
   #endif
