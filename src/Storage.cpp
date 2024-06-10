@@ -23,14 +23,18 @@
 
 // modified for SDFS by WMXZ
 // Nov 2020 adapted to SdFat-beta / SD combo
+// Feb 2024 use only SdFat (removed SD)
 
+  #if defined(__IMXRT1062__)
+  
+//#include "Arduino.h"
 #include "core_pins.h"
-#include "usb_dev.h"
 #include "usb_serial.h"
+//#include "usb_dev.h"
 
 #include "Storage.h"
 
-#define DEBUG 0
+#define DEBUG 1
 
 #if DEBUG>0
   #define USE_DBG_MACROS 1
@@ -49,7 +53,7 @@
   }
 
   #define DBG_PRINT_IF(b) if (b) {Serial.print(F(__FILE__));\
-                          Serial.println(__LINE__);}
+                                  Serial.println(__LINE__);}
   #define DBG_HALT_IF(b) if (b) { Serial.print(F("DBG_HALT "));\
                         Serial.print(F(__FILE__)); Serial.println(__LINE__);\
                         while (true) {}}
@@ -60,8 +64,8 @@
   #define DBG_HALT_IF(b)
 #endif  // USE_DBG_MACROS
 
-  #define sd_isOpen(x)  (x)
-  #define sd_getName(x,y,n) strlcpy(y,x.name(),n)
+  //#define sd_isOpen(x)  (x)
+  //#define sd_getName(x,y,n) { char fname[MAX_FILENAME_LEN]; x.getName(fname,MAX_FILENAME_LEN); (y,fname,n)}
 
   #define indexFile "/mtpindex.dat"
 // TODO:
@@ -82,33 +86,36 @@ void mtp_lock_storage(bool lock) {}
   void MTPStorage_SD::CloseIndex()
   {
     mtp_lock_storage(true);
-    if(sd_isOpen(index_)) index_.close();
+    if(index_.isOpen()) {index_.close();}
     mtp_lock_storage(false);
     index_generated = false;
     index_entries_ = 0;
   }
 
   void MTPStorage_SD::OpenIndex() 
-  { if(sd_isOpen(index_)) return; // only once
+  { 
+    if(index_.isOpen()) return; // only once
+    //
     mtp_lock_storage(true);
     index_=sd_open(0,indexFile, FILE_WRITE_BEGIN);
-    if(!index_) Serial.println("cannot open Index file"); 
+    if(!index_.isOpen()) { Serial.println(" cannot open Index file"); }
     mtp_lock_storage(false);
   }
 
   void MTPStorage_SD::ResetIndex() {
-    if(!sd_isOpen(index_)) return;
+    if(!index_.isOpen()) return;
     CloseIndex();
-//    OpenIndex();
 
     all_scanned_ = false;
     open_file_ = 0xFFFFFFFEUL;
+
+    OpenIndex();
   }
 
   void MTPStorage_SD::WriteIndexRecord(uint32_t i, const Record& r) 
   { OpenIndex();
     mtp_lock_storage(true);
-    index_.seek((sizeof(r) * i));
+    index_.seekSet((sizeof(r) * i));
     index_.write((char*)&r, sizeof(r));
     mtp_lock_storage(false);
   }
@@ -130,7 +137,7 @@ void mtp_lock_storage(bool lock) {}
     }
     OpenIndex();
     mtp_lock_storage(true);
-    index_.seek(sizeof(ret) * i);
+    index_.seekSet(sizeof(ret) * i);
     index_.read((char *)&ret, sizeof(ret));
     mtp_lock_storage(false);
 
@@ -160,7 +167,7 @@ void mtp_lock_storage(bool lock) {}
     uint16_t store = ConstructFilename(i, filename, MAX_FILENAME_LEN);
 
     mtp_lock_storage(true);
-    if(sd_isOpen(file_)) file_.close();
+    if(file_.isOpen()) {file_.close();}
     file_=sd_open(store,filename,mode);
     open_file_ = i;
     mode_ = mode;
@@ -201,14 +208,14 @@ void mtp_lock_storage(bool lock) {}
     Record record = ReadIndexRecord(i);
     if (record.isdir && !record.scanned) {
       OpenFileByIndex(i);
-      if (!sd_isOpen(file_)) return;
+      if (!file_.isOpen()) return;
     
       int sibling = 0;
       while (true) 
       { mtp_lock_storage(true);
         child_=file_.openNextFile();
         mtp_lock_storage(false);
-        if(!sd_isOpen(child_)) break;
+        if(!child_.isOpen()) break;
 
         Record r;
         r.store = record.store;
@@ -217,7 +224,10 @@ void mtp_lock_storage(bool lock) {}
         r.isdir = child_.isDirectory();
         r.child = r.isdir ? 0 : (uint32_t) child_.size();
         r.scanned = false;
-        sd_getName(child_,r.name, MAX_FILENAME_LEN);
+        child_.getName(r.name,MAX_FILENAME_LEN);
+        child_.getCreateDateTime(&r.cpdate, &r.cptime);
+        child_.getModifyDateTime(&r.mpdate, &r.mptime);
+        //
         sibling = AppendIndexRecord(r);
         child_.close();
       }
@@ -272,13 +282,19 @@ void mtp_lock_storage(bool lock) {}
     }
   }
 
-  void MTPStorage_SD::GetObjectInfo(uint32_t handle, char* name, uint32_t* size, uint32_t* parent, uint16_t *store)
+  void MTPStorage_SD::GetObjectInfo(uint32_t handle, char* name, uint32_t* size, uint32_t* parent, uint16_t *store, char *create, char *modify)
   {
     Record r = ReadIndexRecord(handle);
     strcpy(name, r.name);
     *parent = r.parent;
     *size = r.isdir ? 0xFFFFFFFFUL : r.child;
     *store = r.store;
+    snprintf(create,32,"%04u%02u%02uT%02u%02u%02u",
+          FS_YEAR(r.cpdate),FS_MONTH(r.cpdate),FS_DAY(r.cpdate),
+          FS_HOUR(r.cptime),FS_MINUTE(r.cptime),FS_SECOND(r.cptime));
+    snprintf(modify,32,"%04u%02u%02uT%02u%02u%02u",
+          FS_YEAR(r.mpdate),FS_MONTH(r.mpdate),FS_DAY(r.mpdate),
+          FS_HOUR(r.mptime),FS_MINUTE(r.mptime),FS_SECOND(r.mptime));
   }
 
   uint32_t MTPStorage_SD::GetSize(uint32_t handle) 
@@ -290,7 +306,7 @@ void mtp_lock_storage(bool lock) {}
   {
     OpenFileByIndex(handle);
     mtp_lock_storage(true);
-    file_.seek(pos);
+    file_.seekSet(pos);
     file_.read(out,bytes);
     mtp_lock_storage(false);
   }
@@ -298,12 +314,14 @@ void mtp_lock_storage(bool lock) {}
 void MTPStorage_SD::removeFile(uint32_t store, char *file)
 { 
   char tname[MAX_FILENAME_LEN];
-  File f1=sd_open(store,file,0);
+  char fname[MAX_FILENAME_LEN];
+  FsFile f1=sd_open(store,file,0);
   if(f1.isDirectory())
   {
-    File f2;
+    FsFile f2;
     while(f2=f1.openNextFile())
-    { sprintf(tname,"%s/%s",file,f2.name());
+    { f2.getName(fname,MAX_FILENAME_LEN);
+      snprintf(tname,MAX_FILENAME_LEN,"%s/%s",file,fname);
       if(f2.isDirectory()) removeFile(store,tname); else sd_remove(store,tname);
     }
     sd_rmdir(store,file);
@@ -365,6 +383,10 @@ void MTPStorage_SD::removeFile(uint32_t store, char *file)
     r.child = 0;
     r.sibling = p.child;
     r.isdir = folder;
+    r.cpdate = 0;
+    r.cptime = 0;
+    r.mpdate = 0;
+    r.mptime = 0;
     // New folder is empty, scanned = true.
     r.scanned = 1;
     ret = p.child = AppendIndexRecord(r);
@@ -403,12 +425,19 @@ void MTPStorage_SD::removeFile(uint32_t store, char *file)
   {
     mtp_lock_storage(true);
     uint32_t size = (uint32_t) file_.size();
+    uint16_t cpdate,cptime,mpdate,mptime;
+    file_.getCreateDateTime(&cpdate,&cptime);
+    file_.getCreateDateTime(&mpdate,&mptime);
     file_.close();
     mtp_lock_storage(false);
     //
     // update record with file size
     Record r = ReadIndexRecord(open_file_);
     r.child = size;
+    r.cpdate=cpdate;
+    r.cptime=cptime;
+    r.mpdate=mpdate;
+    r.mptime=mptime;
     WriteIndexRecord(open_file_, r);
     open_file_ = 0xFFFFFFFEUL;
   }
@@ -657,9 +686,11 @@ bool mSD_Base::sd_copy(uint32_t store0, char *oldfilename, uint32_t store1, char
     Serial.print("To   "); Serial.print(store1); Serial.print(": ");Serial.println(newfilename);
   #endif
 
-  File f1 = sd_open(store0,oldfilename,FILE_READ); if(!f1) {DBG_FAIL_MACRO; return false;}
-  File f2 = sd_open(store1,newfilename,FILE_WRITE_BEGIN);
-  if(!f2) { f1.close(); {DBG_FAIL_MACRO; return false;}}
+  FsFile f1 = sd_open(store0,oldfilename,FILE_READ); 
+  if(!f1.isOpen()) {DBG_FAIL_MACRO; return false;}
+
+  FsFile f2 = sd_open(store1,newfilename,FILE_WRITE_BEGIN);
+  if(!f2.isOpen()) { f1.close(); {DBG_FAIL_MACRO; return false;}}
 
   while(f1.available()>0)
   {
@@ -683,8 +714,8 @@ bool mSD_Base::sd_moveDir(uint32_t store0, char *oldfilename, uint32_t store1, c
 
   if(!sd_mkdir(store1,newfilename))  {DBG_FAIL_MACRO; return false;}
 
-  File f1=sd_open(store0,oldfilename,FILE_READ);
-  if(!f1) {DBG_FAIL_MACRO; return false;}
+  FsFile f1=sd_open(store0,oldfilename,FILE_READ);
+  if(!f1.isOpen()) {DBG_FAIL_MACRO; return false;}
   { while(1)
     {
       strlcpy(tmp0Name,oldfilename,MAX_FILENAME_LEN);
@@ -693,11 +724,14 @@ bool mSD_Base::sd_moveDir(uint32_t store0, char *oldfilename, uint32_t store1, c
       strlcpy(tmp1Name,newfilename,MAX_FILENAME_LEN);
       if(tmp1Name[strlen(tmp1Name)-1]!='/') strlcat(tmp1Name,"/",MAX_FILENAME_LEN);
 
-      File f2=f1.openNextFile();
-      if(!f2) break;
+      FsFile f2=f1.openNextFile();
+      if(!f2.isOpen()) break;
       { // generate filenames
-        strlcat(tmp0Name,f2.name(),MAX_FILENAME_LEN);
-        strlcat(tmp1Name,f2.name(),MAX_FILENAME_LEN);
+        f2.getName(tmp0Name,MAX_FILENAME_LEN);
+        f2.getName(tmp1Name,MAX_FILENAME_LEN);
+
+        //strlcat(tmp0Name,f2.name(),MAX_FILENAME_LEN);
+        //strlcat(tmp1Name,f2.name(),MAX_FILENAME_LEN);
 
         if(f2.isDirectory())
         { 
@@ -713,3 +747,4 @@ bool mSD_Base::sd_moveDir(uint32_t store0, char *oldfilename, uint32_t store1, c
   }
   return sd_rmdir(store0,oldfilename);
 }
+#endif

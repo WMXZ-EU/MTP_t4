@@ -24,69 +24,80 @@
 // modified for SDFS by WMXZ
 // Nov 2020 adapted to SdFat-beta / SD combo
 // 19-nov-2020 adapted to FS
+// Feb 2024 use only SdFat (removed SD)
 
 #ifndef Storage_H
 #define Storage_H
-
-#include "core_pins.h"
-
-#include "FS.h"
-#ifndef FILE_WRITE_BEGIN
-  #define FILE_WRITE_BEGIN 2
-#endif
-
 
 #define MTPD_MAX_FILESYSTEMS  20
 #ifndef MAX_FILENAME_LEN
   #define MAX_FILENAME_LEN 256
 #endif
 
-class mSD_Base
-{
-  public:
-    mSD_Base() {
-      fsCount = 0;
-    }
+  #include "core_pins.h"
+  #include "SdFat.h"
+//
+  //#define FILE_READ  O_READ
+	//#define FILE_WRITE  (O_RDWR | O_CREAT | O_AT_END)
+	#define FILE_WRITE_BEGIN (O_RDWR | O_CREAT)
 
-    void sd_addFilesystem(FS &fs, const char *name) {
-      if (fsCount < MTPD_MAX_FILESYSTEMS) {
-        sd_name[fsCount] = name;
-        sdx[fsCount++] = &fs;
+//  typedef SdFs FS;
+//  typedef FsFile File;
+
+  class mSD_Base
+  {
+    public:
+      mSD_Base() {
+        fsCount = 0;
       }
-    }
 
-    uint32_t sd_getStoreID( const char *name)
-    {
-      for(int ii=0; ii<fsCount;ii++) if(!strcmp(name,sd_name[ii])) return ii;
-      return 0xFFFFFFFFUL;
-    }
+      void sd_addFilesystem(SdFs &fs, const char *name) {
+        if (fsCount < MTPD_MAX_FILESYSTEMS) {
+          sd_name[fsCount] = name;
+          sdx[fsCount++] = &fs;
+        }
+      }
 
-    uint32_t sd_getFSCount(void) {return fsCount;}
-    const char *sd_getFSName(uint32_t store) { return sd_name[store];}
+      uint32_t sd_getStoreID( const char *name)
+      {
+        for(int ii=0; ii<fsCount;ii++) if(!strcmp(name,sd_name[ii])) return ii;
+        return 0xFFFFFFFFUL;
+      }
 
-    File sd_open(uint32_t store, const char *filename, uint32_t mode) { return sdx[store]->open(filename,mode);  }
-    bool sd_mkdir(uint32_t store, char *filename) {  return sdx[store]->mkdir(filename);  }
-    bool sd_rename(uint32_t store, char *oldfilename, char *newfilename) { return sdx[store]->rename(oldfilename,newfilename);  }
-    bool sd_remove(uint32_t store, const char *filename) {    Serial.println(filename); return sdx[store]->remove(filename);  }
-    bool sd_rmdir(uint32_t store, char *filename) { return sdx[store]->rmdir(filename);  }
+      uint32_t sd_getFSCount(void) {return fsCount;}
+      const char *sd_getFSName(uint32_t store) { return sd_name[store];}
 
-    uint64_t sd_totalSize(uint32_t store) { return sdx[store]->totalSize();  }
-    uint64_t sd_usedSize(uint32_t store)  { return sdx[store]->usedSize();  }
+      FsFile sd_open(uint32_t store, const char *filename, uint32_t mode=O_READ) { return sdx[store]->open(filename,mode);  }
+      bool sd_mkdir(uint32_t store, char *filename) { return sdx[store]->mkdir(filename);  }
+      bool sd_rename(uint32_t store, char *oldfilename, char *newfilename) { return sdx[store]->rename(oldfilename,newfilename);  }
+      bool sd_remove(uint32_t store, const char *filename) { Serial.println(filename); return sdx[store]->remove(filename);  }
+      bool sd_rmdir(uint32_t store, char *filename) { return sdx[store]->rmdir(filename);  }
 
-    bool sd_copy(uint32_t store0, char *oldfilename, uint32_t store1, char *newfilename);
-    bool sd_moveDir(uint32_t store0, char *oldfilename, uint32_t store1, char *newfilename);
+      uint64_t sd_usedSize(uint32_t store) 
+      { Serial.println(sdx[store]->clusterCount());
+        Serial.println(sdx[store]->freeClusterCount());
+        return (uint64_t)(sdx[store]->clusterCount()-sdx[store]->freeClusterCount())
+              *(uint64_t)sdx[store]->bytesPerCluster();  
+      }
+      uint64_t sd_totalSize(uint32_t store)  
+      { return (uint64_t)sdx[store]->clusterCount()
+              *(uint64_t)sdx[store]->bytesPerCluster();  
+      }
 
-  private:
-    int fsCount;
-    const char *sd_name[MTPD_MAX_FILESYSTEMS];
-    FS *sdx[MTPD_MAX_FILESYSTEMS];
-};
+      bool sd_copy(uint32_t store0, char *oldfilename, uint32_t store1, char *newfilename);
+      bool sd_moveDir(uint32_t store0, char *oldfilename, uint32_t store1, char *newfilename);
+
+    private:
+      int fsCount;
+      const char *sd_name[MTPD_MAX_FILESYSTEMS];
+      SdFs *sdx[MTPD_MAX_FILESYSTEMS];
+  };
 
 // This interface lets the MTP responder interface any storage.
 // We'll need to give the MTP responder a pointer to one of these.
 class MTPStorageInterface {
 public:
-  virtual void addFilesystem(FS &filesystem, const char *name)=0;
+  virtual void addFilesystem(SdFs &filesystem, const char *name)=0;
   virtual uint32_t get_FSCount(void) = 0;
   virtual const char *get_FSName(uint32_t storage) = 0;
 
@@ -102,7 +113,7 @@ public:
   virtual void StartGetObjectHandles(uint32_t storage, uint32_t parent) = 0;
   virtual uint32_t GetNextObjectHandle(uint32_t  storage) = 0;
 
-  virtual void GetObjectInfo(uint32_t handle, char* name, uint32_t* size, uint32_t* parent, uint16_t *store) = 0;
+  virtual void GetObjectInfo(uint32_t handle, char* name, uint32_t* size, uint32_t* parent, uint16_t *store, char *create, char *modify) = 0;
   virtual uint32_t GetSize(uint32_t handle) = 0;
 
   virtual uint32_t Create(uint32_t storage, uint32_t parent, bool folder, const char* filename) = 0;
@@ -127,6 +138,10 @@ public:
     uint8_t isdir;
     uint8_t scanned;
     uint16_t store;  // index int physical storage (0 ... num_storages-1)
+    uint16_t cpdate;    
+    uint16_t cptime;    
+    uint16_t mpdate;    
+    uint16_t mptime;    
     char name[MAX_FILENAME_LEN];
   };
 
@@ -137,14 +152,14 @@ public:
 class MTPStorage_SD : public MTPStorageInterface, mSD_Base
 { 
 public:
-  void addFilesystem(FS &fs, const char *name) { sd_addFilesystem(fs, name);}
+  void addFilesystem(SdFs &fs, const char *name) { sd_addFilesystem(fs, name);}
   void dumpIndexList(void);
   uint32_t getStoreID(const char *name) {return sd_getStoreID(name);}
 
 private:
-  File index_;
-  File file_;
-  File child_;
+  FsFile index_;
+  FsFile file_;
+  FsFile child_;
 
   int num_storage = 0;
   const char **sd_str = 0;
@@ -185,7 +200,7 @@ private:
 
   void StartGetObjectHandles(uint32_t storage, uint32_t parent) override ;
   uint32_t GetNextObjectHandle(uint32_t  storage) override ;
-  void GetObjectInfo(uint32_t handle, char* name, uint32_t* size, uint32_t* parent, uint16_t *store) override ;
+  void GetObjectInfo(uint32_t handle, char* name, uint32_t* size, uint32_t* parent, uint16_t *store, char *create, char *modify) override ;
   uint32_t GetSize(uint32_t handle) override;
   void read(uint32_t handle, uint32_t pos, char* out, uint32_t bytes) override ;
   bool DeleteObject(uint32_t object) override ;

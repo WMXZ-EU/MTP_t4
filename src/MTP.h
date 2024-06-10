@@ -26,23 +26,37 @@
 #ifndef MTP_H
 #define MTP_H
 
-#if !defined(USB_MTPDISK) && !defined(USB_MTPDISK_SERIAL)
-  #error "You need to select USB Type: 'MTP Disk (Experimental)'"
+#if defined __IMXRT1062__
+  #if !defined(USB_MTPDISK) && !defined(USB_MTPDISK_SERIAL)
+    #error "You need to select USB Type: 'MTP Disk (Experimental)'"
+  #endif
+
+  #include "core_pins.h"
+  #include "usb_dev.h"
+
+  #include "Storage.h"
+  // modify strings if needed (see MTP.cpp how they are used)
+  #define MTP_MANUF "PJRC"
+  #define MTP_MODEL "Teensy"
+  #define MTP_VERS  "1.0"
+  #define MTP_SERNR "1234"
+  #define MTP_NAME  "Teensy"
+
+  #define USE_EVENTS 0
+  #if USE_EVENTS==1
+    extern "C" 	int usb_mtp_sendEvent(const void *buffer, uint32_t len, uint32_t timeout);
+  #endif
+#else
+  #include "Storage.h"
+  // modify strings if needed (see MTP.cpp how they are used)
+  #define MTP_MANUF "WMXZ"
+  #define MTP_MODEL "uPAM"
+  #define MTP_VERS  "1.0"
+  #define MTP_SERNR "1234"
+  #define MTP_NAME  "uPAM"
+
+  #define USE_EVENTS 0
 #endif
-
-#include "core_pins.h"
-#include "usb_dev.h"
-extern "C" 	int usb_mtp_sendEvent(const void *buffer, uint32_t len, uint32_t timeout);
-
-#include "Storage.h"
-// modify strings if needed (see MTP.cpp how they are used)
-#define MTP_MANUF "PJRC"
-#define MTP_MODEL "Teensy"
-#define MTP_VERS  "1.0"
-#define MTP_SERNR "1234"
-#define MTP_NAME  "Teensy"
-
-#define USE_EVENTS 1
 
 // MTP Responder.
 class MTPD {
