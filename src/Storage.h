@@ -34,12 +34,18 @@
   #define MAX_FILENAME_LEN 256
 #endif
 
-  #include "core_pins.h"
-  #include "SdFat.h"
+#include "core_pins.h"
+#include "SdFat.h"
 //
-  //#define FILE_READ  O_READ
-	//#define FILE_WRITE  (O_RDWR | O_CREAT | O_AT_END)
+#ifndef FILE_READ
+  #define FILE_READ  O_READ
+#endif
+#ifndef FILE_WRITE_BEGIN
 	#define FILE_WRITE_BEGIN (O_RDWR | O_CREAT)
+#endif
+#ifndef FILE_WRITE
+  #define FILE_WRITE  (O_RDWR | O_CREAT | O_AT_END)
+#endif
 
 //  typedef SdFs FS;
 //  typedef FsFile File;
