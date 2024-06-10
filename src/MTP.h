@@ -63,6 +63,9 @@ class MTPD {
 public:
 
   explicit MTPD(MTPStorageInterface* storage): storage_(storage) {}
+  int begin(int mode=0);
+  int start_timer();
+  int stop_timer();
 
 private:
   MTPStorageInterface* storage_;
@@ -81,6 +84,9 @@ private:
     uint32_t transaction_id; // 8
     uint32_t params[5];    // 12
   } __attribute__((__may_alias__)) ;
+
+  uint32_t mtp_rx_size_;
+  uint32_t mtp_tx_size_;
 
 #if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MK64FX512__) || defined(__MK66FX1M0__)
   usb_packet_t *data_buffer_ = NULL;
@@ -153,6 +159,11 @@ private:
 
   uint32_t setObjectPropValue(uint32_t p1, uint32_t p2) ;
 
+  static MTPD *g_pmtpd_interval;
+  static void _interval_timer_handler();
+  static IntervalTimer g_intervaltimer;
+  void processIntervalTimer();
+
   uint32_t deleteObject(uint32_t p1) ;
   uint32_t copyObject(uint32_t p1,uint32_t p2, uint32_t p3) ;
   uint32_t moveObject(uint32_t p1,uint32_t p2, uint32_t p3) ;
@@ -160,6 +171,7 @@ private:
 
   uint32_t TID;  
 #if USE_EVENTS==1
+  int usb_init_events(void);
   int send_Event(uint16_t eventCode);
   int send_Event(uint16_t eventCode, uint32_t p1);
   int send_Event(uint16_t eventCode, uint32_t p1, uint32_t p2);

@@ -11,9 +11,9 @@
 #******************************************************************************
 # modified by WMXZ
 
-BOARD_ID         := T32
+#BOARD_ID         := T32
 #BOARD_ID         := T35
-#BOARD_ID         := T36
+BOARD_ID         := T36
 #BOARD_ID         := T40
 #BOARD_ID         := T41
 
