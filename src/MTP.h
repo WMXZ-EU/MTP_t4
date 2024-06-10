@@ -63,9 +63,6 @@ class MTPD {
 public:
 
   explicit MTPD(MTPStorageInterface* storage): storage_(storage) {}
-  int begin(int mode=0);
-  int start_timer();
-  int stop_timer();
 
 private:
   MTPStorageInterface* storage_;

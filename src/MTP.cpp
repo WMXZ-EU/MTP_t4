@@ -242,39 +242,6 @@ const uint16_t supported_events[] =
   };
 */
 
-
-  int MTPD::begin(int mode) 
-  {
-    #if defined(__IMXRT1062__)
-      // get our actual transfer sizes
-      mtp_rx_size_ = MTP_RX_SIZE;
-      mtp_tx_size_ = MTP_TX_SIZE;
-    #endif
-
-    if(mode>0) start_timer();
-    
-    return usb_init_events();
-  }
-
-  int MTPD::start_timer()
-  {
-    g_pmtpd_interval = this;
-    printf("\n*** Start Interval Timer ***\n");
-    g_intervaltimer.begin(&_interval_timer_handler,
-                          50000); // try maybe 20 times per second...
-  return 0;
-  }
-  int MTPD::stop_timer()
-  {
-    if (g_pmtpd_interval) 
-    {
-      g_pmtpd_interval = nullptr; // clear out timer.
-      g_intervaltimer.end(); 
-      printf("\n*** end Interval Timer ***\n");
-    }  
-    return 0;
-  }
-
   void MTPD::write8 (uint8_t  x) { write((char*)&x, sizeof(x)); }
   void MTPD::write16(uint16_t x) { write((char*)&x, sizeof(x)); }
   void MTPD::write32(uint32_t x) { write((char*)&x, sizeof(x)); }
