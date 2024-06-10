@@ -38,14 +38,18 @@
 #include "SdFat.h"
 //
 #ifndef FILE_READ
-  #define FILE_READ  O_READ
+	#undef FILE_READ
 #endif
 #ifndef FILE_WRITE_BEGIN
-	#define FILE_WRITE_BEGIN (O_RDWR | O_CREAT)
+	#undef FILE_WRITE_BEGIN
 #endif
 #ifndef FILE_WRITE
-  #define FILE_WRITE  (O_RDWR | O_CREAT | O_AT_END)
+	#undef FILE_WRITE
 #endif
+
+#define FILE_READ  O_READ
+#define FILE_WRITE  (O_RDWR | O_CREAT | O_AT_END)
+#define FILE_WRITE_BEGIN (O_RDWR | O_CREAT)
 
 //  typedef SdFs FS;
 //  typedef FsFile File;
