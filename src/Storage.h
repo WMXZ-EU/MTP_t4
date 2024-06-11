@@ -37,19 +37,6 @@
 #include "core_pins.h"
 #include "SdFat.h"
 //
-#ifndef FILE_READ
-	#undef FILE_READ
-#endif
-#ifndef FILE_WRITE_BEGIN
-	#undef FILE_WRITE_BEGIN
-#endif
-#ifndef FILE_WRITE
-	#undef FILE_WRITE
-#endif
-
-#define FILE_READ  O_READ
-#define FILE_WRITE  (O_RDWR | O_CREAT | O_AT_END)
-#define FILE_WRITE_BEGIN (O_RDWR | O_CREAT)
 
 //  typedef SdFs FS;
 //  typedef FsFile File;
@@ -202,7 +189,7 @@ private:
   uint32_t AppendIndexRecord(const Record& r) ;
   Record ReadIndexRecord(uint32_t i) ;
   uint16_t ConstructFilename(int i, char* out, int len) ;
-  void OpenFileByIndex(uint32_t i, uint32_t mode = FILE_READ) ;
+  void OpenFileByIndex(uint32_t i, uint32_t mode = O_READ) ;
   void printRecord(int h, Record *p);
 
   uint32_t get_FSCount(void) {return sd_getFSCount();}

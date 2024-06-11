@@ -97,7 +97,7 @@ void mtp_lock_storage(bool lock) {}
     if(index_.isOpen()) return; // only once
     //
     mtp_lock_storage(true);
-    index_=sd_open(0,indexFile, FILE_WRITE_BEGIN);
+    index_=sd_open(0,indexFile, (O_RDWR | O_CREAT));
     if(!index_.isOpen()) { Serial.println(" cannot open Index file"); }
     mtp_lock_storage(false);
   }
@@ -315,7 +315,7 @@ void MTPStorage_SD::removeFile(uint32_t store, char *file)
 { 
   char tname[MAX_FILENAME_LEN];
   char fname[MAX_FILENAME_LEN];
-  FsFile f1=sd_open(store,file,0);
+  FsFile f1=sd_open(store,file,O_READ);
   if(f1.isDirectory())
   {
     FsFile f2;
@@ -401,7 +401,7 @@ void MTPStorage_SD::removeFile(uint32_t store, char *file)
     } 
     else 
     {
-      OpenFileByIndex(ret, FILE_WRITE_BEGIN);
+      OpenFileByIndex(ret, (O_RDWR | O_CREAT));
     }
     #if DEBUG>1
     Serial.print("Create "); 
@@ -686,10 +686,10 @@ bool mSD_Base::sd_copy(uint32_t store0, char *oldfilename, uint32_t store1, char
     Serial.print("To   "); Serial.print(store1); Serial.print(": ");Serial.println(newfilename);
   #endif
 
-  FsFile f1 = sd_open(store0,oldfilename,FILE_READ); 
+  FsFile f1 = sd_open(store0,oldfilename,O_READ); 
   if(!f1.isOpen()) {DBG_FAIL_MACRO; return false;}
 
-  FsFile f2 = sd_open(store1,newfilename,FILE_WRITE_BEGIN);
+  FsFile f2 = sd_open(store1,newfilename,(O_RDWR | O_CREAT));
   if(!f2.isOpen()) { f1.close(); {DBG_FAIL_MACRO; return false;}}
 
   while(f1.available()>0)
@@ -714,7 +714,7 @@ bool mSD_Base::sd_moveDir(uint32_t store0, char *oldfilename, uint32_t store1, c
 
   if(!sd_mkdir(store1,newfilename))  {DBG_FAIL_MACRO; return false;}
 
-  FsFile f1=sd_open(store0,oldfilename,FILE_READ);
+  FsFile f1=sd_open(store0,oldfilename,O_READ);
   if(!f1.isOpen()) {DBG_FAIL_MACRO; return false;}
   { while(1)
     {
