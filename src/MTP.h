@@ -22,6 +22,7 @@
 // SOFTWARE.
 
 // modified for SDFS by WMXZ
+// nov 2024: modified from MTP_Teensy (PJRC) by WMXZ 
 
 #ifndef MTP_H
 #define MTP_H
@@ -167,6 +168,9 @@ private:
   void openSession(uint32_t id) ;
 
   uint32_t TID;  
+
+
+
 #if USE_EVENTS==1
   int usb_init_events(void);
   int send_Event(uint16_t eventCode);
@@ -187,5 +191,103 @@ public:
   int send_DeviceResetEvent(void);
 #endif
 };
+
+#if 0
+class MTPD_class {
+public:
+  void loop(void);
+private:
+  struct MTPHeader {
+    uint32_t len;            // 0
+    uint16_t type;           // 4
+    uint16_t op;             // 6
+    uint32_t transaction_id; // 8
+  };
+
+  struct MTPContainer {
+    uint32_t len;            // 0
+    uint16_t type;           // 4
+    uint16_t op;             // 6
+    uint32_t transaction_id; // 8
+    uint32_t params[5];      // 12
+  };
+
+  typedef struct {
+    uint16_t len;   // number of data bytes
+    uint16_t index; // position in processing data
+    uint16_t size;  // total size of buffer
+    uint8_t *data;  // pointer to the data
+    void *usb;      // packet info (needed on Teensy 3)
+  } packet_buffer_t;
+
+  packet_buffer_t receive_buffer  = {0, 0, 0, NULL, NULL};
+  packet_buffer_t transmit_buffer = {0, 0, 0, NULL, NULL};
+  packet_buffer_t event_buffer    = {0, 0, 0, NULL, NULL};
+
+  static uint32_t sessionID_;
+  uint32_t TID;  
+
+  bool receive_bulk(uint32_t timeout);
+  void free_received_bulk();
+  void allocate_transmit_bulk();
+  int transmit_bulk();
+
+  uint8_t usb_mtp_status;
+
+  bool read(void *ptr, uint32_t size)
+
+  bool read8(uint8_t *n) { return read(n, 1); }
+  bool read16(uint16_t *n) { return read(n, 2); }
+  bool read32(uint32_t *n) { return read(n, 4); }
+
+  
+  void write_init(struct MTPContainer &container, uint32_t data_size);
+  void write_finish();
+  
+  size_t write(const void *ptr, size_t len);
+
+  void write8 (uint8_t  x) { write((char*)&x, sizeof(x)); }
+  void write16(uint16_t x) { write((char*)&x, sizeof(x)); }
+  void write32(uint32_t x) { write((char*)&x, sizeof(x)); }
+  void write64(uint64_t x) { write((char*)&x, sizeof(x)); }
+
+  void writestring(const char* str) 
+  {
+    if (*str) 
+    {   write8(strlen(str) + 1); 
+        while (*str) {  write16(*str);  ++str;  } 
+        write16(0);
+    } else 
+    { write8(0);
+    }
+  }
+
+  uint32_t getDeviceInfo(struct MTPContainer &cmd);
+  uint32_t getDevicePropValue(struct MTPContainer &cmd);
+  uint32_t openSession(struct MTPContainer &cmd) ;
+  uint32_t getStorageIDs(struct MTPContainer &cmd);
+  uint32_t getStorageInfo(struct MTPContainer &cmd);
+  uint32_t getNumObjects(struct MTPContainer &cmd);
+  uint32_t getObjectHandles(struct MTPContainer &cmd);
+  uint32_t getObjectPropsSupported(struct MTPContainer &cmd) ;
+  uint32_t getObjectPropDesc(struct MTPContainer &cmd) ;
+
+  uint32_t getObject(struct MTPContainer &cmd);
+  uint32_t getPartialObject(struct MTPContainer &cmd) ;
+  uint32_t deleteObject(struct MTPContainer &cmd) ;
+  uint32_t moveObject(struct MTPContainer &cmd) ;
+  uint32_t copyObject(struct MTPContainer &cmd) ;
+
+uint32_t formatStore(struct MTPContainer &cmd) ;
+
+uint32_t sendObjectInfo(struct MTPContainer &cmd) ;
+uint32_t sendObject(struct MTPContainer &cmd);
+
+uint32_t setObjectPropValue(struct MTPContainer &cmd);
+
+  MTPStorageInterface* storage_;
+
+};
+#endif //mptd_class
 
 #endif
