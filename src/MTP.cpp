@@ -305,7 +305,7 @@ const uint16_t supported_events[] =
   }
 
   void MTPD::WriteDescriptor() {
-    uint32_t size=0;
+    uint32_t num_bytes=0;
     const char *msoft="microsoft.com: 1.0;";
 
     char buf1[20];    
@@ -318,7 +318,7 @@ const uint16_t supported_events[] =
     for (size_t i=0; i<10; i++) buf2[i] = usb_string_serial_number.wString[i];
     #pragma GCC diagnostic pop
 
-    size=2+4+2+strlen(msoft)+2+ \
+    num_bytes=2+4+2+strlen(msoft)+2+ \
         4+supported_op_num*2+4+supported_event_num*2+ \
         4+2+4+4+2+2+strlen(MTP_MANUF)+strlen(MTP_MODEL)+ \
         strlen(buf1)+strlen(buf2);
@@ -351,22 +351,24 @@ const uint16_t supported_events[] =
     
     writestring(buf1);    
     writestring(buf2);    
+    (void) num_bytes;
   }
 
   void MTPD::WriteStorageIDs() {
     uint32_t num=storage_->get_FSCount();
-    uint32_t size = 0;
-    size= 4+num*4;
+    uint32_t num_bytes = 0;
+    num_bytes= 4+num*4;
 
     write32(num); // number of storages (disks)
     for(uint32_t ii=0;ii<num;ii++)  write32(Store2Storage(ii)); // storage id
+    (void) num_bytes;
   }
 
   void MTPD::GetStorageInfo(uint32_t storage) {
     uint32_t store = Storage2Store(storage);
-    uint32_t size=0;
+    uint32_t num_bytes=0;
     const char *name = storage_->get_FSName(store);
-    size=2+2+2+8+8+4+strlen(name)+strlen("");
+    num_bytes=2+2+2+8+8+4+strlen(name)+strlen("");
 
     write16(storage_->readonly(store) ? 0x0001 : 0x0004);   // storage type (removable RAM)
     write16(storage_->has_directories(store) ? 0x0002: 0x0001);   // filesystem type (generic hierarchical)
@@ -383,6 +385,7 @@ const uint16_t supported_events[] =
     write32(0xFFFFFFFFUL);  // free space (objects)
     writestring(name);  // storage descriptor
     writestring("");  // volume identifier
+    (void) num_bytes;
 
     //printf("%d %d ",storage,store); Serial.println(name); Serial.flush();
   }
@@ -405,12 +408,13 @@ const uint16_t supported_events[] =
     else{
       uint32_t numObjects=GetNumObjects(storage, parent);
       //
-      uint32_t size =0;
-      size=4+numObjects*4;
+      uint32_t num_bytes =0;
+      num_bytes=4+numObjects*4;
       write32(numObjects);
       int handle;
       storage_->StartGetObjectHandles(store, parent);
       while ((handle = storage_->GetNextObjectHandle(store))) write32(handle);
+      (void) num_bytes;
     }
   }
   
@@ -423,12 +427,12 @@ const uint16_t supported_events[] =
     storage_->GetObjectInfo(handle, filename, &filesize, &parent, &store, create, modify);
 
     uint32_t storage = Store2Storage(store);
-    uint32_t size=0;
+    uint32_t num_bytes=0;
 
-    size=4+2+2+4+2+4+4+4+4+4+4+4+2+4+4+ \
+    num_bytes=4+2+2+4+2+4+4+4+4+4+4+4+2+4+4+ \
         strlen(filename)+strlen(create)+strlen(modify)+strlen("");
     write32(storage); // storage
-    write16(size == 0xFFFFFFFFUL ? 0x3001 : 0x0000); // format
+    write16(filesize == 0xFFFFFFFFUL ? 0x3001 : 0x0000); // format
     write16(0);  // protection
     write32(filesize); // size
     write16(0); // thumb format
@@ -439,13 +443,14 @@ const uint16_t supported_events[] =
     write32(0); // pix height
     write32(0); // bit depth
     write32(parent); // parent
-    write16(size == 0xFFFFFFFFUL ? 1 : 0); // association type
+    write16(filesize == 0xFFFFFFFFUL ? 1 : 0); // association type
     write32(0); // association description
     write32(0);  // sequence number
     writestring(filename);
     writestring(create);  // date created
     writestring(modify);  // date modified
     writestring("");  // keywords
+    (void) num_bytes;
   }
 
   uint32_t MTPD::ReadMTPHeader() 
@@ -476,22 +481,23 @@ const uint16_t supported_events[] =
   }
 
   void MTPD::GetDevicePropValue(uint32_t prop) {
-    uint32_t size=0;
+    uint32_t num_bytes=0;
     switch (prop) {
       case 0xd402: // friendly name
         // This is the name we'll actually see in the windows explorer.
         // Should probably be configurable.
-        size=strlen(MTP_NAME);
+        num_bytes=strlen(MTP_NAME);
         writestring(MTP_NAME);
         break;
     }
+    (void) num_bytes;
   }
 
   void MTPD::GetDevicePropDesc(uint32_t prop) {
-    uint32_t size=0;
+    uint32_t num_bytes=0;
     switch (prop) {
       case 0xd402: // friendly name
-        size=2+2+1+2*strlen(MTP_NAME)+1;
+        num_bytes=2+2+1+2*strlen(MTP_NAME)+1;
         write16(prop);
         write16(0xFFFF); // string type
         write8(0);       // read-only
@@ -499,23 +505,25 @@ const uint16_t supported_events[] =
         writestring(MTP_NAME);
         write8(0);       // no form
     }
+    (void) num_bytes;
   }
 
     void MTPD::getObjectPropsSupported(uint32_t p1)
     {
-      uint32_t size=0;
-      size=4+propertyListNum*2;
+      uint32_t num_bytes=0;
+      num_bytes=4+propertyListNum*2;
       write32(propertyListNum);
       for(uint32_t ii=0; ii<propertyListNum;ii++) write16(propertyList[ii]);
+      (void) num_bytes;
     }
 
     void MTPD::getObjectPropDesc(uint32_t p1, uint32_t p2)
     {
-      uint32_t size=0;
+      uint32_t num_bytes=0;
       switch(p1)
       {
         case MTP_PROPERTY_STORAGE_ID:         //0xDC01:
-          size=2+2+1+4+4+1;
+          num_bytes=2+2+1+4+4+1;
           write16(0xDC01);
           write16(0x006);
           write8(0); //get
@@ -524,7 +532,7 @@ const uint16_t supported_events[] =
           write8(0);
           break;
         case MTP_PROPERTY_OBJECT_FORMAT:        //0xDC02:
-          size=2+2+1+2+4+1;
+          num_bytes=2+2+1+2+4+1;
           write16(0xDC02);
           write16(0x004);
           write8(0); //get
@@ -533,7 +541,7 @@ const uint16_t supported_events[] =
           write8(0);
           break;
         case MTP_PROPERTY_PROTECTION_STATUS:    //0xDC03:
-          size=2+2+1+2+4+1;
+          num_bytes=2+2+1+2+4+1;
           write16(0xDC03);
           write16(0x004);
           write8(0); //get
@@ -542,7 +550,7 @@ const uint16_t supported_events[] =
           write8(0);
           break;
         case MTP_PROPERTY_OBJECT_SIZE:        //0xDC04:
-          size=2+2+1+8+4+1;
+          num_bytes=2+2+1+8+4+1;
           write16(0xDC04);
           write16(0x008);
           write8(0); //get
@@ -551,7 +559,7 @@ const uint16_t supported_events[] =
           write8(0);
           break;
         case MTP_PROPERTY_OBJECT_FILE_NAME:   //0xDC07:
-          size=2+2+1+1+4+1;
+          num_bytes=2+2+1+1+4+1;
           write16(0xDC07);
           write16(0xFFFF);
           write8(1); //get/set
@@ -560,7 +568,7 @@ const uint16_t supported_events[] =
           write8(0);
           break;
         case MTP_PROPERTY_DATE_CREATED:       //0xDC08:
-          size=2+2+1+1+4+1;
+          num_bytes=2+2+1+1+4+1;
           write16(0xDC08);
           write16(0xFFFF);
           write8(0); //get
@@ -569,7 +577,7 @@ const uint16_t supported_events[] =
           write8(0);
           break;
         case MTP_PROPERTY_DATE_MODIFIED:      //0xDC09:
-          size=2+2+1+1+4+1;
+          num_bytes=2+2+1+1+4+1;
           write16(0xDC09);
           write16(0xFFFF);
           write8(0); //get
@@ -578,7 +586,7 @@ const uint16_t supported_events[] =
           write8(0);
           break;
         case MTP_PROPERTY_PARENT_OBJECT:    //0xDC0B:
-          size=2+2+1+4+4+1;
+          num_bytes=2+2+1+4+4+1;
           write16(0xDC0B);
           write16(6);
           write8(0); //get
@@ -587,7 +595,7 @@ const uint16_t supported_events[] =
           write8(0);
           break;
         case MTP_PROPERTY_PERSISTENT_UID:   //0xDC41:
-          size=2+2+1+8+8+4+1;
+          num_bytes=2+2+1+8+8+4+1;
           write16(0xDC41);
           write16(0x0A);
           write8(0); //get
@@ -597,7 +605,7 @@ const uint16_t supported_events[] =
           write8(0);
           break;
         case MTP_PROPERTY_NAME:             //0xDC44:
-          size=2+2+1+1+4+1;
+          num_bytes=2+2+1+1+4+1;
           write16(0xDC44);
           write16(0xFFFF);
           write8(0); //get
@@ -606,9 +614,10 @@ const uint16_t supported_events[] =
           write8(0);
           break;
         default:
-          size=0;
+          num_bytes=0;
           break;
       }
+      (void) num_bytes;
     }
 
     void MTPD::getObjectPropValue(uint32_t p1, uint32_t p2)
@@ -623,57 +632,58 @@ const uint16_t supported_events[] =
       dir = (filesize == 0xFFFFFFFFUL);
       uint32_t storage = Store2Storage(store);
       //
-      uint32_t size=0;
+      uint32_t num_bytes=0;
       switch(p2)
       { 
         case MTP_PROPERTY_STORAGE_ID:         //0xDC01:
-          size=4;
+          num_bytes=4;
           write32(storage);
           break;
         case MTP_PROPERTY_OBJECT_FORMAT:      //0xDC02:
-          size=2;
+          num_bytes=2;
           write16(dir?0x3001:0x3000);
           break;
         case MTP_PROPERTY_PROTECTION_STATUS:  //0xDC03:
-          size=2;
+          num_bytes=2;
           write16(0);
           break;
         case MTP_PROPERTY_OBJECT_SIZE:        //0xDC04:
-          size=4+4;
+          num_bytes=4+4;
           write32(filesize);
           write32(0);
           break;
         case MTP_PROPERTY_OBJECT_FILE_NAME:   //0xDC07:
-          size=strlen(name);
+          num_bytes=strlen(name);
           writestring(name);
           break;
         case MTP_PROPERTY_DATE_CREATED:       //0xDC08:
-          size=strlen(create);
+          num_bytes=strlen(create);
           writestring(create);
           break;
         case MTP_PROPERTY_DATE_MODIFIED:      //0xDC09:
-          size=strlen(modify);
+          num_bytes=strlen(modify);
           writestring(modify);
           break;
         case MTP_PROPERTY_PARENT_OBJECT:      //0xDC0B:
-          size=4;
+          num_bytes=4;
           write32((store==parent)? 0: parent);
           break;
         case MTP_PROPERTY_PERSISTENT_UID:     //0xDC41:
-          size=4+4+4+4;
+          num_bytes=4+4+4+4;
           write32(p1);
           write32(parent);
           write32(storage);
           write32(0);
           break;
         case MTP_PROPERTY_NAME:               //0xDC44:
-          size=strlen(name);
+          num_bytes=strlen(name);
           writestring(name);
           break;
         default:
-          size=0;
+          num_bytes=0;
           break;
       }
+      (void) num_bytes;
     }
     
     uint32_t MTPD::deleteObject(uint32_t handle)
@@ -1037,6 +1047,7 @@ const uint16_t supported_events[] =
       }
     }
 
+
     void MTPD::GetObject(uint32_t object_id) 
     {
       uint32_t size = storage_->GetSize(object_id);
@@ -1046,7 +1057,7 @@ const uint16_t supported_events[] =
       } else 
       { 
         uint32_t pos = 0; // into data
-        uint32_t len = sizeof(MTPHeader);
+        uint32_t len = sizeof(MTPHeader); // after header
 
         disk_pos=DISK_BUFFER_SIZE;
         while(pos<size)
@@ -1055,11 +1066,11 @@ const uint16_t supported_events[] =
           {
             uint32_t nread=min(size-pos,(uint32_t)DISK_BUFFER_SIZE);
             storage_->read(object_id,pos,(char *)disk_buffer,nread);
-            disk_pos=0;
+            disk_pos=0; // flag that we read buffer
           }
 
-          uint32_t to_copy = min(size-pos,MTP_TX_SIZE-len);
-          to_copy = min (to_copy, DISK_BUFFER_SIZE-disk_pos);
+          uint32_t to_copy = min(size-pos,MTP_TX_SIZE-len);   // fill up mtx_tx_buffer
+          to_copy = min (to_copy, DISK_BUFFER_SIZE-disk_pos); // but not more than we have in disk buffer
 
           memcpy(tx_data_buffer+len,disk_buffer+disk_pos,to_copy);
           disk_pos += to_copy;
@@ -1072,11 +1083,12 @@ const uint16_t supported_events[] =
           }
         }
         if(len>0)
-        { push_packet(tx_data_buffer,MTP_TX_SIZE);
+        { push_packet(tx_data_buffer,len);
           len=0;
         }
       }
     }
+
     uint32_t MTPD::GetPartialObject(uint32_t object_id, uint32_t offset, uint32_t NumBytes) 
     {
       uint32_t size = storage_->GetSize(object_id);
@@ -1143,6 +1155,7 @@ const uint16_t supported_events[] =
         push_packet(tx_data_buffer,rest);                 \
       }                                                   \
     } while(0)
+  
 
     #define TRANSMIT1(FUN) do {                           \
       write_length_ = 0;                                  \
@@ -1640,13 +1653,13 @@ uint32_t MTPD_class::getDeviceInfo(struct MTPContainer &cmd)
     for (size_t i=0; i<10; i++) buf2[i] = usb_string_serial_number.wString[i];
     #pragma GCC diagnostic pop
 
-    uint32_t size=0;
-    size=2+4+2+strlen(msoft)+2+ \
+    uint32_t num_bytes=0;
+    num_bytes=2+4+2+strlen(msoft)+2+ \
         4+supported_op_num*2+4+supported_event_num*2+ \
         4+2+4+4+2+2+strlen(MTP_MANUF)+strlen(MTP_MODEL)+ \
         strlen(buf1)+strlen(buf2);
 
-    write_init(cmd,size);
+    write_init(cmd,num_bytes);
     write16(100);  // MTP version
     write32(6);    // MTP extension
     write16(100);  // MTP version
@@ -1688,11 +1701,11 @@ uint32_t MTPD_class::getDeviceInfo(struct MTPContainer &cmd)
   void MTPD::getDevicePropDesc(uint32_t prop) 
   {
     const uint32_t property = cmd.params[0];
-    uint32_t size=0;
+    uint32_t num_bytes=0;
     switch (property) {
       case 0xd402: // friendly name
-        size=2+2+1+2*strlen(MTP_NAME)+1;
-        write_init(cmd,size);
+        num_bytes=2+2+1+2*strlen(MTP_NAME)+1;
+        write_init(cmd,num_bytes);
         write16(prop);
         write16(0xFFFF); // string type
         write8(0);       // read-only
@@ -1702,7 +1715,7 @@ uint32_t MTPD_class::getDeviceInfo(struct MTPContainer &cmd)
         write_finish();
         return MTP_RESPONSE_OK;
     }
-    write_init(cmd,size);
+    write_init(cmd,num_bytes);
     return MTP_RESPONSE_DEVICE_PROP_NOT_SUPPORTED;
   }
 
@@ -1724,10 +1737,10 @@ uint32_t MTPD_class::getDeviceInfo(struct MTPContainer &cmd)
   uint32_t MTPD_class::getStorageIDs(struct MTPContainer &cmd)
   {
     uint32_t num=storage_->get_FSCount();
-    uint32_t size = 0;
-    size= 4+num*4;
+    uint32_t num_bytes = 0;
+    num_bytes= 4+num*4;
 
-    write_init(cmd,size);
+    write_init(cmd,num_bytes);
     write32(num); // number of storages (disks)
     for(uint32_t ii=0;ii<num;ii++)  write32(Store2Storage(ii)); // storage id
     write_finish();
@@ -1748,10 +1761,10 @@ uint32_t MTPD_class::getDeviceInfo(struct MTPContainer &cmd)
     uint64_t ntotal = storage_->totalSize(store) ; 
     uint64_t nused = storage_->usedSize(store) ; 
 
-    uint32_t size=0;
-    size=2+2+2+8+8+4+strlen(name)+strlen("");
+    uint32_t num_bytes=0;
+    num_bytes=2+2+2+8+8+4+strlen(name)+strlen("");
 
-    write_init(cmd,size);
+    write_init(cmd,num_bytes);
     write16(storage_->readonly(store) ? 0x0001 : 0x0004);   // storage type (removable RAM)
     write16(storage_->has_directories(store) ? 0x0002: 0x0001);   // filesystem type (generic hierarchical)
     write16(0x0000);   // access capability (read-write)
@@ -1782,11 +1795,11 @@ uint32_t MTPD_class::getDeviceInfo(struct MTPContainer &cmd)
     storage_->GetObjectInfo(handle, filename, &size, &parent, &store, create, modify);
 
     uint32_t storage = Store2Storage(store);
-    uint32_t size=0;
+    uint32_t num_bytes=0;
 
-    size=4+2+2+4+2+4+4+4+4+4+4+4+2+4+4+ \
+    num_bytes=4+2+2+4+2+4+4+4+4+4+4+4+2+4+4+ \
         strlen(filename)+strlen(create)+strlen(modify)+strlen("");
-    write_init(cmd,size);
+    write_init(cmd,num_bytes);
     write32(storage); // storage
     write16(size == 0xFFFFFFFFUL ? 0x3001 : 0x0000); // format
     write16(0);  // protection
@@ -1848,9 +1861,9 @@ uint32_t MTPD_class::getDeviceInfo(struct MTPContainer &cmd)
     int num = 0;
     while (storage_->GetNextObjectHandle(store)) num++;
     //
-    uint32_t size =0;
-    size=4+numObject*4:
-    write_init(cmd,size);
+    uint32_t num_bytes =0;
+    num_bytes=4+numObject*4:
+    write_init(cmd,num_bytes);
     write32(numObjects);
     int handle;
     storage_->StartGetObjectHandles(store, parent);
@@ -1901,12 +1914,12 @@ uint32_t MTPD_class::getDeviceInfo(struct MTPContainer &cmd)
   {
     uint32_t property = cmd.params[0];
 
-    uint32_t size=0;
+    uint32_t num_bytes=0;
     switch(property)
     {
       case MTP_PROPERTY_STORAGE_ID:         //0xDC01:
-        size=2+2+1+4+4+1;
-        write_init(cmd,size);
+        num_bytes=2+2+1+4+4+1;
+        write_init(cmd,num_bytes);
         write16(0xDC01);
         write16(0x006);
         write8(0); //get
@@ -1915,8 +1928,8 @@ uint32_t MTPD_class::getDeviceInfo(struct MTPContainer &cmd)
         write8(0);
         break;
       case MTP_PROPERTY_OBJECT_FORMAT:        //0xDC02:
-        size=2+2+1+2+4+1;
-        write_init(cmd,size);
+        num_bytes=2+2+1+2+4+1;
+        write_init(cmd,num_bytes);
         write16(0xDC02);
         write16(0x004);
         write8(0); //get
@@ -1925,8 +1938,8 @@ uint32_t MTPD_class::getDeviceInfo(struct MTPContainer &cmd)
         write8(0);
         break;
       case MTP_PROPERTY_PROTECTION_STATUS:    //0xDC03:
-        size=2+2+1+2+4+1;
-        write_init(cmd,size);
+        num_bytes=2+2+1+2+4+1;
+        write_init(cmd,num_bytes);
         write16(0xDC03);
         write16(0x004);
         write8(0); //get
@@ -1935,8 +1948,8 @@ uint32_t MTPD_class::getDeviceInfo(struct MTPContainer &cmd)
         write8(0);
         break;
       case MTP_PROPERTY_OBJECT_SIZE:        //0xDC04:
-        size=2+2+1+8+4+1;
-        write_init(cmd,size);
+        num_bytes=2+2+1+8+4+1;
+        write_init(cmd,num_bytes);
         write16(0xDC04);
         write16(0x008);
         write8(0); //get
@@ -1945,8 +1958,8 @@ uint32_t MTPD_class::getDeviceInfo(struct MTPContainer &cmd)
         write8(0);
         break;
       case MTP_PROPERTY_OBJECT_FILE_NAME:   //0xDC07:
-        size=2+2+1+1+4+1;
-        write_init(cmd,size);
+        num_bytes=2+2+1+1+4+1;
+        write_init(cmd,num_bytes);
         write16(0xDC07);
         write16(0xFFFF);
         write8(1); //get/set
@@ -1955,8 +1968,8 @@ uint32_t MTPD_class::getDeviceInfo(struct MTPContainer &cmd)
         write8(0);
         break;
       case MTP_PROPERTY_DATE_CREATED:       //0xDC08:
-        size=2+2+1+1+4+1;
-        write_init(cmd,size);
+        num_bytes=2+2+1+1+4+1;
+        write_init(cmd,num_bytes);
         write16(0xDC08);
         write16(0xFFFF);
         write8(0); //get
@@ -1965,8 +1978,8 @@ uint32_t MTPD_class::getDeviceInfo(struct MTPContainer &cmd)
         write8(0);
         break;
       case MTP_PROPERTY_DATE_MODIFIED:      //0xDC09:
-        size=2+2+1+1+4+1;
-        write_init(cmd,size);
+        num_bytes=2+2+1+1+4+1;
+        write_init(cmd,num_bytes);
         write16(0xDC09);
         write16(0xFFFF);
         write8(0); //get
@@ -1975,8 +1988,8 @@ uint32_t MTPD_class::getDeviceInfo(struct MTPContainer &cmd)
         write8(0);
         break;
       case MTP_PROPERTY_PARENT_OBJECT:    //0xDC0B:
-        size=2+2+1+4+4+1;
-        write_init(cmd,size);
+        num_bytes=2+2+1+4+4+1;
+        write_init(cmd,num_bytes);
         write16(0xDC0B);
         write16(6);
         write8(0); //get
@@ -1985,8 +1998,8 @@ uint32_t MTPD_class::getDeviceInfo(struct MTPContainer &cmd)
         write8(0);
         break;
       case MTP_PROPERTY_PERSISTENT_UID:   //0xDC41:
-        size=2+2+1+8+8+4+1;
-        write_init(cmd,size);
+        num_bytes=2+2+1+8+8+4+1;
+        write_init(cmd,num_bytes);
         write16(0xDC41);
         write16(0x0A);
         write8(0); //get
@@ -1996,8 +2009,8 @@ uint32_t MTPD_class::getDeviceInfo(struct MTPContainer &cmd)
         write8(0);
         break;
       case MTP_PROPERTY_NAME:             //0xDC44:
-        size=2+2+1+1+4+1;
-        write_init(cmd,size);
+        num_bytes=2+2+1+1+4+1;
+        write_init(cmd,num_bytes);
         write16(0xDC44);
         write16(0xFFFF);
         write8(0); //get
@@ -2006,8 +2019,8 @@ uint32_t MTPD_class::getDeviceInfo(struct MTPContainer &cmd)
         write8(0);
         break;
       default:
-        size=0;
-        write_init(cmd,size);
+        num_bytes=0;
+        write_init(cmd,num_bytes);
         break;
     }
     write_finish();
