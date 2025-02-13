@@ -26,6 +26,8 @@
 
 #ifndef MTP_H
 #define MTP_H
+#define MTP_MODE 0
+//#define __IMXRT1062__
 
 #if defined __IMXRT1062__
   #if !defined(USB_MTPDISK) && !defined(USB_MTPDISK_SERIAL)
@@ -59,6 +61,7 @@
   #define USE_EVENTS 0
 #endif
 
+#if MTP_MODE==0
 // MTP Responder.
 class MTPD {
 public:
@@ -191,9 +194,24 @@ public:
 #endif
 };
 
-#if 0
+#elif MTP_MODE==1
 class MTPD_class {
+
+  #define MTP_RX_SIZE MTP_RX_SIZE_480 
+  #define MTP_TX_SIZE MTP_TX_SIZE_480 
+  
+  uint8_t rx_data_buffer[MTP_RX_SIZE] __attribute__ ((aligned(32)));
+  uint8_t tx_data_buffer[MTP_TX_SIZE] __attribute__ ((aligned(32)));
+
+  uint16_t transmit_packet_size_mask = 0x01FF;
+
+  static uint8_t disk_buffer_[DISK_BUFFER_SIZE] __attribute__((aligned(32)));
+
+  static uint32_t sessionID_;
+  
 public:
+  explicit MTPD_class(MTPStorageInterface* storage): storage_(storage) {}
+
   void loop(void);
 private:
   struct MTPHeader {
@@ -223,7 +241,11 @@ private:
   packet_buffer_t transmit_buffer = {0, 0, 0, NULL, NULL};
   packet_buffer_t event_buffer    = {0, 0, 0, NULL, NULL};
 
+  static uint8_t disk_buffer_[DISK_BUFFER_SIZE] __attribute__((aligned(32)));
+
   static uint32_t sessionID_;
+  bool write_transfer_open = false;
+
   uint32_t TID;  
 
   bool receive_bulk(uint32_t timeout);
@@ -233,13 +255,15 @@ private:
 
   uint8_t usb_mtp_status;
 
-  bool read(void *ptr, uint32_t size)
+  bool read_init(struct MTPHeader *header);
+  bool readstring(char *buffer, uint32_t buffer_size);
+  bool readDateTimeString(uint32_t *pdt);
+  bool read(void *ptr, uint32_t size);
 
   bool read8(uint8_t *n) { return read(n, 1); }
   bool read16(uint16_t *n) { return read(n, 2); }
   bool read32(uint32_t *n) { return read(n, 4); }
 
-  
   void write_init(struct MTPContainer &container, uint32_t data_size);
   void write_finish();
   
@@ -250,19 +274,13 @@ private:
   void write32(uint32_t x) { write((char*)&x, sizeof(x)); }
   void write64(uint64_t x) { write((char*)&x, sizeof(x)); }
 
-  void writestring(const char* str) 
-  {
-    if (*str) 
-    {   write8(strlen(str) + 1); 
-        while (*str) {  write16(*str);  ++str;  } 
-        write16(0);
-    } else 
-    { write8(0);
-    }
-  }
+  void writestring(const char* str) ;
+  uint32_t writestringlen(const char *str);
 
   uint32_t getDeviceInfo(struct MTPContainer &cmd);
+  uint32_t getDevicePropDesc(struct MTPContainer &cmd);
   uint32_t getDevicePropValue(struct MTPContainer &cmd);
+
   uint32_t openSession(struct MTPContainer &cmd) ;
   uint32_t getStorageIDs(struct MTPContainer &cmd);
   uint32_t getStorageInfo(struct MTPContainer &cmd);
@@ -270,7 +288,9 @@ private:
   uint32_t getObjectHandles(struct MTPContainer &cmd);
   uint32_t getObjectPropsSupported(struct MTPContainer &cmd) ;
   uint32_t getObjectPropDesc(struct MTPContainer &cmd) ;
+  uint32_t getObjectPropValue(struct MTPContainer &cmd);
 
+  uint32_t getObjectInfo(struct MTPContainer &cmd) ;
   uint32_t getObject(struct MTPContainer &cmd);
   uint32_t getPartialObject(struct MTPContainer &cmd) ;
   uint32_t deleteObject(struct MTPContainer &cmd) ;
@@ -286,7 +306,12 @@ uint32_t setObjectPropValue(struct MTPContainer &cmd);
 
   MTPStorageInterface* storage_;
 
+  uint32_t object_id_ = 0;
+  uint32_t dtCreated_ = 0;
+  uint32_t dtModified_ = 0;
+
+
 };
-#endif //mptd_class
+#endif // MTP_MODE
 
 #endif
