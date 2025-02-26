@@ -23,7 +23,7 @@
 
 // modified for SD by WMXZ
 
-#if defined(USB_MTPDISK) || defined(USB_MTPDISK_SERIAL)
+#if /*1 ||*/ defined(USB_MTPDISK) || defined(USB_MTPDISK_SERIAL)
 
 #include "MTP.h"
 
@@ -1020,6 +1020,70 @@ const uint16_t supported_events[] =
 
 #elif defined(__IMXRT1062__)  
 
+    void MTPD::write_init(uint16_t op, uint32_t transaction_id, uint32_t length)
+    {
+      MTPHeader header;                                   
+      header.len = length_ + sizeof(header);        
+      header.type = 2;                                    
+      header.op = op;                          
+      header.transaction_id = transaction_id; 
+      write_length_ = 0;
+      write((char *)&header, sizeof(header));      
+    }
+
+    void MTPD::write_finish(void)
+    {
+      if(write_length_ > 0)
+      {
+        push_packet(tx_data_buffer,rest);
+      }
+    }
+
+    void MTPD::writeo(const char *data, int len) 
+    { 
+        static uint8_t *dst=0;
+        if(write_length_==0) dst=tx_data_buffer;  // start of buffer 
+        write_length_ += len;
+        
+        const char * src=data;
+        //
+        int pos = 0; // into data
+        while(pos<len)
+        { int avail = tx_data_buffer+MTP_TX_SIZE - dst; 
+          int to_copy = min(len - pos, avail);
+          memcpy(dst,src,to_copy);
+          pos += to_copy;
+          src += to_copy;
+          dst += to_copy;
+          if(dst == tx_data_buffer+MTP_TX_SIZE) //end of buffer
+          { push_packet(tx_data_buffer,MTP_TX_SIZE);
+            dst=tx_data_buffer;
+          }
+        }
+    }
+
+    void MTPD::getObjecto(uint16_t op, uint32_t transaction_id, int32_t object_id)
+    {
+      uint32_t size = storage_->GetSize(object_id);
+      uint32_t offset = 0;
+      uint32_t nread = 0;
+      write_init(op, transacion_id, size);
+      while(offset<size)
+      {
+            nread=min(size-offset,(uint32_t)DISK_BUFFER_SIZE);
+            storage_->read(object_id,offset,(char *)disk_buffer, nread);
+            offset += nread;
+            if(nread==DISK_BUFFER_SIZE)
+            {
+              writeo(disk_buffer,DISK_BUFFER_SIZE);
+            }
+      }
+      if(nread>0)
+        writeo(disk_buffer,nread);
+      write_finish();
+    }
+
+
     void MTPD::write(const char *data, int len) 
     { if (write_get_length_) 
       {
@@ -1048,7 +1112,6 @@ const uint16_t supported_events[] =
         }
       }
     }
-
 
     void MTPD::GetObject(uint32_t object_id) 
     {
@@ -1374,6 +1437,7 @@ const uint16_t supported_events[] =
 
           case 0x1009:  // GetObject
             TRANSMIT(GetObject(p1));
+            //getObject(op,id,p1);
             break;
 
           case 0x100B:  // DeleteObject

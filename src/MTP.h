@@ -27,7 +27,9 @@
 #ifndef MTP_H
 #define MTP_H
 #define MTP_MODE 0
+
 //#define __IMXRT1062__
+//#define USB_MTPDISK
 
 #if defined __IMXRT1062__
   #if !defined(USB_MTPDISK) && !defined(USB_MTPDISK_SERIAL)
@@ -114,7 +116,11 @@ private:
 #endif
 
   bool write_get_length_ = false;
+
   uint32_t write_length_ = 0;
+  void write_init(uint16_t op, uint32_t transaction_id, uint32_t length);
+  void write_finish(void);
+  void writeo(const char *data, int len) ;
   void write(const char *data, int len) ;
 
   void write8 (uint8_t  x) ;
@@ -135,6 +141,7 @@ private:
   
   void GetObjectInfo(uint32_t handle) ;
   void GetObject(uint32_t object_id) ;
+  void getObjecto(int32_t object_id);
   uint32_t GetPartialObject(uint32_t object_id, uint32_t offset, uint32_t NumBytes) ;
   
   void read(char* data, uint32_t size) ;
